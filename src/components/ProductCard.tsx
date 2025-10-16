@@ -1,11 +1,14 @@
+import { Link } from "react-router-dom";
+
 interface ProductCardProps {
   image: string;
   title: string;
+  link?: string;
   onBuyNow?: () => void;
 }
 
-export const ProductCard = ({ image, title }: ProductCardProps) => {
-  return (
+export const ProductCard = ({ image, title, link }: ProductCardProps) => {
+  const CardContent = (
     <div className="group cursor-pointer">
       <div className="overflow-hidden rounded-xl bg-neutral-900/40 border border-neutral-800 transition-all duration-300 ease-out hover:border-neutral-700 hover:shadow-xl hover:shadow-neutral-900/50 hover:-translate-y-1">
         <div className="aspect-square overflow-hidden">
@@ -23,4 +26,10 @@ export const ProductCard = ({ image, title }: ProductCardProps) => {
       </div>
     </div>
   );
+
+  if (link) {
+    return <Link to={link}>{CardContent}</Link>;
+  }
+
+  return CardContent;
 };

@@ -15,7 +15,7 @@ import productCapcut from "@/assets/product-capcut.jpg";
 
 const productData = {
   topup: [
-    { id: 1, title: "Free Fire Diamond 🔥", image: productFreefire },
+    { id: 1, title: "Free Fire Diamond 🔥", image: productFreefire, link: "/product/freefire-diamond" },
     { id: 2, title: "Mobile Legends Diamond", image: productMl },
     { id: 3, title: "TikTok Coins", image: productTiktok },
     { id: 4, title: "Roblox Robux Top-Ups", image: gameRoblox },
@@ -84,6 +84,7 @@ export const ProductTabs = () => {
                 key={product.id}
                 image={product.image}
                 title={product.title}
+                link={product.link}
                 onBuyNow={() => handleBuyNow(product.title)}
               />
             ))}

@@ -10,6 +10,7 @@ import Auth from "./pages/Auth";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import Account from "./pages/Account";
+import FreefireDiamond from "./pages/FreefireDiamond";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -25,6 +26,7 @@ const App = () => (
             <Route path="/" element={<Index />} />
             <Route path="/auth" element={<Auth />} />
             <Route path="/login" element={<Login />} />
+            <Route path="/product/freefire-diamond" element={<FreefireDiamond />} />
             <Route 
               path="/dashboard" 
               element={
