@@ -72,12 +72,10 @@ export const OrderReview = ({
               </div>
             )}
 
-            {formData.zoneId && (
-              <div className="flex justify-between items-center pb-3 border-b border-border">
-                <span className="text-sm text-muted-foreground">Zone ID</span>
-                <span className="text-sm font-mono text-foreground">{formData.zoneId}</span>
-              </div>
-            )}
+            <div className="flex justify-between items-center pb-3 border-b border-border">
+              <span className="text-sm text-muted-foreground">WhatsApp Number</span>
+              <span className="text-sm font-mono text-foreground">{formData.whatsapp}</span>
+            </div>
 
             <div className="flex justify-between items-center pb-3 border-b border-border">
               <span className="text-sm text-muted-foreground">Payment Method</span>

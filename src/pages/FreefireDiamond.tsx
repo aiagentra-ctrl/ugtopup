@@ -24,7 +24,11 @@ const FreefireDiamond = () => {
 
   const handleFormDataChange = (data: UserFormData) => {
     setFormData(data);
-    setIsFormValid(data.uid.length >= 6 && /^\d+$/.test(data.uid));
+    setIsFormValid(
+      data.uid.length >= 6 && 
+      /^\d+$/.test(data.uid) && 
+      data.whatsapp.length >= 10
+    );
   };
 
   const handleReviewOrder = () => {
@@ -40,8 +44,8 @@ const FreefireDiamond = () => {
 
     if (!isFormValid) {
       toast({
-        title: "Invalid UID",
-        description: "Please enter a valid UID (minimum 6 digits)",
+        title: "Invalid Details",
+        description: "Please enter valid UID and WhatsApp number",
         variant: "destructive",
       });
       return;
@@ -84,7 +88,7 @@ const FreefireDiamond = () => {
       currency: selectedPackage.currency,
       uid: formData.uid,
       username: formData.username || "Not provided",
-      zoneId: formData.zoneId || "Not provided",
+      whatsapp: formData.whatsapp,
       paymentMethod: "Credit",
       email: user.email,
       timestamp: new Date().toISOString(),
@@ -127,7 +131,7 @@ const FreefireDiamond = () => {
   const canReviewOrder = isFormValid && selectedPackage !== null;
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background pb-24">
       <ProductHeader />
 
       <main className="container mx-auto px-4 py-8 space-y-8 max-w-6xl animate-fade-in">
@@ -147,21 +151,26 @@ const FreefireDiamond = () => {
           />
         </section>
 
-        {/* Review Order Button - Sticky on Mobile */}
-        <div className="sticky bottom-4 z-40">
+        {/* Continue Button - Fixed Bottom */}
+        <div className="h-20"></div>
+      </main>
+
+      {/* Fixed Bottom Button */}
+      <div className="fixed bottom-0 left-0 right-0 z-50 p-4 bg-background/95 backdrop-blur-lg border-t border-border">
+        <div className="container mx-auto max-w-6xl">
           <Button
             onClick={handleReviewOrder}
             disabled={!canReviewOrder}
-            className="w-full h-14 text-lg font-semibold bg-gradient-to-r from-primary to-secondary hover:opacity-90 glow-border disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full h-14 text-base sm:text-lg font-semibold rounded-xl bg-gradient-to-r from-primary to-secondary hover:opacity-90 hover:shadow-[0_0_30px_rgba(255,0,0,0.4)] active:scale-[0.98] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {!isFormValid
-              ? "Enter UID to Continue"
+              ? "Enter Details to Continue"
               : !selectedPackage
               ? "Select a Package"
-              : "Review Order"}
+              : `Continue - ₹${selectedPackage.price}`}
           </Button>
         </div>
-      </main>
+      </div>
 
       {/* Order Review Modal */}
       <OrderReview

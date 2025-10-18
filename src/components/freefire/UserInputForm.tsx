@@ -9,7 +9,9 @@ const formSchema = z.object({
     .min(6, "UID must be at least 6 digits")
     .regex(/^\d+$/, "UID must contain only numbers"),
   username: z.string().optional(),
-  zoneId: z.string().optional(),
+  whatsapp: z.string()
+    .min(10, "WhatsApp number must be at least 10 digits")
+    .regex(/^[0-9+\s()-]+$/, "Invalid WhatsApp number format"),
 });
 
 export type UserFormData = z.infer<typeof formSchema>;
@@ -25,7 +27,7 @@ export const UserInputForm = ({ onDataChange, initialData }: UserInputFormProps)
     defaultValues: {
       uid: initialData?.uid || "",
       username: initialData?.username || "",
-      zoneId: initialData?.zoneId || "",
+      whatsapp: initialData?.whatsapp || "",
     },
     mode: "onChange",
   });
@@ -44,7 +46,7 @@ export const UserInputForm = ({ onDataChange, initialData }: UserInputFormProps)
 
   return (
     <div className="glass-card rounded-lg p-6 space-y-4">
-      <h2 className="text-2xl font-bold text-foreground">Enter Game Details</h2>
+      <h2 className="text-xl sm:text-2xl font-semibold text-foreground">Enter Game Details</h2>
       
       <Form {...form}>
         <form className="space-y-4">
@@ -93,19 +95,21 @@ export const UserInputForm = ({ onDataChange, initialData }: UserInputFormProps)
 
           <FormField
             control={form.control}
-            name="zoneId"
+            name="whatsapp"
             render={({ field }) => (
               <FormItem>
-                <FormLabel className="text-foreground">
-                  Zone ID <span className="text-muted-foreground text-sm">(Optional)</span>
+                <FormLabel className="text-foreground text-sm font-medium">
+                  WhatsApp Number <span className="text-primary">*</span>
                 </FormLabel>
                 <FormControl>
                   <Input
-                    placeholder="Enter your Zone ID"
+                    placeholder="+91 XXXXX XXXXX"
+                    type="tel"
                     className="bg-input border-border focus:border-primary focus:ring-primary"
                     {...field}
                   />
                 </FormControl>
+                <p className="text-xs text-muted-foreground">For order updates and support</p>
                 <FormMessage />
               </FormItem>
             )}

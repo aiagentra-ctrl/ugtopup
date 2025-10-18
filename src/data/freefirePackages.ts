@@ -1,11 +1,40 @@
 export interface Package {
   id: string;
-  type: 'diamond' | 'subscription' | 'zone' | 'pass';
+  type: 'diamond' | 'subscription' | 'zone' | 'pass' | 'topup' | 'special';
   name: string;
   quantity: number;
   price: number;
   currency: '💵' | '💸';
 }
+
+// New Top-up Packages (Main Diamond Packages)
+export const topUpPackages: Package[] = [
+  { id: 'tu1', type: 'topup', name: '25 Diamonds', quantity: 25, price: 29, currency: '💵' },
+  { id: 'tu2', type: 'topup', name: '50 Diamonds', quantity: 50, price: 48, currency: '💵' },
+  { id: 'tu3', type: 'topup', name: '115 Diamonds', quantity: 115, price: 93, currency: '💵' },
+  { id: 'tu4', type: 'topup', name: '240 Diamonds', quantity: 240, price: 185, currency: '💵' },
+  { id: 'tu5', type: 'topup', name: '355 Diamonds', quantity: 355, price: 267, currency: '💵' },
+  { id: 'tu6', type: 'topup', name: '480 Diamonds', quantity: 480, price: 366, currency: '💵' },
+  { id: 'tu7', type: 'topup', name: '610 Diamonds', quantity: 610, price: 456, currency: '💵' },
+  { id: 'tu8', type: 'topup', name: '725 Diamonds', quantity: 725, price: 562, currency: '💵' },
+  { id: 'tu9', type: 'topup', name: '850 Diamonds', quantity: 850, price: 648, currency: '💵' },
+  { id: 'tu10', type: 'topup', name: '1090 Diamonds', quantity: 1090, price: 832, currency: '💵' },
+  { id: 'tu11', type: 'topup', name: '1240 Diamonds', quantity: 1240, price: 926, currency: '💵' },
+  { id: 'tu12', type: 'topup', name: '1480 Diamonds', quantity: 1480, price: 1123, currency: '💵' },
+  { id: 'tu13', type: 'topup', name: '1595 Diamonds', quantity: 1595, price: 1227, currency: '💵' },
+  { id: 'tu14', type: 'topup', name: '2090 Diamonds', quantity: 2090, price: 1596, currency: '💵' },
+  { id: 'tu15', type: 'topup', name: '2530 Diamonds', quantity: 2530, price: 1834, currency: '💵' },
+  { id: 'tu16', type: 'topup', name: '5060 Diamonds', quantity: 5060, price: 3666, currency: '💵' },
+  { id: 'tu17', type: 'topup', name: '10120 Diamonds', quantity: 10120, price: 7328, currency: '💵' },
+];
+
+// Special Deals
+export const specialDeals: Package[] = [
+  { id: 'sd1', type: 'special', name: 'Weekly', quantity: 1, price: 184, currency: '💵' },
+  { id: 'sd2', type: 'special', name: 'Monthly', quantity: 1, price: 922, currency: '💵' },
+  { id: 'sd3', type: 'special', name: 'Full Level Up', quantity: 1, price: 523, currency: '💵' },
+  { id: 'sd4', type: 'special', name: 'Weekly Lite', quantity: 1, price: 63, currency: '💵' },
+];
 
 export const diamondPackages: Package[] = [
   { id: 'd1', type: 'diamond', name: '25 Diamonds', quantity: 25, price: 29, currency: '💵' },
