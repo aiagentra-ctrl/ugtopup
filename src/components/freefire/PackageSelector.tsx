@@ -28,40 +28,45 @@ export const PackageSelector = ({ selectedPackage, onSelectPackage }: PackageSel
               key={pkg.id}
               onClick={() => onSelectPackage(pkg)}
               className={cn(
-                "relative rounded-xl p-4 min-h-[100px] transition-all duration-200",
-                "bg-card border-2 flex flex-col items-center justify-center gap-2",
-                "hover:border-primary hover:shadow-lg active:scale-95",
+                "relative rounded-xl p-4 min-h-[110px] transition-all duration-300",
+                "bg-card/50 backdrop-blur-sm border-2 flex flex-col items-center justify-center gap-2.5",
+                "hover:border-primary hover:shadow-[0_4px_16px_rgba(255,0,0,0.2)] hover:scale-105",
+                "active:scale-95",
                 selectedPackage?.id === pkg.id
-                  ? "border-primary shadow-[0_0_20px_rgba(255,0,0,0.3)] scale-105"
+                  ? "border-primary shadow-[0_0_24px_rgba(255,0,0,0.4)] scale-105 bg-primary/10 selected-pulse"
                   : "border-border"
               )}
             >
-              {/* Diamond Icon */}
-              <div className="text-2xl">💎</div>
-              
-              {/* Quantity */}
-              <div className="text-center">
-                <p className={cn(
-                  "text-sm sm:text-base font-semibold transition-colors",
-                  selectedPackage?.id === pkg.id ? "text-primary" : "text-foreground"
-                )}>
-                  {pkg.quantity}
-                </p>
-                <p className="text-xs text-muted-foreground">Diamonds</p>
+              {/* Diamond Icon - Larger and Sharper */}
+              <div className="text-3xl filter drop-shadow-[0_2px_4px_rgba(255,255,255,0.3)]">
+                💎
               </div>
               
-              {/* Price */}
+              {/* Quantity - More Prominent */}
+              <div className="text-center">
+                <p className={cn(
+                  "text-lg sm:text-xl font-bold transition-colors leading-none",
+                  selectedPackage?.id === pkg.id ? "text-primary" : "text-foreground"
+                )}>
+                  {pkg.quantity.toLocaleString()}
+                </p>
+                <p className="text-[10px] sm:text-xs text-muted-foreground mt-1 font-medium">
+                  Diamonds
+                </p>
+              </div>
+              
+              {/* Price - Bolder */}
               <p className={cn(
-                "text-sm font-bold transition-colors",
+                "text-base sm:text-lg font-extrabold transition-colors",
                 selectedPackage?.id === pkg.id ? "text-primary" : "text-foreground"
               )}>
                 ₹{pkg.price}
               </p>
 
-              {/* Selected Checkmark */}
+              {/* Selected Checkmark - Enhanced */}
               {selectedPackage?.id === pkg.id && (
-                <div className="absolute -top-2 -right-2 w-6 h-6 bg-primary rounded-full flex items-center justify-center shadow-lg animate-scale-in">
-                  <span className="text-xs text-primary-foreground">✓</span>
+                <div className="absolute -top-2 -right-2 w-7 h-7 bg-primary rounded-full flex items-center justify-center shadow-lg animate-scale-in border-2 border-background">
+                  <span className="text-sm text-primary-foreground font-bold">✓</span>
                 </div>
               )}
             </button>
@@ -82,43 +87,54 @@ export const PackageSelector = ({ selectedPackage, onSelectPackage }: PackageSel
               key={pkg.id}
               onClick={() => onSelectPackage(pkg)}
               className={cn(
-                "flex items-center justify-between p-4 rounded-xl transition-all duration-200",
-                "bg-card border-2 hover:border-primary hover:shadow-lg active:scale-95",
+                "relative flex items-center justify-between p-5 rounded-xl transition-all duration-300",
+                "bg-card/50 backdrop-blur-sm border-2",
+                "hover:border-primary hover:shadow-[0_8px_24px_rgba(255,0,0,0.25)] hover:scale-[1.02]",
+                "active:scale-[0.98]",
                 selectedPackage?.id === pkg.id
-                  ? "border-primary shadow-[0_0_20px_rgba(255,0,0,0.3)]"
-                  : "border-border"
+                  ? "border-primary shadow-[0_0_32px_rgba(255,0,0,0.5)] scale-[1.02] bg-primary/10 selected-pulse"
+                  : "border-border hover:bg-card/80"
               )}
             >
               {/* Left: Deal Name */}
-              <div className="text-left">
+              <div className="text-left flex-1">
                 <p className={cn(
-                  "text-base font-semibold transition-colors",
+                  "text-base sm:text-lg font-bold transition-colors",
                   selectedPackage?.id === pkg.id ? "text-primary" : "text-foreground"
                 )}>
                   {pkg.name}
                 </p>
-                <p className="text-xs text-muted-foreground">Membership</p>
+                <p className="text-xs text-muted-foreground font-medium mt-0.5">
+                  Membership
+                </p>
               </div>
               
               {/* Center: Price */}
               <p className={cn(
-                "text-lg font-bold transition-colors mr-2",
+                "text-xl sm:text-2xl font-extrabold transition-colors mr-3",
                 selectedPackage?.id === pkg.id ? "text-primary" : "text-foreground"
               )}>
                 ₹{pkg.price}
               </p>
               
-              {/* Right: Arrow Icon */}
+              {/* Right: Arrow Icon with Animation */}
               <ChevronRight className={cn(
-                "w-5 h-5 transition-colors",
-                selectedPackage?.id === pkg.id ? "text-primary" : "text-muted-foreground"
+                "w-6 h-6 transition-all duration-300",
+                selectedPackage?.id === pkg.id 
+                  ? "text-primary translate-x-1" 
+                  : "text-muted-foreground"
               )} />
 
-              {/* Selected Checkmark */}
+              {/* Selected Indicator - More Prominent */}
               {selectedPackage?.id === pkg.id && (
-                <div className="absolute -top-2 -right-2 w-6 h-6 bg-primary rounded-full flex items-center justify-center shadow-lg animate-scale-in">
-                  <span className="text-xs text-primary-foreground">✓</span>
-                </div>
+                <>
+                  <div className="absolute -top-2 -right-2 w-7 h-7 bg-primary rounded-full flex items-center justify-center shadow-lg animate-scale-in border-2 border-background z-10">
+                    <span className="text-sm text-primary-foreground font-bold">✓</span>
+                  </div>
+                  
+                  {/* Animated Border Glow */}
+                  <div className="absolute inset-0 rounded-xl border-2 border-primary animate-pulse pointer-events-none" />
+                </>
               )}
             </button>
           ))}

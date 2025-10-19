@@ -10,8 +10,11 @@ const formSchema = z.object({
     .regex(/^\d+$/, "UID must contain only numbers"),
   username: z.string().optional(),
   whatsapp: z.string()
-    .min(10, "WhatsApp number must be at least 10 digits")
-    .regex(/^[0-9+\s()-]+$/, "Invalid WhatsApp number format"),
+    .optional()
+    .refine(
+      (val) => !val || (val.length >= 10 && /^[0-9+\s()-]+$/.test(val)),
+      { message: "Invalid WhatsApp number format" }
+    ),
 });
 
 export type UserFormData = z.infer<typeof formSchema>;
@@ -63,7 +66,7 @@ export const UserInputForm = ({ onDataChange, initialData }: UserInputFormProps)
                     placeholder="Enter your UID"
                     type="text"
                     inputMode="numeric"
-                    className="bg-input border-border focus:border-primary focus:ring-primary"
+                    className="h-12 bg-input border-border focus:border-primary focus:ring-primary rounded-lg px-4 text-base transition-all duration-200 hover:border-primary/50"
                     {...field}
                   />
                 </FormControl>
@@ -83,7 +86,7 @@ export const UserInputForm = ({ onDataChange, initialData }: UserInputFormProps)
                 <FormControl>
                   <Input
                     placeholder="Enter your username"
-                    className="bg-input border-border focus:border-primary focus:ring-primary"
+                    className="h-12 bg-input border-border focus:border-primary focus:ring-primary rounded-lg px-4 text-base transition-all duration-200 hover:border-primary/50"
                     {...field}
                   />
                 </FormControl>
@@ -99,13 +102,13 @@ export const UserInputForm = ({ onDataChange, initialData }: UserInputFormProps)
             render={({ field }) => (
               <FormItem>
                 <FormLabel className="text-foreground text-sm font-medium">
-                  WhatsApp Number <span className="text-primary">*</span>
+                  WhatsApp Number <span className="text-muted-foreground text-sm">(Optional)</span>
                 </FormLabel>
                 <FormControl>
                   <Input
-                    placeholder="+91 XXXXX XXXXX"
+                    placeholder="+977 XXXXX XXXXX"
                     type="tel"
-                    className="bg-input border-border focus:border-primary focus:ring-primary"
+                    className="h-12 bg-input border-border focus:border-primary focus:ring-primary rounded-lg px-4 text-base transition-all duration-200 hover:border-primary/50"
                     {...field}
                   />
                 </FormControl>

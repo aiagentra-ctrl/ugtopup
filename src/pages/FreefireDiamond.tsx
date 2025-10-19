@@ -26,8 +26,8 @@ const FreefireDiamond = () => {
     setFormData(data);
     setIsFormValid(
       data.uid.length >= 6 && 
-      /^\d+$/.test(data.uid) && 
-      data.whatsapp.length >= 10
+      /^\d+$/.test(data.uid)
+      // WhatsApp is now optional, so no check needed
     );
   };
 
@@ -45,7 +45,7 @@ const FreefireDiamond = () => {
     if (!isFormValid) {
       toast({
         title: "Invalid Details",
-        description: "Please enter valid UID and WhatsApp number",
+        description: "Please enter a valid UID",
         variant: "destructive",
       });
       return;
@@ -156,18 +156,30 @@ const FreefireDiamond = () => {
       </main>
 
       {/* Fixed Bottom Button */}
-      <div className="fixed bottom-0 left-0 right-0 z-50 p-4 bg-background/95 backdrop-blur-lg border-t border-border">
+      <div className="fixed bottom-0 left-0 right-0 z-50 p-4 bg-background/98 backdrop-blur-xl border-t border-border shadow-[0_-4px_24px_rgba(0,0,0,0.3)]">
         <div className="container mx-auto max-w-6xl">
           <Button
             onClick={handleReviewOrder}
             disabled={!canReviewOrder}
-            className="w-full h-14 text-base sm:text-lg font-semibold rounded-xl bg-gradient-to-r from-primary to-secondary hover:opacity-90 hover:shadow-[0_0_30px_rgba(255,0,0,0.4)] active:scale-[0.98] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full h-16 text-lg sm:text-xl font-bold rounded-2xl 
+              bg-gradient-to-r from-primary via-red-600 to-secondary 
+              hover:opacity-90 hover:shadow-[0_0_40px_rgba(255,0,0,0.6)] 
+              hover:scale-[1.02] active:scale-[0.98] 
+              transition-all duration-300 
+              disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:scale-100
+              relative overflow-hidden group"
           >
-            {!isFormValid
-              ? "Enter Details to Continue"
-              : !selectedPackage
-              ? "Select a Package"
-              : `Continue - ₹${selectedPackage.price}`}
+            {/* Animated Background Shine */}
+            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent 
+              translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700" />
+            
+            <span className="relative z-10">
+              {!isFormValid
+                ? "Enter Details to Buy"
+                : !selectedPackage
+                ? "Select Package to Buy"
+                : `Buy Now - ₹${selectedPackage.price}`}
+            </span>
           </Button>
         </div>
       </div>

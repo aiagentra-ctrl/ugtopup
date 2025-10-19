@@ -167,6 +167,35 @@ All colors MUST be HSL.
   .animate-scale-in {
     animation: scale-in 0.2s ease-out;
   }
+  
+  /* Premium Card Effects */
+  .glass-premium {
+    background: rgba(255, 255, 255, 0.02);
+    backdrop-filter: blur(12px) saturate(180%);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+  
+  /* Selection Pulse Animation */
+  @keyframes selection-pulse {
+    0%, 100% {
+      box-shadow: 0 0 20px rgba(255, 0, 0, 0.4);
+    }
+    50% {
+      box-shadow: 0 0 32px rgba(255, 0, 0, 0.6);
+    }
+  }
+  
+  .selected-pulse {
+    animation: selection-pulse 2s ease-in-out infinite;
+  }
+  
+  /* Mobile-First Touch Targets */
+  @media (max-width: 640px) {
+    input[type="text"],
+    input[type="tel"] {
+      font-size: 16px !important;
+    }
+  }
 }
 
 @layer base {
