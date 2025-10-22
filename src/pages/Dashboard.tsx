@@ -9,16 +9,16 @@ import { CreditCard, ShoppingBag } from "lucide-react";
 import { toast } from "sonner";
 
 const Dashboard = () => {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
 
-  // Extract username from email if username is not set
-  const username = user?.username || user?.email?.split('@')[0] || 'User';
+  // Extract username from profile or email
+  const username = profile?.username || profile?.full_name || user?.email?.split('@')[0] || 'User';
   const email = user?.email || '';
-  const balance = user?.balance || 0;
-  const orders = user?.orders || 0;
-  const topUps = user?.topUps || 0;
-  const pendingOrders = user?.pendingOrders || 0;
-  const pendingTopUps = user?.pendingTopUps || 0;
+  const balance = profile?.balance || 0;
+  const orders = 0; // Will integrate with real orders later
+  const topUps = 0; // Will integrate with real top-ups later
+  const pendingOrders = 0;
+  const pendingTopUps = 0;
 
   const handleTopUpClick = () => {
     toast.info("Top-up feature coming soon!", {

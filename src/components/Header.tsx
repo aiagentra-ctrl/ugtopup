@@ -22,17 +22,27 @@ export const Header = () => {
             </div>
           </Link>
 
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
             {isAuthenticated ? (
               <AccountDropdown />
             ) : (
-              <Link to="/login">
-                <Button 
-                  className="bg-gradient-to-r from-red-500 to-rose-400 hover:from-red-600 hover:to-rose-500 text-white font-medium rounded-lg transition-all duration-300 hover:scale-[1.02] hover:shadow-lg hover:shadow-red-500/30"
-                >
-                  Login
-                </Button>
-              </Link>
+              <>
+                <Link to="/login">
+                  <Button 
+                    className="neon-button h-10 px-6 font-medium"
+                  >
+                    Login
+                  </Button>
+                </Link>
+                <Link to="/signup">
+                  <Button 
+                    variant="outline"
+                    className="h-10 px-6 border-primary/30 text-primary hover:bg-primary/10 hover:border-primary/50 font-medium"
+                  >
+                    Sign Up
+                  </Button>
+                </Link>
+              </>
             )}
           </div>
         </div>

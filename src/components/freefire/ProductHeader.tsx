@@ -5,7 +5,7 @@ import { ChevronLeft } from "lucide-react";
 import ffLogo from "@/assets/ff-logo.jpg";
 
 export const ProductHeader = () => {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -38,7 +38,7 @@ export const ProductHeader = () => {
             {user && (
               <div className="hidden sm:flex items-center gap-2 px-4 py-2 rounded-lg bg-card border border-border">
                 <span className="text-sm text-muted-foreground">Credits:</span>
-                <span className="text-lg font-bold text-primary">{user.balance || 0}💵</span>
+                <span className="text-lg font-bold text-primary">{profile?.balance || 0}💵</span>
               </div>
             )}
             <AccountDropdown />

@@ -18,7 +18,7 @@ const FreefireDiamond = () => {
   const [orderId, setOrderId] = useState("");
   const [isFormValid, setIsFormValid] = useState(false);
 
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -76,10 +76,10 @@ const FreefireDiamond = () => {
   };
 
   const handleConfirmPurchase = () => {
-    if (!user || !selectedPackage || !formData) return;
-
+    if (!user || !selectedPackage || !formData || !profile) return;
+    
     // Check sufficient balance
-    if ((user.balance || 0) < selectedPackage.price) {
+    if (profile.balance < selectedPackage.price) {
       toast({
         title: "Insufficient Credits",
         description: "Please add credits to your account",
@@ -108,14 +108,6 @@ const FreefireDiamond = () => {
     // Store order in localStorage (temporary - will integrate with backend later)
     const existingOrders = JSON.parse(localStorage.getItem('orders') || '[]');
     localStorage.setItem('orders', JSON.stringify([...existingOrders, order]));
-
-    // Deduct credits from user balance
-    const updatedUser = {
-      ...user,
-      balance: (user.balance || 0) - selectedPackage.price,
-      orders: (user.orders || 0) + 1,
-    };
-    localStorage.setItem('tempUser', JSON.stringify(updatedUser));
 
     // Update user context (trigger re-render)
     window.dispatchEvent(new Event('storage'));

@@ -4,14 +4,15 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ArrowLeft, Mail, Lock, Loader2 } from "lucide-react";
+import { ArrowLeft, Mail, Lock, User, Loader2 } from "lucide-react";
 
-const Login = () => {
+const Signup = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [username, setUsername] = useState("");
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
-  const { login, loginWithGoogle, isAuthenticated } = useAuth();
+  const { signup, loginWithGoogle, isAuthenticated } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -24,7 +25,7 @@ const Login = () => {
     e.preventDefault();
     setLoading(true);
     
-    const { error } = await login(email, password);
+    const { error } = await signup(email, password, username);
     
     if (!error) {
       navigate("/dashboard");
@@ -33,7 +34,7 @@ const Login = () => {
     setLoading(false);
   };
 
-  const handleGoogleLogin = async () => {
+  const handleGoogleSignup = async () => {
     setGoogleLoading(true);
     await loginWithGoogle();
     setGoogleLoading(false);
@@ -54,12 +55,27 @@ const Login = () => {
 
           {/* Header */}
           <div className="text-center mb-8">
-            <h1 className="text-4xl font-bold neon-text mb-2">Welcome Back</h1>
-            <p className="text-muted-foreground text-sm">Sign in to your account to continue</p>
+            <h1 className="text-4xl font-bold neon-text mb-2">Create Account</h1>
+            <p className="text-muted-foreground text-sm">Join us and start your journey today</p>
           </div>
 
-          {/* Login Form */}
-          <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Signup Form */}
+          <form onSubmit={handleSubmit} className="space-y-5">
+            <div className="space-y-2">
+              <Label htmlFor="username" className="text-sm text-foreground/80">Username</Label>
+              <div className="relative">
+                <User className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-primary/50" />
+                <Input
+                  id="username"
+                  type="text"
+                  placeholder="johndoe"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  className="neon-input pl-11 h-12 bg-white/5 border-primary/20 text-white placeholder:text-white/30"
+                />
+              </div>
+            </div>
+
             <div className="space-y-2">
               <Label htmlFor="email" className="text-sm text-foreground/80">Email Address</Label>
               <div className="relative">
@@ -87,9 +103,11 @@ const Login = () => {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
+                  minLength={6}
                   className="neon-input pl-11 h-12 bg-white/5 border-primary/20 text-white placeholder:text-white/30"
                 />
               </div>
+              <p className="text-xs text-muted-foreground">Must be at least 6 characters</p>
             </div>
 
             <Button 
@@ -100,10 +118,10 @@ const Login = () => {
               {loading ? (
                 <>
                   <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                  Signing in...
+                  Creating account...
                 </>
               ) : (
-                'Login'
+                'Sign Up'
               )}
             </Button>
           </form>
@@ -118,11 +136,11 @@ const Login = () => {
             </div>
           </div>
 
-          {/* Google Login Button */}
+          {/* Google Signup Button */}
           <Button
             type="button"
             variant="outline"
-            onClick={handleGoogleLogin}
+            onClick={handleGoogleSignup}
             disabled={googleLoading}
             className="w-full h-12 bg-white/5 border-white/10 hover:bg-white/10 hover:border-primary/30 transition-all"
           >
@@ -156,12 +174,12 @@ const Login = () => {
             )}
           </Button>
 
-          {/* Sign Up Link */}
+          {/* Login Link */}
           <div className="mt-8 text-center">
             <p className="text-sm text-muted-foreground">
-              Don't have an account?{" "}
-              <Link to="/signup" className="text-primary hover:text-primary/80 font-medium transition-colors">
-                Sign up
+              Already have an account?{" "}
+              <Link to="/login" className="text-primary hover:text-primary/80 font-medium transition-colors">
+                Login
               </Link>
             </p>
           </div>
@@ -171,4 +189,4 @@ const Login = () => {
   );
 };
 
-export default Login;
+export default Signup;

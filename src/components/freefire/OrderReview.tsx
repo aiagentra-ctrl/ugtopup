@@ -29,7 +29,7 @@ export const OrderReview = ({
   formData,
   orderId,
 }: OrderReviewProps) => {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
 
   if (!selectedPackage || !formData) return null;
 
@@ -115,24 +115,24 @@ export const OrderReview = ({
 
               <div className="flex justify-between items-center text-sm bg-background/50 p-3 rounded-lg">
                 <span className="text-[#B0B0B0]">Current Balance</span>
-                <span className="font-bold text-white">₹{user?.balance || 0}</span>
+                <span className="font-bold text-white">₹{profile?.balance || 0}</span>
               </div>
 
               <div className="flex justify-between items-center text-sm bg-background/50 p-3 rounded-lg">
                 <span className="text-[#B0B0B0]">After Purchase</span>
                 <span className={
-                  (user?.balance || 0) - selectedPackage.price >= 0 
+                  (profile?.balance || 0) - selectedPackage.price >= 0 
                     ? "font-bold text-dashboard-green-bright" 
                     : "font-bold text-destructive"
                 }>
-                  ₹{(user?.balance || 0) - selectedPackage.price}
+                  ₹{(profile?.balance || 0) - selectedPackage.price}
                 </span>
               </div>
             </div>
           </div>
 
           {/* Insufficient Credits Warning */}
-          {(user?.balance || 0) < selectedPackage.price && (
+          {(profile?.balance || 0) < selectedPackage.price && (
             <div className="p-4 rounded-xl bg-destructive/10 border-2 border-destructive/30 animate-pulse">
               <p className="text-sm font-semibold text-destructive flex items-center gap-2">
                 <span className="text-xl">⚠️</span>
@@ -148,7 +148,7 @@ export const OrderReview = ({
           </AlertDialogCancel>
           <AlertDialogAction
             onClick={onConfirm}
-            disabled={(user?.balance || 0) < selectedPackage.price}
+            disabled={(profile?.balance || 0) < selectedPackage.price}
             className="bg-gradient-to-r from-primary to-secondary hover:opacity-90 
               disabled:opacity-40 font-bold px-8 py-3 h-12 rounded-xl
               shadow-[0_0_20px_rgba(255,0,0,0.4)]"
