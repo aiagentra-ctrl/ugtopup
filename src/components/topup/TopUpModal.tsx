@@ -51,6 +51,16 @@ export const TopUpModal = ({ open, onOpenChange, onSuccess }: TopUpModalProps) =
     toast.success("QR code downloaded");
   };
 
+  // Convert file to base64
+  const fileToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = (error) => reject(error);
+    });
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -79,34 +89,22 @@ export const TopUpModal = ({ open, onOpenChange, onSuccess }: TopUpModalProps) =
     setLoading(true);
 
     try {
-      // Upload screenshot to storage
-      const fileExt = screenshot.name.split('.').pop();
-      const fileName = `${user.id}/${Date.now()}.${fileExt}`;
-      
-      const { error: uploadError } = await supabase.storage
-        .from('payment-screenshots')
-        .upload(fileName, screenshot);
+      // Convert screenshot to base64
+      const screenshotBase64 = await fileToBase64(screenshot);
 
-      if (uploadError) {
-        toast.error("Failed to upload screenshot. Please try again.");
-        throw uploadError;
-      }
-
-      // Get public URL
-      const { data: { publicUrl } } = supabase.storage
-        .from('payment-screenshots')
-        .getPublicUrl(fileName);
-
-      // Prepare webhook payload
+      // Prepare webhook payload with base64 image
       const requestId = generateRequestId();
       const webhookPayload = {
         request_id: requestId,
         user_id: user.id,
         user_name: profile.full_name || profile.username || 'User',
-        user_email: profile.email,
+        user_email: user.email || profile.email,
         amount: amountNum,
         credits: amountNum, // 1:1 ratio
-        screenshot_url: publicUrl,
+        screenshot_base64: screenshotBase64,
+        screenshot_filename: screenshot.name,
+        screenshot_type: screenshot.type,
+        screenshot_size: screenshot.size,
         remarks: remarks || '',
         timestamp: new Date().toISOString(),
         status: 'pending',
@@ -114,7 +112,7 @@ export const TopUpModal = ({ open, onOpenChange, onSuccess }: TopUpModalProps) =
         avatar_url: profile.avatar_url || '',
       };
 
-      // Save to localStorage immediately
+      // Save to localStorage immediately (store filename for reference)
       saveCreditRequest({
         id: requestId,
         user_id: user.id,
@@ -123,12 +121,12 @@ export const TopUpModal = ({ open, onOpenChange, onSuccess }: TopUpModalProps) =
         amount: amountNum,
         credits: amountNum,
         status: 'pending',
-        screenshot_url: publicUrl,
+        screenshot_url: `${screenshot.name} (uploaded)`,
         created_at: new Date().toISOString(),
         remarks: remarks || undefined,
       });
 
-      // Send to webhook
+      // Send directly to webhook
       const webhookUrl = 'https://n8n.aiagentra.com/webhook/payment-pending';
       const webhookResponse = await fetch(webhookUrl, {
         method: 'POST',
@@ -139,9 +137,13 @@ export const TopUpModal = ({ open, onOpenChange, onSuccess }: TopUpModalProps) =
       });
 
       if (!webhookResponse.ok) {
-        console.warn('Webhook returned non-OK status:', webhookResponse.status);
-        // We still continue since it's saved locally
+        const errorText = await webhookResponse.text();
+        console.error('Webhook error:', webhookResponse.status, errorText);
+        throw new Error('Failed to submit request to webhook');
       }
+
+      const webhookResult = await webhookResponse.json();
+      console.log('Webhook response:', webhookResult);
 
       toast.success("Credit request submitted successfully! Status: Pending");
       
@@ -155,7 +157,14 @@ export const TopUpModal = ({ open, onOpenChange, onSuccess }: TopUpModalProps) =
       onSuccess?.();
     } catch (error: any) {
       console.error('Submit error:', error);
-      toast.error(error.message || "Failed to submit credit request");
+      
+      if (error.message.includes('webhook')) {
+        toast.error("Failed to connect to payment system. Please try again.");
+      } else if (error.message.includes('FileReader') || error.message.includes('base64')) {
+        toast.error("Failed to process screenshot. Please try another image.");
+      } else {
+        toast.error(error.message || "Failed to submit credit request. Please try again.");
+      }
     } finally {
       setLoading(false);
     }
