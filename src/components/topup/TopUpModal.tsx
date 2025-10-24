@@ -51,16 +51,6 @@ export const TopUpModal = ({ open, onOpenChange, onSuccess }: TopUpModalProps) =
     toast.success("QR code downloaded");
   };
 
-  // Convert file to base64
-  const fileToBase64 = (file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.readAsDataURL(file);
-      reader.onload = () => resolve(reader.result as string);
-      reader.onerror = (error) => reject(error);
-    });
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -89,35 +79,33 @@ export const TopUpModal = ({ open, onOpenChange, onSuccess }: TopUpModalProps) =
     setLoading(true);
 
     try {
-      // Convert screenshot to base64
-      const screenshotBase64 = await fileToBase64(screenshot);
-
-      // Prepare webhook payload with base64 image
       const requestId = generateRequestId();
-      const webhookPayload = {
-        request_id: requestId,
-        user_id: user.id,
-        user_name: profile.full_name || profile.username || 'User',
-        user_email: user.email || profile.email,
-        amount: amountNum,
-        credits: amountNum, // 1:1 ratio
-        screenshot_base64: screenshotBase64,
-        screenshot_filename: screenshot.name,
-        screenshot_type: screenshot.type,
-        screenshot_size: screenshot.size,
-        remarks: remarks || '',
-        timestamp: new Date().toISOString(),
-        status: 'pending',
-        username: profile.username || '',
-        avatar_url: profile.avatar_url || '',
-      };
+      
+      // Create FormData for multipart/form-data
+      const formData = new FormData();
+      
+      // Add user details as form fields
+      formData.append('request_id', requestId);
+      formData.append('user_id', user.id);
+      formData.append('user_name', profile.full_name || profile.username || 'User');
+      formData.append('user_email', user.email || profile.email);
+      formData.append('amount', amountNum.toString());
+      formData.append('credits', amountNum.toString());
+      formData.append('remarks', remarks || '');
+      formData.append('timestamp', new Date().toISOString());
+      formData.append('status', 'pending');
+      formData.append('username', profile.username || '');
+      formData.append('avatar_url', profile.avatar_url || '');
+      
+      // Add the image file as binary data with metadata
+      formData.append('screenshot', screenshot, screenshot.name);
 
       // Save to localStorage immediately (store filename for reference)
       saveCreditRequest({
         id: requestId,
         user_id: user.id,
-        user_name: webhookPayload.user_name,
-        user_email: webhookPayload.user_email,
+        user_name: profile.full_name || profile.username || 'User',
+        user_email: user.email || profile.email,
         amount: amountNum,
         credits: amountNum,
         status: 'pending',
@@ -126,14 +114,12 @@ export const TopUpModal = ({ open, onOpenChange, onSuccess }: TopUpModalProps) =
         remarks: remarks || undefined,
       });
 
-      // Send directly to webhook
+      // Send to webhook with multipart/form-data
       const webhookUrl = 'https://n8n.aiagentra.com/webhook/payment-pending';
       const webhookResponse = await fetch(webhookUrl, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(webhookPayload),
+        body: formData,
+        // DO NOT set Content-Type - browser adds multipart boundary automatically
       });
 
       if (!webhookResponse.ok) {
@@ -160,8 +146,8 @@ export const TopUpModal = ({ open, onOpenChange, onSuccess }: TopUpModalProps) =
       
       if (error.message.includes('webhook')) {
         toast.error("Failed to connect to payment system. Please try again.");
-      } else if (error.message.includes('FileReader') || error.message.includes('base64')) {
-        toast.error("Failed to process screenshot. Please try another image.");
+      } else if (error.name === 'TypeError' && error.message.includes('Failed to fetch')) {
+        toast.error("Network error. Please check your connection.");
       } else {
         toast.error(error.message || "Failed to submit credit request. Please try again.");
       }
