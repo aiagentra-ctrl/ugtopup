@@ -12,6 +12,7 @@ import Signup from "./pages/Signup";
 import Dashboard from "./pages/Dashboard";
 import Account from "./pages/Account";
 import FreefireDiamond from "./pages/FreefireDiamond";
+import TikTokCoins from "./pages/TikTokCoins";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -29,7 +30,8 @@ const App = () => (
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<Signup />} />
             <Route path="/product/freefire-diamond" element={<FreefireDiamond />} />
-            <Route 
+            <Route path="/product/tiktok-coins" element={<TikTokCoins />} />
+            <Route
               path="/dashboard" 
               element={
                 <ProtectedRoute>
