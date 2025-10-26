@@ -17,7 +17,7 @@ const productData = {
   topup: [
     { id: 1, title: "Free Fire Diamond 🔥", image: productFreefire, link: "/product/freefire-diamond" },
     { id: 2, title: "Mobile Legends Diamond", image: productMl },
-    { id: 3, title: "TikTok Coins", image: productTiktok },
+    { id: 3, title: "TikTok Coins", image: productTiktok, link: "/product/tiktok-coins" },
     { id: 4, title: "Roblox Robux Top-Ups", image: gameRoblox },
   ],
   voucher: [
