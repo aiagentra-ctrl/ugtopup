@@ -12,7 +12,7 @@ export const TikTokPackageSelector = ({ selectedPackage, onSelectPackage }: TikT
     <Card className="glass-card border-border/50">
       <CardHeader>
         <CardTitle className="text-2xl flex items-center gap-3">
-          <span className="w-8 h-8 rounded-lg bg-gradient-to-r from-[#FE2C55] to-[#25F4EE] text-white flex items-center justify-center font-bold text-lg">
+          <span className="w-8 h-8 rounded-lg bg-primary text-white flex items-center justify-center font-bold text-lg">
             2
           </span>
           Top-Up Amount
@@ -32,15 +32,15 @@ export const TikTokPackageSelector = ({ selectedPackage, onSelectPackage }: TikT
                 "bg-card border-2 hover:bg-card/80",
                 "flex flex-col items-center justify-center gap-2",
                 selectedPackage?.id === pkg.id
-                  ? "border-[#FE2C55] shadow-[0_0_24px_rgba(254,44,85,0.4)] scale-105"
-                  : "border-border hover:border-[#FE2C55]/50"
+                  ? "border-primary shadow-[0_0_24px_rgba(255,0,0,0.4)] scale-105"
+                  : "border-border hover:border-primary/50"
               )}
             >
               <div className="text-4xl mb-1">🪙</div>
               <div className="text-center">
                 <p className={cn(
                   "font-bold text-base transition-colors",
-                  selectedPackage?.id === pkg.id ? "text-[#FE2C55]" : "text-foreground"
+                  selectedPackage?.id === pkg.id ? "text-primary" : "text-foreground"
                 )}>
                   {pkg.quantity.toLocaleString()}
                 </p>
@@ -48,13 +48,13 @@ export const TikTokPackageSelector = ({ selectedPackage, onSelectPackage }: TikT
               </div>
               <div className={cn(
                 "text-lg font-bold transition-colors mt-1",
-                selectedPackage?.id === pkg.id ? "text-[#FE2C55]" : "text-foreground"
+                selectedPackage?.id === pkg.id ? "text-primary" : "text-foreground"
               )}>
                 {pkg.currency}{pkg.price.toLocaleString()}
               </div>
               
               {selectedPackage?.id === pkg.id && (
-                <div className="absolute -top-2 -right-2 w-7 h-7 bg-gradient-to-r from-[#FE2C55] to-[#25F4EE] rounded-full flex items-center justify-center shadow-lg">
+                <div className="absolute -top-2 -right-2 w-7 h-7 bg-primary rounded-full flex items-center justify-center shadow-lg">
                   <span className="text-white text-sm font-bold">✓</span>
                 </div>
               )}

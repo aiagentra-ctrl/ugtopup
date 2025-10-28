@@ -2,6 +2,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { AccountDropdown } from "@/components/AccountDropdown";
 import { Link } from "react-router-dom";
 import { ChevronLeft } from "lucide-react";
+import tiktokLogo from "@/assets/tiktok-logo.png";
 
 export const TikTokProductHeader = () => {
   const { user, profile } = useAuth();
@@ -19,8 +20,12 @@ export const TikTokProductHeader = () => {
               <span className="text-sm">Back</span>
             </Link>
             <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-lg overflow-hidden bg-gradient-to-br from-[#FE2C55] to-[#25F4EE] flex items-center justify-center">
-                <span className="text-3xl">🎵</span>
+              <div className="w-12 h-12 rounded-lg overflow-hidden">
+                <img 
+                  src={tiktokLogo} 
+                  alt="TikTok Coins" 
+                  className="w-full h-full object-cover"
+                />
               </div>
               <div>
                 <h1 className="text-xl font-bold text-foreground">TikTok Coins</h1>

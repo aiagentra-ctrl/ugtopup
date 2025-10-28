@@ -152,8 +152,8 @@ const TikTokCoins = () => {
             onClick={handleReviewOrder}
             disabled={!canReviewOrder}
             className="w-full h-16 text-lg sm:text-xl font-bold rounded-2xl 
-              bg-gradient-to-r from-[#FE2C55] via-[#FF5D7A] to-[#25F4EE] 
-              hover:opacity-90 hover:shadow-[0_0_40px_rgba(254,44,85,0.6)] 
+              bg-gradient-to-r from-primary via-red-600 to-secondary 
+              hover:opacity-90 hover:shadow-[0_0_40px_rgba(255,0,0,0.6)] 
               hover:scale-[1.02] active:scale-[0.98] 
               transition-all duration-300 
               disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:scale-100
