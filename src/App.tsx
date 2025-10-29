@@ -15,6 +15,9 @@ import FreefireDiamond from "./pages/FreefireDiamond";
 import TikTokCoins from "./pages/TikTokCoins";
 import UnipinUC from "./pages/UnipinUC";
 import SmileCoin from "./pages/SmileCoin";
+import ChatGPT from "./pages/ChatGPT";
+import YouTube from "./pages/YouTube";
+import Netflix from "./pages/Netflix";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -35,6 +38,9 @@ const App = () => (
             <Route path="/product/tiktok-coins" element={<TikTokCoins />} />
             <Route path="/product/unipin-uc" element={<UnipinUC />} />
             <Route path="/product/smile-coin" element={<SmileCoin />} />
+            <Route path="/product/chatgpt-plus" element={<ChatGPT />} />
+            <Route path="/product/youtube-premium" element={<YouTube />} />
+            <Route path="/product/netflix" element={<Netflix />} />
             <Route
               path="/dashboard" 
               element={

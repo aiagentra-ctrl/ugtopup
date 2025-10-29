@@ -26,9 +26,9 @@ const productData = {
     { id: 3, title: "1000 SMILE COIN", image: productSmile, link: "/product/smile-coin" },
   ],
   subscription: [
-    { id: 1, title: "Netflix Subscription", image: productNetflix },
-    { id: 2, title: "YouTube Premium", image: productYoutube },
-    { id: 3, title: "CapCut Pro", image: productCapcut },
+    { id: 1, title: "ChatGPT Plus", image: productCapcut, link: "/product/chatgpt-plus" },
+    { id: 2, title: "YouTube Premium", image: productYoutube, link: "/product/youtube-premium" },
+    { id: 3, title: "Netflix Subscription", image: productNetflix, link: "/product/netflix" },
   ],
   design: [
     { id: 1, title: "Logo Designs", image: "https://images.unsplash.com/photo-1626785774625-ddcddc3445e9?w=400&h=400&fit=crop" },
@@ -112,6 +112,7 @@ export const ProductTabs = () => {
                 key={product.id}
                 image={product.image}
                 title={product.title}
+                link={product.link}
                 onBuyNow={() => handleBuyNow(product.title)}
               />
             ))}
