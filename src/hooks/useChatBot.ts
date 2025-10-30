@@ -127,6 +127,11 @@ export const useChatBot = () => {
         source: 'UGC-Topup Website'
       };
 
+      console.log('📤 Sending message to webhook:', {
+        url: WEBHOOK_URL,
+        payload: payload
+      });
+
       // Send to webhook with timeout
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), WEBHOOK_TIMEOUT);
@@ -142,12 +147,28 @@ export const useChatBot = () => {
 
       clearTimeout(timeoutId);
 
+      console.log('📥 Webhook response status:', response.status);
+
       if (!response.ok) {
-        throw new Error(`Webhook returned ${response.status}`);
+        const errorText = await response.text().catch(() => 'No error details');
+        console.error('❌ Webhook error response:', errorText);
+        throw new Error(`Webhook returned ${response.status}: ${errorText}`);
       }
 
-      const data = await response.json();
-      const botResponseText = data.message || data.response || 'Thank you for your message. Our team will assist you shortly.';
+      const responseText = await response.text();
+      console.log('📥 Raw webhook response:', responseText);
+
+      let data;
+      try {
+        data = JSON.parse(responseText);
+      } catch (e) {
+        console.error('❌ Failed to parse JSON response:', e);
+        throw new Error('Invalid response format from webhook');
+      }
+
+      const botResponseText = data.message || data.response || data.reply || data.answer || 'Thank you for your message. Our team will assist you shortly.';
+
+      console.log('✅ Bot response:', botResponseText);
 
       // Add bot response
       const botMessage: ChatMessage = {
@@ -164,14 +185,30 @@ export const useChatBot = () => {
       }));
 
     } catch (error: any) {
-      console.error('Chat error:', error);
+      console.error('❌ Chat error details:', {
+        name: error.name,
+        message: error.message,
+        stack: error.stack
+      });
 
       let errorMessage = 'Something went wrong. Please try again.';
       
       if (error.name === 'AbortError') {
-        errorMessage = 'Response is taking longer than expected. Please try again.';
-      } else if (error.message.includes('fetch')) {
-        errorMessage = "Sorry, I'm having trouble connecting. Please check your internet and try again.";
+        errorMessage = 'Response timeout. The service is taking too long to respond. Please try again.';
+      } else if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
+        errorMessage = "Connection blocked. This might be a CORS issue. Please contact support.";
+      } else if (error.message.includes('Invalid response format')) {
+        errorMessage = "Service error. The response format was invalid. Please try again.";
+      } else if (error.message.includes('Webhook returned')) {
+        const statusMatch = error.message.match(/Webhook returned (\d+)/);
+        const status = statusMatch ? statusMatch[1] : 'unknown';
+        if (status === '404') {
+          errorMessage = "Service not found. The chatbot service may be temporarily unavailable.";
+        } else if (status === '500' || status === '502' || status === '503') {
+          errorMessage = "Service temporarily unavailable. Please try again in a moment.";
+        } else {
+          errorMessage = `Service error (${status}). Please try again or contact support.`;
+        }
       }
 
       const errorBotMessage: ChatMessage = {

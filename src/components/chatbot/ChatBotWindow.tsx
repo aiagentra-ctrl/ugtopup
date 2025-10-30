@@ -51,20 +51,28 @@ export const ChatBotWindow = ({
     <div
       className={cn(
         "fixed bottom-20 right-5 md:bottom-24 md:right-6 z-40",
-        "w-[calc(100vw-2.5rem)] h-[calc(100vh-140px)] md:w-[400px] md:h-[600px]",
-        "bg-black/95 backdrop-blur-xl rounded-2xl shadow-2xl",
-        "border border-white/10",
+        "w-[calc(100vw-2rem)] max-h-[80vh] md:w-[400px] md:h-[600px]",
+        "rounded-2xl shadow-2xl",
+        "border border-white/20",
         "chat-window-enter",
         "flex flex-col overflow-hidden"
       )}
       style={{
-        boxShadow: "0 8px 40px rgba(255, 20, 147, 0.4), 0 0 80px rgba(255, 20, 147, 0.2)"
+        background: "rgba(20, 20, 20, 0.95)",
+        backdropFilter: "blur(6px)",
+        boxShadow: "0 8px 40px rgba(231, 29, 54, 0.3), 0 0 80px rgba(231, 29, 54, 0.15)"
       }}
       role="dialog"
       aria-label="Chat support window"
     >
       {/* Header */}
-      <div className="neon-button p-4 flex items-center gap-3 border-b border-white/10 flex-shrink-0">
+      <div 
+        className="p-4 flex items-center gap-3 border-b-2 flex-shrink-0"
+        style={{
+          background: "#1a1a1a",
+          borderBottomColor: "rgba(231, 29, 54, 0.3)"
+        }}
+      >
         <img
           src="/logo.jpg"
           alt="UGC-Topup"
@@ -75,7 +83,7 @@ export const ChatBotWindow = ({
         </h3>
         <button
           onClick={onClose}
-          className="text-white/80 hover:text-white transition-colors p-1"
+          className="text-white/80 hover:text-white transition-colors p-1 hover:bg-white/10 rounded-lg"
           aria-label="Close chat"
         >
           <X className="w-5 h-5" />
@@ -84,9 +92,9 @@ export const ChatBotWindow = ({
 
       {/* Messages Area */}
       <div
-        className="flex-1 overflow-y-auto p-4 space-y-2 chat-scrollbar"
+        className="flex-1 overflow-y-auto p-4 md:p-5 space-y-3 chat-scrollbar"
         style={{
-          background: "linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(255,20,147,0.05) 100%)"
+          background: "transparent"
         }}
         aria-live="polite"
       >
@@ -97,13 +105,37 @@ export const ChatBotWindow = ({
         {/* Typing Indicator */}
         {isLoading && (
           <div className="flex justify-start mb-4">
-            <div className="bg-white/8 backdrop-blur-sm border border-white/10 px-4 py-3 rounded-2xl rounded-bl-md">
+            <div 
+              className="backdrop-blur-sm border px-4 py-3 rounded-2xl rounded-bl-md"
+              style={{
+                background: "#2a2a2a",
+                borderColor: "rgba(255, 255, 255, 0.1)"
+              }}
+            >
               <div className="flex items-center gap-1">
                 <span className="text-gray-400 text-sm mr-2">Typing</span>
                 <div className="flex gap-1">
-                  <span className="w-2 h-2 bg-primary rounded-full animate-typing-dot" style={{ animationDelay: '0ms' }} />
-                  <span className="w-2 h-2 bg-primary rounded-full animate-typing-dot" style={{ animationDelay: '150ms' }} />
-                  <span className="w-2 h-2 bg-primary rounded-full animate-typing-dot" style={{ animationDelay: '300ms' }} />
+                  <span 
+                    className="w-2 h-2 rounded-full animate-typing-dot" 
+                    style={{ 
+                      backgroundColor: "#E71D36",
+                      animationDelay: '0ms' 
+                    }} 
+                  />
+                  <span 
+                    className="w-2 h-2 rounded-full animate-typing-dot" 
+                    style={{ 
+                      backgroundColor: "#E71D36",
+                      animationDelay: '150ms' 
+                    }} 
+                  />
+                  <span 
+                    className="w-2 h-2 rounded-full animate-typing-dot" 
+                    style={{ 
+                      backgroundColor: "#E71D36",
+                      animationDelay: '300ms' 
+                    }} 
+                  />
                 </div>
               </div>
             </div>
@@ -114,7 +146,13 @@ export const ChatBotWindow = ({
       </div>
 
       {/* Input Area */}
-      <div className="p-4 bg-white/5 border-t border-white/10 flex-shrink-0">
+      <div 
+        className="p-4 border-t-2 flex-shrink-0"
+        style={{
+          background: "#1a1a1a",
+          borderTopColor: "rgba(255, 255, 255, 0.1)"
+        }}
+      >
         <div className="flex gap-2 items-center">
           <input
             ref={inputRef}
@@ -125,23 +163,35 @@ export const ChatBotWindow = ({
             placeholder="Type your message..."
             className={cn(
               "flex-1 px-4 py-3 rounded-xl",
-              "bg-white/8 backdrop-blur-sm border border-white/15",
-              "text-white placeholder:text-gray-400",
-              "focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20",
+              "backdrop-blur-sm border-2",
+              "text-white placeholder:text-gray-500",
+              "focus:outline-none focus:ring-2 focus:ring-primary/20",
               "text-sm md:text-base transition-all"
             )}
+            style={{ 
+              background: "#2a2a2a",
+              borderColor: "rgba(255, 255, 255, 0.15)",
+              fontSize: window.innerWidth < 640 ? '16px' : undefined
+            }}
             disabled={isLoading}
-            style={{ fontSize: window.innerWidth < 640 ? '16px' : undefined }}
           />
           <button
             onClick={handleSend}
             disabled={!inputValue.trim() || isLoading}
             className={cn(
               "w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0",
-              "neon-button transition-all duration-300",
-              "disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:transform-none",
-              "hover:scale-105 active:scale-95"
+              "transition-all duration-300 shadow-lg",
+              "disabled:opacity-40 disabled:cursor-not-allowed",
+              "hover:scale-105 active:scale-95 hover:shadow-xl"
             )}
+            style={{
+              background: !inputValue.trim() || isLoading 
+                ? "#666" 
+                : "linear-gradient(to right, #E71D36, #FF004D)",
+              boxShadow: !inputValue.trim() || isLoading 
+                ? "none" 
+                : "0 4px 20px rgba(231, 29, 54, 0.4)"
+            }}
             aria-label="Send message"
           >
             <Send className="w-5 h-5 text-white" />
