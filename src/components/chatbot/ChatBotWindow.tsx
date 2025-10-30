@@ -1,23 +1,28 @@
 import { useState, KeyboardEvent, useRef, useEffect } from "react";
-import { Send, X } from "lucide-react";
+import { Send, Smile, Paperclip } from "lucide-react";
 import { ChatMessage } from "./ChatMessage";
+import { ChatHeader } from "./ChatHeader";
 import { ChatMessage as ChatMessageType } from "@/hooks/useChatBot";
 import { cn } from "@/lib/utils";
 
 interface ChatBotWindowProps {
   isOpen: boolean;
+  isMinimized: boolean;
   messages: ChatMessageType[];
   isLoading: boolean;
   onClose: () => void;
+  onMinimize: () => void;
   onSendMessage: (content: string) => void;
   messagesEndRef: React.RefObject<HTMLDivElement>;
 }
 
 export const ChatBotWindow = ({
   isOpen,
+  isMinimized,
   messages,
   isLoading,
   onClose,
+  onMinimize,
   onSendMessage,
   messagesEndRef
 }: ChatBotWindowProps) => {
@@ -26,10 +31,10 @@ export const ChatBotWindow = ({
 
   // Focus input when chat opens
   useEffect(() => {
-    if (isOpen && inputRef.current) {
+    if (isOpen && !isMinimized && inputRef.current) {
       setTimeout(() => inputRef.current?.focus(), 100);
     }
-  }, [isOpen]);
+  }, [isOpen, isMinimized]);
 
   const handleSend = () => {
     if (inputValue.trim() && !isLoading) {
@@ -45,94 +50,83 @@ export const ChatBotWindow = ({
     }
   };
 
-  if (!isOpen) return null;
+  const handleQuickReply = (reply: string) => {
+    if (!isLoading) {
+      onSendMessage(reply);
+    }
+  };
+
+  if (!isOpen || isMinimized) return null;
 
   return (
     <div
       className={cn(
-        "fixed bottom-20 right-5 md:bottom-24 md:right-6 z-40",
-        "w-[calc(100vw-2rem)] max-h-[80vh] md:w-[400px] md:h-[600px]",
-        "rounded-2xl shadow-2xl",
-        "border border-white/20",
+        "fixed bottom-0 right-0 z-[9999]",
+        "w-full h-[90vh] md:w-[420px] md:h-[650px]",
+        "md:bottom-6 md:right-6",
+        "rounded-t-2xl md:rounded-2xl shadow-2xl",
+        "border",
         "chat-window-enter",
         "flex flex-col overflow-hidden"
       )}
       style={{
-        background: "rgba(20, 20, 20, 0.95)",
-        backdropFilter: "blur(6px)",
-        boxShadow: "0 8px 40px rgba(231, 29, 54, 0.3), 0 0 80px rgba(231, 29, 54, 0.15)"
+        background: "#ffffff",
+        borderColor: "#e5e7eb",
+        boxShadow: "0 8px 32px rgba(0, 0, 0, 0.12)"
       }}
       role="dialog"
       aria-label="Chat support window"
     >
       {/* Header */}
-      <div 
-        className="p-4 flex items-center gap-3 border-b-2 flex-shrink-0"
-        style={{
-          background: "#1a1a1a",
-          borderBottomColor: "rgba(231, 29, 54, 0.3)"
-        }}
-      >
-        <img
-          src="/logo.jpg"
-          alt="UGC-Topup"
-          className="w-8 h-8 rounded-lg object-cover"
-        />
-        <h3 className="text-white font-semibold text-base md:text-lg flex-1">
-          UGC-Topup Chat Support 💬
-        </h3>
-        <button
-          onClick={onClose}
-          className="text-white/80 hover:text-white transition-colors p-1 hover:bg-white/10 rounded-lg"
-          aria-label="Close chat"
-        >
-          <X className="w-5 h-5" />
-        </button>
-      </div>
+      <ChatHeader onMinimize={onMinimize} onClose={onClose} />
 
       {/* Messages Area */}
       <div
-        className="flex-1 overflow-y-auto p-4 md:p-5 space-y-3 chat-scrollbar"
+        className="flex-1 overflow-y-auto p-5 chat-scrollbar"
         style={{
-          background: "transparent"
+          background: "#ffffff"
         }}
         aria-live="polite"
       >
         {messages.map((message) => (
-          <ChatMessage key={message.id} message={message} />
+          <ChatMessage 
+            key={message.id} 
+            message={message} 
+            onQuickReply={handleQuickReply}
+            isLoading={isLoading}
+          />
         ))}
         
         {/* Typing Indicator */}
         {isLoading && (
           <div className="flex justify-start mb-4">
             <div 
-              className="backdrop-blur-sm border px-4 py-3 rounded-2xl rounded-bl-md"
+              className="px-4 py-3 rounded-2xl rounded-bl-md"
               style={{
-                background: "#2a2a2a",
-                borderColor: "rgba(255, 255, 255, 0.1)"
+                background: "#f3f4f6"
               }}
             >
               <div className="flex items-center gap-1">
-                <span className="text-gray-400 text-sm mr-2">Typing</span>
+                <span className="text-[#6b7280] text-sm mr-2">Typing</span>
                 <div className="flex gap-1">
                   <span 
                     className="w-2 h-2 rounded-full animate-typing-dot" 
                     style={{ 
-                      backgroundColor: "#E71D36",
+                      backgroundColor: "#9ca3af",
                       animationDelay: '0ms' 
                     }} 
                   />
                   <span 
                     className="w-2 h-2 rounded-full animate-typing-dot" 
                     style={{ 
-                      backgroundColor: "#E71D36",
+                      backgroundColor: "#9ca3af",
                       animationDelay: '150ms' 
                     }} 
                   />
                   <span 
                     className="w-2 h-2 rounded-full animate-typing-dot" 
                     style={{ 
-                      backgroundColor: "#E71D36",
+                      backgroundColor: "#9ca3af",
                       animationDelay: '300ms' 
                     }} 
                   />
@@ -147,31 +141,44 @@ export const ChatBotWindow = ({
 
       {/* Input Area */}
       <div 
-        className="p-4 border-t-2 flex-shrink-0"
+        className="p-4 border-t flex-shrink-0"
         style={{
-          background: "#1a1a1a",
-          borderTopColor: "rgba(255, 255, 255, 0.1)"
+          background: "#f9fafb",
+          borderTopColor: "#e5e7eb"
         }}
       >
         <div className="flex gap-2 items-center">
+          <button
+            className="w-11 h-11 flex items-center justify-center rounded-full transition-colors hover:bg-white flex-shrink-0"
+            aria-label="Add emoji"
+            style={{ color: "#6b7280" }}
+          >
+            <Smile className="w-5 h-5" />
+          </button>
+          <button
+            className="w-11 h-11 flex items-center justify-center rounded-full transition-colors hover:bg-white flex-shrink-0"
+            aria-label="Attach file"
+            style={{ color: "#6b7280" }}
+          >
+            <Paperclip className="w-5 h-5" />
+          </button>
           <input
             ref={inputRef}
             type="text"
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Type your message..."
+            placeholder="Enter your message..."
             className={cn(
-              "flex-1 px-4 py-3 rounded-xl",
-              "backdrop-blur-sm border-2",
-              "text-white placeholder:text-gray-500",
-              "focus:outline-none focus:ring-2 focus:ring-primary/20",
-              "text-sm md:text-base transition-all"
+              "flex-1 px-4 py-2.5 rounded-full border text-[#111827]",
+              "placeholder:text-[#9ca3af]",
+              "focus:outline-none focus:border-[#1e3a5f]",
+              "text-sm transition-all"
             )}
             style={{ 
-              background: "#2a2a2a",
-              borderColor: "rgba(255, 255, 255, 0.15)",
-              fontSize: window.innerWidth < 640 ? '16px' : undefined
+              background: "#ffffff",
+              borderColor: "#e5e7eb",
+              fontSize: window.innerWidth < 640 ? '16px' : '14px'
             }}
             disabled={isLoading}
           />
@@ -179,18 +186,18 @@ export const ChatBotWindow = ({
             onClick={handleSend}
             disabled={!inputValue.trim() || isLoading}
             className={cn(
-              "w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0",
-              "transition-all duration-300 shadow-lg",
+              "w-11 h-11 rounded-full flex items-center justify-center flex-shrink-0",
+              "transition-all duration-200",
               "disabled:opacity-40 disabled:cursor-not-allowed",
-              "hover:scale-105 active:scale-95 hover:shadow-xl"
+              "hover:scale-105 active:scale-95"
             )}
             style={{
               background: !inputValue.trim() || isLoading 
-                ? "#666" 
-                : "linear-gradient(to right, #E71D36, #FF004D)",
+                ? "#d1d5db" 
+                : "#1e3a5f",
               boxShadow: !inputValue.trim() || isLoading 
                 ? "none" 
-                : "0 4px 20px rgba(231, 29, 54, 0.4)"
+                : "0 2px 8px rgba(30, 58, 95, 0.2)"
             }}
             aria-label="Send message"
           >

@@ -5,18 +5,31 @@ export interface ChatMessage {
   content: string;
   sender: 'user' | 'bot';
   timestamp: Date;
+  quickReplies?: string[];
 }
 
 interface ChatState {
   messages: ChatMessage[];
   isOpen: boolean;
+  isMinimized: boolean;
   isLoading: boolean;
   sessionId: string;
+  conversationId: string;
 }
 
 const STORAGE_KEY = 'ugc-chat-session';
+const MINIMIZED_KEY = 'ugc-chat-minimized';
 const WEBHOOK_URL = 'https://n8n.aiagentra.com/webhook/chatbot';
 const WEBHOOK_TIMEOUT = 30000; // 30 seconds
+
+// Generate UUID for conversation
+const generateUUID = (): string => {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = Math.random() * 16 | 0;
+    const v = c === 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+};
 
 // Generate unique session ID
 const generateSessionId = (): string => {
@@ -55,25 +68,37 @@ export const useChatBot = () => {
   const [state, setState] = useState<ChatState>({
     messages: [],
     isOpen: false,
+    isMinimized: false,
     isLoading: false,
-    sessionId: ''
+    sessionId: '',
+    conversationId: ''
   });
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const hasShownWelcome = useRef(false);
 
+  // Initialize minimized state from localStorage
+  useEffect(() => {
+    const minimized = localStorage.getItem(MINIMIZED_KEY) === 'true';
+    if (minimized) {
+      setState(prev => ({ ...prev, isMinimized: true }));
+    }
+  }, []);
+
   // Initialize session and show welcome message
   useEffect(() => {
-    if (state.isOpen && !hasShownWelcome.current && state.messages.length === 0) {
+    if (state.isOpen && !state.isMinimized && !hasShownWelcome.current && state.messages.length === 0) {
       const sessionId = getSessionId();
-      setState(prev => ({ ...prev, sessionId }));
+      const conversationId = generateUUID();
+      setState(prev => ({ ...prev, sessionId, conversationId }));
       
-      // Add welcome message
+      // Add welcome message with quick replies
       const welcomeMessage: ChatMessage = {
         id: 'welcome-' + Date.now(),
         content: 'Hi! Welcome to UGC-Topup. How can I help you today? 🎮',
         sender: 'bot',
-        timestamp: new Date()
+        timestamp: new Date(),
+        quickReplies: ['Check order status', 'Browse products', 'Talk to support']
       };
       
       setState(prev => ({
@@ -83,7 +108,7 @@ export const useChatBot = () => {
       
       hasShownWelcome.current = true;
     }
-  }, [state.isOpen, state.messages.length]);
+  }, [state.isOpen, state.isMinimized, state.messages.length]);
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
@@ -93,11 +118,23 @@ export const useChatBot = () => {
   }, [state.messages]);
 
   const toggleChat = useCallback(() => {
-    setState(prev => ({ ...prev, isOpen: !prev.isOpen }));
+    setState(prev => {
+      const newIsOpen = !prev.isOpen;
+      if (newIsOpen && prev.isMinimized) {
+        localStorage.setItem(MINIMIZED_KEY, 'false');
+        return { ...prev, isOpen: true, isMinimized: false };
+      }
+      return { ...prev, isOpen: newIsOpen };
+    });
   }, []);
 
   const closeChat = useCallback(() => {
     setState(prev => ({ ...prev, isOpen: false }));
+  }, []);
+
+  const minimizeChat = useCallback(() => {
+    setState(prev => ({ ...prev, isMinimized: true }));
+    localStorage.setItem(MINIMIZED_KEY, 'true');
   }, []);
 
   const sendMessage = useCallback(async (content: string) => {
@@ -119,12 +156,17 @@ export const useChatBot = () => {
     }));
 
     try {
-      // Prepare webhook payload
+      // Prepare enhanced webhook payload
       const payload = {
+        conversation_id: state.conversationId || generateUUID(),
+        user_id: `guest-${state.sessionId}`,
         message: trimmedContent,
-        timestamp: new Date().toISOString(),
-        session_id: state.sessionId,
-        source: 'UGC-Topup Website'
+        metadata: {
+          page_url: window.location.href,
+          timestamp: new Date().toISOString(),
+          user_agent: navigator.userAgent,
+          source: 'UGC-Topup Website'
+        }
       };
 
       console.log('📤 Sending message to webhook:', {
@@ -167,15 +209,17 @@ export const useChatBot = () => {
       }
 
       const botResponseText = data.message || data.response || data.reply || data.answer || 'Thank you for your message. Our team will assist you shortly.';
+      const quickReplies = data.quick_replies || data.quickReplies || [];
 
-      console.log('✅ Bot response:', botResponseText);
+      console.log('✅ Bot response:', botResponseText, 'Quick replies:', quickReplies);
 
       // Add bot response
       const botMessage: ChatMessage = {
         id: 'bot-' + Date.now(),
         content: botResponseText,
         sender: 'bot',
-        timestamp: new Date()
+        timestamp: new Date(),
+        quickReplies: quickReplies.length > 0 ? quickReplies : undefined
       };
 
       setState(prev => ({
@@ -229,9 +273,11 @@ export const useChatBot = () => {
   return {
     messages: state.messages,
     isOpen: state.isOpen,
+    isMinimized: state.isMinimized,
     isLoading: state.isLoading,
     toggleChat,
     closeChat,
+    minimizeChat,
     sendMessage,
     messagesEndRef
   };

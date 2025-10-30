@@ -1,41 +1,52 @@
 import { ChatMessage as ChatMessageType } from "@/hooks/useChatBot";
 import { cn } from "@/lib/utils";
+import { QuickReplyButtons } from "./QuickReplyButtons";
 
 interface ChatMessageProps {
   message: ChatMessageType;
+  onQuickReply?: (reply: string) => void;
+  isLoading?: boolean;
 }
 
-export const ChatMessage = ({ message }: ChatMessageProps) => {
+export const ChatMessage = ({ message, onQuickReply, isLoading }: ChatMessageProps) => {
   const isUser = message.sender === 'user';
   
   return (
     <div
       className={cn(
-        "flex w-full mb-3 animate-slide-in",
-        isUser ? "justify-end" : "justify-start"
+        "flex w-full mb-3",
+        isUser ? "justify-end" : "justify-start flex-col items-start"
       )}
     >
       <div
         className={cn(
-          "max-w-[75%] px-4 py-3 rounded-2xl text-sm md:text-base font-medium break-words shadow-md",
+          "max-w-[75%] px-4 py-3 text-sm break-words animate-slide-in",
           isUser
-            ? "text-white rounded-br-md"
-            : "border rounded-bl-md"
+            ? "text-white rounded-2xl rounded-br-md"
+            : "text-[#374151] rounded-2xl rounded-bl-md"
         )}
         style={
           isUser
             ? {
-                background: "linear-gradient(to right, #E71D36, #FF004D)",
+                background: "#1e3a5f",
               }
             : {
-                background: "#2a2a2a",
-                borderColor: "rgba(255, 255, 255, 0.1)",
-                color: "#f3f4f6"
+                background: "#f3f4f6",
               }
         }
       >
         {message.content}
       </div>
+      
+      {!isUser && message.quickReplies && message.quickReplies.length > 0 && (
+        <div className="max-w-[75%]">
+          <QuickReplyButtons 
+            replies={message.quickReplies}
+            onReplyClick={onQuickReply || (() => {})}
+            disabled={isLoading}
+          />
+        </div>
+      )}
     </div>
   );
 };

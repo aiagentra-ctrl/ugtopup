@@ -60,6 +60,20 @@ All colors MUST be HSL.
     --premium-card-bg: 0 0% 10%;
     --premium-border: 0 0% 18%;
     --premium-border-hover: 0 0% 25%;
+    
+    /* Chatbot Colors (Minimal Navy + White Theme) */
+    --chat-primary: 210 51% 24%;       /* #1e3a5f - Navy blue */
+    --chat-primary-light: 210 53% 37%; /* #2d5a8f - Lighter navy */
+    --chat-bg-white: 0 0% 100%;        /* #ffffff - Pure white */
+    --chat-bg-light: 0 0% 98%;         /* #f9fafb - Very light gray */
+    --chat-bot-bubble: 0 0% 95%;       /* #f3f4f6 - Light gray for bot messages */
+    --chat-border: 0 0% 90%;           /* #e5e7eb - Subtle gray border */
+    --chat-text-dark: 220 13% 9%;      /* #111827 - Dark text */
+    --chat-text-gray: 215 14% 42%;     /* #6b7280 - Medium gray */
+    --chat-text-light: 220 9% 64%;     /* #9ca3af - Light gray */
+    --chat-online: 142 71% 45%;        /* #10b981 - Green for online status */
+    --chat-error: 0 86% 97%;           /* #fef2f2 - Light red background */
+    --chat-error-text: 0 72% 51%;      /* #dc2626 - Error text */
   }
 }
 
@@ -365,20 +379,20 @@ All colors MUST be HSL.
 
   .chat-scrollbar {
     scrollbar-width: thin;
-    scrollbar-color: rgba(255, 77, 77, 0.5) transparent;
+    scrollbar-color: #d1d5db #f3f4f6;
   }
 
   .chat-scrollbar::-webkit-scrollbar {
-    width: 6px;
+    width: 8px;
   }
 
   .chat-scrollbar::-webkit-scrollbar-thumb {
-    background: rgba(255, 77, 77, 0.5);
-    border-radius: 3px;
+    background: #d1d5db;
+    border-radius: 4px;
   }
 
   .chat-scrollbar::-webkit-scrollbar-track {
-    background: transparent;
+    background: #f3f4f6;
   }
   
   /* Premium Card Effects */
