@@ -6,10 +6,9 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Download, Upload, Loader2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
-import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import qrCode from "@/assets/ug-gaming-topup-qr.jpg";
-import { saveCreditRequest, generateRequestId } from "@/lib/creditRequestStorage";
+import { submitCreditRequest } from "@/lib/creditApi";
 
 interface TopUpModalProps {
   open: boolean;
@@ -79,7 +78,7 @@ export const TopUpModal = ({ open, onOpenChange, onSuccess }: TopUpModalProps) =
     setLoading(true);
 
     try {
-      const requestId = generateRequestId();
+      const requestId = `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
       
       // Create FormData for multipart/form-data
       const formData = new FormData();
@@ -100,35 +99,8 @@ export const TopUpModal = ({ open, onOpenChange, onSuccess }: TopUpModalProps) =
       // Add the image file as binary data with metadata
       formData.append('screenshot', screenshot, screenshot.name);
 
-      // Save to localStorage immediately (store filename for reference)
-      saveCreditRequest({
-        id: requestId,
-        user_id: user.id,
-        user_name: profile.full_name || profile.username || 'User',
-        user_email: user.email || profile.email,
-        amount: amountNum,
-        credits: amountNum,
-        status: 'pending',
-        screenshot_url: `${screenshot.name} (uploaded)`,
-        created_at: new Date().toISOString(),
-        remarks: remarks || undefined,
-      });
-
-      // Send to webhook with multipart/form-data
-      const webhookUrl = 'https://n8n.aiagentra.com/webhook/payment-pending';
-      const webhookResponse = await fetch(webhookUrl, {
-        method: 'POST',
-        body: formData,
-        // DO NOT set Content-Type - browser adds multipart boundary automatically
-      });
-
-      if (!webhookResponse.ok) {
-        const errorText = await webhookResponse.text();
-        console.error('Webhook error:', webhookResponse.status, errorText);
-        throw new Error('Failed to submit request to webhook');
-      }
-
-      const webhookResult = await webhookResponse.json();
+      // Send to n8n webhook
+      const webhookResult = await submitCreditRequest(formData);
       console.log('Webhook response:', webhookResult);
 
       toast.success("Credit request submitted successfully! Status: Pending");

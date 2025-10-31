@@ -1,38 +1,14 @@
-import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Clock, CheckCircle2, XCircle } from "lucide-react";
 import { format } from "date-fns";
-import { getCreditRequests, type LocalCreditRequest } from "@/lib/creditRequestStorage";
+import { type CreditRequest } from "@/lib/creditApi";
 
-export const CreditRequestHistory = () => {
-  const [requests, setRequests] = useState<LocalCreditRequest[]>([]);
-  const [loading, setLoading] = useState(true);
+interface CreditRequestHistoryProps {
+  requests: CreditRequest[];
+  loading: boolean;
+}
 
-  const loadRequests = () => {
-    try {
-      const localRequests = getCreditRequests();
-      setRequests(localRequests);
-    } catch (error) {
-      console.error('Error loading credit requests:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    loadRequests();
-
-    // Listen for updates
-    const handleUpdate = () => {
-      loadRequests();
-    };
-
-    window.addEventListener('creditStatusUpdated', handleUpdate);
-    
-    return () => {
-      window.removeEventListener('creditStatusUpdated', handleUpdate);
-    };
-  }, []);
+export const CreditRequestHistory = ({ requests, loading }: CreditRequestHistoryProps) => {
 
   const getStatusIcon = (status: string) => {
     switch (status) {
@@ -96,13 +72,13 @@ export const CreditRequestHistory = () => {
       <CardContent className="space-y-3">
         {requests.map((request) => (
           <div
-            key={request.id}
+            key={request.request_id}
             className="flex items-center justify-between p-4 bg-background/50 rounded-lg border border-border hover:bg-background/70 transition-colors"
           >
             <div className="flex-1">
               <div className="flex items-center gap-3 mb-1">
                 <p className="font-semibold text-foreground">
-                  {request.amount} Cr.
+                  {request.credits} Cr.
                 </p>
                 <span className={getStatusClass(request.status)}>
                   {getStatusIcon(request.status)}

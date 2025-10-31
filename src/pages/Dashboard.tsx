@@ -8,54 +8,68 @@ import { EmptyStateCard } from "@/components/dashboard/EmptyStateCard";
 import { TrustBadges } from "@/components/dashboard/TrustBadges";
 import { CreditRequestHistory } from "@/components/topup/CreditRequestHistory";
 import { TopUpModal } from "@/components/topup/TopUpModal";
-import { CreditCard, ShoppingBag } from "lucide-react";
+import { ShoppingBag } from "lucide-react";
 import { toast } from "sonner";
-import { useCreditPoller } from "@/hooks/useCreditPoller";
-import { getUserBalance } from "@/lib/balanceStorage";
+import { fetchUserCredits, type UserCreditData } from "@/lib/creditApi";
 
 const Dashboard = () => {
   const { user, profile } = useAuth();
   const [topUpModalOpen, setTopUpModalOpen] = useState(false);
-  const [refreshKey, setRefreshKey] = useState(0);
-  const [balance, setBalance] = useState(0);
-
-  // Enable polling when user is logged in
-  const { isPolling } = useCreditPoller(!!user);
+  const [creditData, setCreditData] = useState<UserCreditData | null>(null);
+  const [loading, setLoading] = useState(true);
 
   // Extract username from profile or email
   const username = profile?.username || profile?.full_name || user?.email?.split('@')[0] || 'User';
   const email = user?.email || '';
   const orders = 0; // Will integrate with real orders later
-  const topUps = 0; // Will integrate with real top-ups later
   const pendingOrders = 0;
-  const pendingTopUps = 0;
 
-  // Load balance from localStorage
-  useEffect(() => {
-    setBalance(getUserBalance());
-  }, [refreshKey]);
+  // Calculate stats from credit data
+  const balance = creditData?.balance || 0;
+  const topUps = creditData?.requests.length || 0;
+  const pendingTopUps = creditData?.requests.filter(r => r.status === 'pending').length || 0;
 
-  // Listen for credit updates
+  // Fetch data from n8n
   useEffect(() => {
-    const handleCreditUpdate = () => {
-      setBalance(getUserBalance());
-      setRefreshKey(prev => prev + 1);
+    const loadData = async () => {
+      if (!user?.email) {
+        setLoading(false);
+        return;
+      }
+
+      try {
+        const data = await fetchUserCredits(user.email);
+        setCreditData(data);
+      } catch (error) {
+        console.error('Error loading credit data:', error);
+        toast.error("Failed to load credit data");
+      } finally {
+        setLoading(false);
+      }
     };
 
-    window.addEventListener('creditStatusUpdated', handleCreditUpdate);
-    
-    return () => {
-      window.removeEventListener('creditStatusUpdated', handleCreditUpdate);
-    };
-  }, []);
+    loadData(); // Load immediately
+    const interval = setInterval(loadData, 10000); // Refresh every 10 seconds
+
+    return () => clearInterval(interval);
+  }, [user?.email]);
 
   const handleTopUpClick = () => {
     setTopUpModalOpen(true);
   };
 
-  const handleTopUpSuccess = () => {
-    setRefreshKey(prev => prev + 1);
-    toast.success("Credit request submitted! Waiting for approval...");
+  const handleTopUpSuccess = async () => {
+    toast.success("Credit request submitted! Refreshing data...");
+    
+    // Immediately refresh data from n8n
+    if (user?.email) {
+      try {
+        const data = await fetchUserCredits(user.email);
+        setCreditData(data);
+      } catch (error) {
+        console.error('Error refreshing credit data:', error);
+      }
+    }
   };
 
   return (
@@ -98,7 +112,10 @@ const Dashboard = () => {
 
         {/* Credit Request History */}
         <div className="mb-6 animate-fade-in" style={{ animationDelay: '300ms' }}>
-          <CreditRequestHistory key={refreshKey} />
+          <CreditRequestHistory 
+            requests={creditData?.requests || []} 
+            loading={loading}
+          />
         </div>
 
         {/* Order History */}
