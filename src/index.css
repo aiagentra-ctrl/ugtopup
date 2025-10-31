@@ -74,6 +74,15 @@ All colors MUST be HSL.
     --chat-online: 142 71% 45%;        /* #10b981 - Green for online status */
     --chat-error: 0 86% 97%;           /* #fef2f2 - Light red background */
     --chat-error-text: 0 72% 51%;      /* #dc2626 - Error text */
+    
+    /* Footer Colors */
+    --footer-bg: 0 0% 6%;              /* #0E0E0E - Dark background */
+    --footer-heading: 38 100% 57%;     /* #FFB321 - Orange/Yellow headings */
+    --footer-text: 0 0% 82%;           /* #D0D0D0 - Light gray text */
+    --footer-muted: 0 0% 50%;          /* #808080 - Muted gray */
+    --footer-border: 0 0% 16%;         /* #2A2A2A - Border color */
+    --footer-badge-bg: 0 0% 100%;      /* #FFFFFF - White badge */
+    --footer-badge-text: 0 0% 0%;      /* #000000 - Black text */
   }
 }
 
