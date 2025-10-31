@@ -11,7 +11,7 @@ export interface WebhookResponse {
   error?: string;
 }
 
-const WEBHOOK_URL = 'https://n8n.aiagentra.com/chatbot';
+const WEBHOOK_URL = 'https://n8n.aiagentra.com/webhook/chatbot';
 const SESSION_KEY = 'uiq-chat-session';
 const REQUEST_TIMEOUT = 30000; // 30 seconds
 
