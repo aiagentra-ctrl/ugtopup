@@ -377,22 +377,36 @@ All colors MUST be HSL.
     animation: slide-in 0.3s ease-out;
   }
 
+  /* UIQ Chatbot Pulse Glow Animation */
+  @keyframes pulse-glow {
+    0%, 100% {
+      box-shadow: 0 4px 20px rgba(255, 20, 147, 0.5), 0 0 30px rgba(255, 20, 147, 0.3);
+    }
+    50% {
+      box-shadow: 0 6px 30px rgba(255, 20, 147, 0.8), 0 0 50px rgba(255, 20, 147, 0.5);
+    }
+  }
+
+  .animate-pulse-glow {
+    animation: pulse-glow 2s ease-in-out infinite;
+  }
+
   .chat-scrollbar {
     scrollbar-width: thin;
-    scrollbar-color: #d1d5db #f3f4f6;
+    scrollbar-color: hsl(var(--primary) / 0.5) hsl(var(--card));
   }
 
   .chat-scrollbar::-webkit-scrollbar {
-    width: 8px;
+    width: 6px;
   }
 
   .chat-scrollbar::-webkit-scrollbar-thumb {
-    background: #d1d5db;
-    border-radius: 4px;
+    background: hsl(var(--primary) / 0.5);
+    border-radius: 3px;
   }
 
   .chat-scrollbar::-webkit-scrollbar-track {
-    background: #f3f4f6;
+    background: hsl(var(--card));
   }
   
   /* Premium Card Effects */
