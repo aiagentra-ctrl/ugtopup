@@ -8,20 +8,30 @@ export const CreditRequestHistory = () => {
   const [requests, setRequests] = useState<LocalCreditRequest[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const loadRequests = () => {
+    try {
+      const localRequests = getCreditRequests();
+      setRequests(localRequests);
+    } catch (error) {
+      console.error('Error loading credit requests:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    // Load from localStorage
-    const loadRequests = () => {
-      try {
-        const localRequests = getCreditRequests();
-        setRequests(localRequests);
-      } catch (error) {
-        console.error('Error loading credit requests:', error);
-      } finally {
-        setLoading(false);
-      }
+    loadRequests();
+
+    // Listen for updates
+    const handleUpdate = () => {
+      loadRequests();
     };
 
-    loadRequests();
+    window.addEventListener('creditStatusUpdated', handleUpdate);
+    
+    return () => {
+      window.removeEventListener('creditStatusUpdated', handleUpdate);
+    };
   }, []);
 
   const getStatusIcon = (status: string) => {

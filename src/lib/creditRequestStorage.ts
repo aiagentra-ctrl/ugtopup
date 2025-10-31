@@ -3,12 +3,13 @@ export interface LocalCreditRequest {
   user_id: string;
   amount: number;
   credits: number;
-  status: 'pending';
+  status: 'pending' | 'approved' | 'rejected';
   screenshot_url: string;
   created_at: string;
   remarks?: string;
   user_name: string;
   user_email: string;
+  processed_at?: string;
 }
 
 const STORAGE_KEY = 'credit_requests';
@@ -43,4 +44,28 @@ export const clearOldRequests = (daysOld: number = 30): void => {
 
 export const generateRequestId = (): string => {
   return `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+};
+
+export const updateCreditRequestStatus = (
+  requestId: string, 
+  status: 'approved' | 'rejected',
+  processedAt?: string
+): boolean => {
+  try {
+    const requests = getCreditRequests();
+    const index = requests.findIndex(req => req.id === requestId);
+    
+    if (index === -1) {
+      return false;
+    }
+
+    requests[index].status = status;
+    requests[index].processed_at = processedAt || new Date().toISOString();
+    
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(requests));
+    return true;
+  } catch (error) {
+    console.error('Error updating credit request status:', error);
+    return false;
+  }
 };
