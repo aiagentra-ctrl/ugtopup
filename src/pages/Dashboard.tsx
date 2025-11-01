@@ -50,7 +50,7 @@ const Dashboard = () => {
     };
 
     loadBalance(); // Load immediately
-    const interval = setInterval(loadBalance, 10000); // Refresh every 10 seconds
+    const interval = setInterval(loadBalance, 120000); // Refresh every 2 minutes
 
     return () => clearInterval(interval);
   }, [user?.email]);
@@ -75,7 +75,7 @@ const Dashboard = () => {
     };
 
     loadHistory(); // Load immediately
-    const interval = setInterval(loadHistory, 10000); // Refresh every 10 seconds
+    const interval = setInterval(loadHistory, 120000); // Refresh every 2 minutes
 
     return () => clearInterval(interval);
   }, [user?.email]);

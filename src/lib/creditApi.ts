@@ -72,6 +72,8 @@ export const fetchCreditHistory = async (email: string): Promise<CreditRequest[]
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s timeout
 
+  console.log('[DEBUG] Fetching credit history for:', email);
+
   try {
     const response = await fetch(`${HISTORY_WEBHOOK}?email=${encodeURIComponent(email)}`, {
       method: 'GET',
@@ -83,24 +85,45 @@ export const fetchCreditHistory = async (email: string): Promise<CreditRequest[]
 
     clearTimeout(timeoutId);
 
+    console.log('[DEBUG] History response status:', response.status, 'OK:', response.ok);
+
     if (!response.ok) {
       throw new Error(`Failed to fetch credit history: ${response.status}`);
     }
 
     const data = await response.json();
+    console.log('[DEBUG] History response data:', data);
 
-    // Ensure we return an array
-    if (!Array.isArray(data)) {
-      console.warn('Credit history response is not an array, returning empty array');
+    // Handle both direct array and nested object formats
+    let requests: CreditRequest[];
+    
+    if (Array.isArray(data)) {
+      // Direct array format: [...]
+      requests = data;
+    } else if (data && typeof data === 'object' && Array.isArray(data.requests)) {
+      // Nested object format: { requests: [...] }
+      requests = data.requests;
+    } else if (data && typeof data === 'object' && Array.isArray(data.data)) {
+      // Alternative nested format: { data: [...] }
+      requests = data.data;
+    } else {
+      console.warn('Unexpected credit history response format:', data);
       return [];
     }
 
-    return data;
+    console.log('[DEBUG] Parsed requests count:', requests.length);
+    return requests;
   } catch (error) {
     if (error instanceof Error && error.name === 'AbortError') {
+      console.error('[DEBUG] Request timeout for credit history');
       throw new Error('Request timeout: Server took too long to respond');
     }
-    console.error('Error fetching credit history:', error);
+    
+    console.error('[DEBUG] Error fetching credit history:', {
+      error,
+      message: error instanceof Error ? error.message : 'Unknown error',
+      email
+    });
     throw error;
   } finally {
     clearTimeout(timeoutId);
