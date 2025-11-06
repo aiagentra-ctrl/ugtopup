@@ -9,6 +9,7 @@ import { AdminRoute } from "./components/AdminRoute";
 import { ChatWidget } from "./components/chat/ChatWidget";
 import Index from "./pages/Index";
 import AdminPanel from "./pages/AdminPanel";
+import AdminLogin from "./pages/AdminLogin";
 import Auth from "./pages/Auth";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
@@ -62,6 +63,7 @@ const App = () => (
                 </ProtectedRoute>
               } 
             />
+            <Route path="/admin-login" element={<AdminLogin />} />
             <Route 
               path="/admin" 
               element={
