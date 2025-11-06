@@ -14,6 +14,54 @@ export type Database = {
   }
   public: {
     Tables: {
+      activity_logs: {
+        Row: {
+          action: string
+          activity_type: Database["public"]["Enums"]["activity_type"]
+          actor_email: string | null
+          actor_id: string | null
+          actor_role: Database["public"]["Enums"]["app_role"] | null
+          created_at: string | null
+          description: string | null
+          id: string
+          ip_address: unknown
+          metadata: Json | null
+          target_id: string | null
+          target_type: string | null
+          user_agent: string | null
+        }
+        Insert: {
+          action: string
+          activity_type: Database["public"]["Enums"]["activity_type"]
+          actor_email?: string | null
+          actor_id?: string | null
+          actor_role?: Database["public"]["Enums"]["app_role"] | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          ip_address?: unknown
+          metadata?: Json | null
+          target_id?: string | null
+          target_type?: string | null
+          user_agent?: string | null
+        }
+        Update: {
+          action?: string
+          activity_type?: Database["public"]["Enums"]["activity_type"]
+          actor_email?: string | null
+          actor_id?: string | null
+          actor_role?: Database["public"]["Enums"]["app_role"] | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          ip_address?: unknown
+          metadata?: Json | null
+          target_id?: string | null
+          target_type?: string | null
+          user_agent?: string | null
+        }
+        Relationships: []
+      }
       payment_request_history: {
         Row: {
           changed_at: string | null
@@ -106,6 +154,84 @@ export type Database = {
         }
         Relationships: []
       }
+      product_orders: {
+        Row: {
+          admin_remarks: string | null
+          canceled_at: string | null
+          cancellation_reason: string | null
+          completed_at: string | null
+          confirmed_at: string | null
+          created_at: string | null
+          credits_deducted: number | null
+          id: string
+          metadata: Json | null
+          order_number: string
+          package_name: string
+          payment_method: string | null
+          price: number
+          product_category: Database["public"]["Enums"]["product_category"]
+          product_details: Json
+          product_name: string
+          quantity: number
+          reviewed_by: string | null
+          status: Database["public"]["Enums"]["order_status"]
+          updated_at: string | null
+          user_email: string
+          user_id: string
+          user_name: string | null
+        }
+        Insert: {
+          admin_remarks?: string | null
+          canceled_at?: string | null
+          cancellation_reason?: string | null
+          completed_at?: string | null
+          confirmed_at?: string | null
+          created_at?: string | null
+          credits_deducted?: number | null
+          id?: string
+          metadata?: Json | null
+          order_number: string
+          package_name: string
+          payment_method?: string | null
+          price: number
+          product_category: Database["public"]["Enums"]["product_category"]
+          product_details?: Json
+          product_name: string
+          quantity: number
+          reviewed_by?: string | null
+          status?: Database["public"]["Enums"]["order_status"]
+          updated_at?: string | null
+          user_email: string
+          user_id: string
+          user_name?: string | null
+        }
+        Update: {
+          admin_remarks?: string | null
+          canceled_at?: string | null
+          cancellation_reason?: string | null
+          completed_at?: string | null
+          confirmed_at?: string | null
+          created_at?: string | null
+          credits_deducted?: number | null
+          id?: string
+          metadata?: Json | null
+          order_number?: string
+          package_name?: string
+          payment_method?: string | null
+          price?: number
+          product_category?: Database["public"]["Enums"]["product_category"]
+          product_details?: Json
+          product_name?: string
+          quantity?: number
+          reviewed_by?: string | null
+          status?: Database["public"]["Enums"]["order_status"]
+          updated_at?: string | null
+          user_email?: string
+          user_id?: string
+          user_name?: string | null
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -142,6 +268,30 @@ export type Database = {
         }
         Relationships: []
       }
+      role_permissions: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          id: string
+          permission: string
+          role: Database["public"]["Enums"]["app_role"]
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          permission: string
+          role: Database["public"]["Enums"]["app_role"]
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          permission?: string
+          role?: Database["public"]["Enums"]["app_role"]
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string | null
@@ -168,12 +318,61 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      admin_dashboard_stats: {
+        Row: {
+          canceled_orders: number | null
+          confirmed_orders: number | null
+          confirmed_payment_requests: number | null
+          last_updated: string | null
+          new_users_last_month: number | null
+          pending_orders: number | null
+          pending_payment_requests: number | null
+          rejected_payment_requests: number | null
+          total_balance_remaining: number | null
+          total_credits_added: number | null
+          total_credits_spent: number | null
+          total_orders: number | null
+          total_revenue: number | null
+          total_users: number | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       approve_payment_request: {
         Args: { admin_remarks_text?: string; request_id: string }
         Returns: Json
+      }
+      cancel_order: {
+        Args: { cancellation_reason_text: string; order_id: string }
+        Returns: Json
+      }
+      confirm_order: {
+        Args: { admin_remarks_text?: string; order_id: string }
+        Returns: Json
+      }
+      get_dashboard_stats: {
+        Args: never
+        Returns: {
+          canceled_orders: number
+          confirmed_orders: number
+          confirmed_payment_requests: number
+          last_updated: string
+          new_users_last_month: number
+          pending_orders: number
+          pending_payment_requests: number
+          rejected_payment_requests: number
+          total_balance_remaining: number
+          total_credits_added: number
+          total_credits_spent: number
+          total_orders: number
+          total_revenue: number
+          total_users: number
+        }[]
+      }
+      has_permission: {
+        Args: { _permission: string; _user_id: string }
+        Returns: boolean
       }
       has_role: {
         Args: {
@@ -183,14 +382,43 @@ export type Database = {
         Returns: boolean
       }
       is_admin: { Args: never; Returns: boolean }
+      is_super_admin: { Args: never; Returns: boolean }
+      refresh_dashboard_stats: { Args: never; Returns: undefined }
       reject_payment_request: {
         Args: { admin_remarks_text: string; request_id: string }
         Returns: Json
       }
     }
     Enums: {
+      activity_type:
+        | "payment_approved"
+        | "payment_rejected"
+        | "order_confirmed"
+        | "order_canceled"
+        | "credit_added"
+        | "credit_deducted"
+        | "user_created"
+        | "role_changed"
+        | "admin_action"
+        | "system_action"
       app_role: "admin" | "user" | "super_admin" | "sub_admin"
+      order_status:
+        | "pending"
+        | "confirmed"
+        | "canceled"
+        | "processing"
+        | "completed"
       payment_status: "pending" | "confirmed" | "rejected"
+      product_category:
+        | "freefire"
+        | "tiktok"
+        | "netflix"
+        | "garena"
+        | "youtube"
+        | "smilecoin"
+        | "chatgpt"
+        | "unipin"
+        | "other"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -318,8 +546,38 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      activity_type: [
+        "payment_approved",
+        "payment_rejected",
+        "order_confirmed",
+        "order_canceled",
+        "credit_added",
+        "credit_deducted",
+        "user_created",
+        "role_changed",
+        "admin_action",
+        "system_action",
+      ],
       app_role: ["admin", "user", "super_admin", "sub_admin"],
+      order_status: [
+        "pending",
+        "confirmed",
+        "canceled",
+        "processing",
+        "completed",
+      ],
       payment_status: ["pending", "confirmed", "rejected"],
+      product_category: [
+        "freefire",
+        "tiktok",
+        "netflix",
+        "garena",
+        "youtube",
+        "smilecoin",
+        "chatgpt",
+        "unipin",
+        "other",
+      ],
     },
   },
 } as const
