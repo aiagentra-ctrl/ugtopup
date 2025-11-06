@@ -8,6 +8,7 @@ import { NetflixPackage } from "@/data/netflixPackages";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
+import { createOrder, generateOrderNumber } from "@/lib/orderApi";
 
 const Netflix = () => {
   const [formData, setFormData] = useState<NetflixFormData | null>(null);
@@ -15,11 +16,10 @@ const Netflix = () => {
   const [showOrderReview, setShowOrderReview] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [orderId, setOrderId] = useState("");
-  const { profile, setProfile } = useAuth();
+  const { profile } = useAuth();
 
   const generateOrderId = () => {
-    const orders = JSON.parse(localStorage.getItem("orders") || "[]");
-    return `ORD-${String(orders.length + 1).padStart(3, "0")}`;
+    return generateOrderNumber();
   };
 
   const handleBuyNow = () => {
@@ -32,7 +32,7 @@ const Netflix = () => {
     setShowOrderReview(true);
   };
 
-  const handleConfirmPurchase = () => {
+  const handleConfirmPurchase = async () => {
     if (!selectedPackage || !formData || !profile) return;
 
     const newBalance = profile.balance - selectedPackage.price;
@@ -42,29 +42,28 @@ const Netflix = () => {
       return;
     }
 
-    const order = {
-      id: orderId,
-      product: "Netflix Subscription",
-      package: selectedPackage.name,
-      price: selectedPackage.price,
-      whatsapp: formData.whatsapp,
-      email: formData.email,
-      date: new Date().toISOString(),
-      status: "Processing",
-    };
+    try {
+      await createOrder({
+        order_number: orderId,
+        product_category: 'netflix',
+        product_name: 'Netflix Subscription',
+        package_name: selectedPackage.name,
+        quantity: 1,
+        price: selectedPackage.price,
+        product_details: {
+          email: formData.email,
+          whatsapp: formData.whatsapp || "",
+        }
+      });
 
-    const orders = JSON.parse(localStorage.getItem("orders") || "[]");
-    orders.push(order);
-    localStorage.setItem("orders", JSON.stringify(orders));
-    
-    window.dispatchEvent(new Event("storage"));
-
-    setProfile({ ...profile, balance: newBalance });
-
-    setShowOrderReview(false);
-    setShowSuccessModal(true);
-    
-    toast.success("Subscription successful!");
+      setShowOrderReview(false);
+      setShowSuccessModal(true);
+      
+      toast.success("Subscription order placed successfully!");
+    } catch (error: any) {
+      console.error('Error creating order:', error);
+      toast.error(error.message || "Failed to place order");
+    }
   };
 
   const handleSubscribeAgain = () => {

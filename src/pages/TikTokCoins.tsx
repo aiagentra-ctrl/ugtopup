@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
+import { createOrder, generateOrderNumber } from "@/lib/orderApi";
 
 const TikTokCoins = () => {
   const [formData, setFormData] = useState<TikTokFormData | null>(null);
@@ -31,10 +32,7 @@ const TikTokCoins = () => {
   };
 
   const generateShortOrderId = () => {
-    const currentCount = parseInt(localStorage.getItem('orderCounter') || '0', 10);
-    const newCount = currentCount + 1;
-    localStorage.setItem('orderCounter', newCount.toString());
-    return `ORD-${newCount.toString().padStart(3, '0')}`;
+    return generateOrderNumber();
   };
 
   const handleReviewOrder = () => {
@@ -71,7 +69,7 @@ const TikTokCoins = () => {
     setIsReviewOpen(true);
   };
 
-  const handleConfirmPurchase = () => {
+  const handleConfirmPurchase = async () => {
     if (!user || !selectedPackage || !formData || !profile) return;
     
     if (profile.balance < selectedPackage.price) {
@@ -83,35 +81,37 @@ const TikTokCoins = () => {
       return;
     }
 
-    const order = {
-      orderId,
-      product: "TikTok Coins",
-      package: selectedPackage.name,
-      quantity: selectedPackage.quantity,
-      price: selectedPackage.price,
-      currency: selectedPackage.currency,
-      username: formData.username,
-      password: "•••••••••", // Hidden for storage
-      whatsapp: formData.whatsapp,
-      paymentMethod: "Credit",
-      email: user.email,
-      timestamp: new Date().toISOString(),
-      status: "completed",
-    };
+    try {
+      await createOrder({
+        order_number: orderId,
+        product_category: 'tiktok',
+        product_name: 'TikTok Coins',
+        package_name: selectedPackage.name,
+        quantity: selectedPackage.quantity,
+        price: selectedPackage.price,
+        product_details: {
+          username: formData.username,
+          password: formData.password,
+          whatsapp: formData.whatsapp || "",
+        }
+      });
 
-    const existingOrders = JSON.parse(localStorage.getItem('orders') || '[]');
-    localStorage.setItem('orders', JSON.stringify([...existingOrders, order]));
+      setIsReviewOpen(false);
+      setIsSuccessOpen(true);
 
-    window.dispatchEvent(new Event('storage'));
-
-    setIsReviewOpen(false);
-    setIsSuccessOpen(true);
-
-    toast({
-      title: "Order Placed Successfully!",
-      description: `Your order ${orderId} has been confirmed`,
-      className: "bg-dashboard-green/20 border-dashboard-green-bright",
-    });
+      toast({
+        title: "Order Placed Successfully!",
+        description: `Your order ${orderId} is pending confirmation`,
+        className: "bg-dashboard-green/20 border-dashboard-green-bright",
+      });
+    } catch (error: any) {
+      console.error('Error creating order:', error);
+      toast({
+        title: "Order Failed",
+        description: error.message || "Failed to place order. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleTopUpAgain = () => {

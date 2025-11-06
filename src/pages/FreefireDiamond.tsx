@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
+import { createOrder, generateOrderNumber } from "@/lib/orderApi";
 
 const FreefireDiamond = () => {
   const [formData, setFormData] = useState<UserFormData | null>(null);
@@ -32,13 +33,7 @@ const FreefireDiamond = () => {
   };
 
   const generateShortOrderId = () => {
-    // Get current order counter from localStorage
-    const currentCount = parseInt(localStorage.getItem('orderCounter') || '0', 10);
-    const newCount = currentCount + 1;
-    localStorage.setItem('orderCounter', newCount.toString());
-    
-    // Format as ORD-XXX (3 digits)
-    return `ORD-${newCount.toString().padStart(3, '0')}`;
+    return generateOrderNumber();
   };
 
   const handleReviewOrder = () => {
@@ -75,7 +70,7 @@ const FreefireDiamond = () => {
     setIsReviewOpen(true);
   };
 
-  const handleConfirmPurchase = () => {
+  const handleConfirmPurchase = async () => {
     if (!user || !selectedPackage || !formData || !profile) return;
     
     // Check sufficient balance
@@ -88,39 +83,39 @@ const FreefireDiamond = () => {
       return;
     }
 
-    // Create order object
-    const order = {
-      orderId,
-      product: "Free Fire Diamond",
-      package: selectedPackage.name,
-      quantity: selectedPackage.quantity,
-      price: selectedPackage.price,
-      currency: selectedPackage.currency,
-      uid: formData.uid,
-      username: formData.username || "Not provided",
-      whatsapp: formData.whatsapp,
-      paymentMethod: "Credit",
-      email: user.email,
-      timestamp: new Date().toISOString(),
-      status: "completed",
-    };
+    try {
+      // Create order in Supabase
+      await createOrder({
+        order_number: orderId,
+        product_category: 'freefire',
+        product_name: 'Free Fire Diamond',
+        package_name: selectedPackage.name,
+        quantity: selectedPackage.quantity,
+        price: selectedPackage.price,
+        product_details: {
+          uid: formData.uid,
+          username: formData.username || "Not provided",
+          whatsapp: formData.whatsapp || "",
+        }
+      });
 
-    // Store order in localStorage (temporary - will integrate with backend later)
-    const existingOrders = JSON.parse(localStorage.getItem('orders') || '[]');
-    localStorage.setItem('orders', JSON.stringify([...existingOrders, order]));
+      // Close review, show success
+      setIsReviewOpen(false);
+      setIsSuccessOpen(true);
 
-    // Update user context (trigger re-render)
-    window.dispatchEvent(new Event('storage'));
-
-    // Close review, show success
-    setIsReviewOpen(false);
-    setIsSuccessOpen(true);
-
-    toast({
-      title: "Order Placed Successfully!",
-      description: `Your order ${orderId} has been confirmed`,
-      className: "bg-dashboard-green/20 border-dashboard-green-bright",
-    });
+      toast({
+        title: "Order Placed Successfully!",
+        description: `Your order ${orderId} is pending confirmation`,
+        className: "bg-dashboard-green/20 border-dashboard-green-bright",
+      });
+    } catch (error: any) {
+      console.error('Error creating order:', error);
+      toast({
+        title: "Order Failed",
+        description: error.message || "Failed to place order. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleTopUpAgain = () => {

@@ -9,9 +9,10 @@ import { SmileCoinOrderReview } from "@/components/smilecoin/SmileCoinOrderRevie
 import { SmileCoinSuccessModal } from "@/components/smilecoin/SmileCoinSuccessModal";
 import { SmileCoinPackage } from "@/data/smileCoinPackages";
 import { Button } from "@/components/ui/button";
+import { createOrder, generateOrderNumber } from "@/lib/orderApi";
 
 const SmileCoin = () => {
-  const { user, profile, updateProfile } = useAuth();
+  const { user, profile } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -28,10 +29,7 @@ const SmileCoin = () => {
   };
 
   const generateShortOrderId = (): string => {
-    const lastOrderId = localStorage.getItem("lastOrderId");
-    const nextId = lastOrderId ? parseInt(lastOrderId) + 1 : 1;
-    localStorage.setItem("lastOrderId", nextId.toString());
-    return `ORD-${nextId.toString().padStart(3, "0")}`;
+    return generateOrderNumber();
   };
 
   const handleReviewOrder = () => {
@@ -83,38 +81,32 @@ const SmileCoin = () => {
       return;
     }
 
-    const newBalance = currentBalance - totalPrice;
-
     try {
-      await updateProfile({ balance: newBalance });
-
-      const order = {
-        id: orderId,
-        product: "Smile Coin",
-        package: selectedPackage.name,
+      await createOrder({
+        order_number: orderId,
+        product_category: 'smilecoin',
+        product_name: 'Smile Coin',
+        package_name: selectedPackage.name,
         quantity: selectedPackage.quantity,
         price: totalPrice,
-        email: formData.email,
-        whatsapp: formData.whatsapp || "",
-        userEmail: user?.email,
-        date: new Date().toISOString(),
-        status: "Processing",
-      };
-
-      const existingOrders = JSON.parse(localStorage.getItem("orders") || "[]");
-      localStorage.setItem("orders", JSON.stringify([order, ...existingOrders]));
+        product_details: {
+          email: formData.email,
+          whatsapp: formData.whatsapp || "",
+        }
+      });
 
       setIsReviewOpen(false);
       setIsSuccessOpen(true);
 
       toast({
         title: "Purchase Successful! 🎉",
-        description: `Your order ${orderId} has been placed successfully.`,
+        description: `Your order ${orderId} is pending confirmation.`,
       });
-    } catch (error) {
+    } catch (error: any) {
+      console.error('Error creating order:', error);
       toast({
         title: "Purchase Failed",
-        description: "Something went wrong. Please try again.",
+        description: error.message || "Something went wrong. Please try again.",
         variant: "destructive",
       });
     }
