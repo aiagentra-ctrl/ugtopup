@@ -10,7 +10,7 @@ import { CreditRequestHistory } from "@/components/topup/CreditRequestHistory";
 import { TopUpModal } from "@/components/topup/TopUpModal";
 import { ShoppingBag } from "lucide-react";
 import { toast } from "sonner";
-import { type CreditHistoryEntry } from "@/lib/creditApi";
+import { fetchUserPaymentRequests, fetchUserBalance, type CreditHistoryEntry } from "@/lib/creditApi";
 
 const Dashboard = () => {
   const { user, profile } = useAuth();
@@ -42,11 +42,8 @@ const Dashboard = () => {
       }
 
       try {
-        // DISABLED - fetchCreditBalance function removed
-        // const data = await fetchCreditBalance(user.email);
-        // setBalance(data.credit);
-        console.log('Balance fetch disabled - function removed');
-        setBalance(0);
+        const balance = await fetchUserBalance();
+        setBalance(balance);
       } catch (error) {
         console.error('Error loading balance:', error);
         toast.error("Failed to load credit balance");
@@ -73,11 +70,9 @@ const Dashboard = () => {
       setHistoryError(null);
       
       try {
-        // DISABLED - fetchCreditHistory function removed
-        // const requests = await fetchCreditHistory(user.email);
-        // console.log('[DEBUG] History rows received:', requests.length, requests[0] || null);
-        console.log('History fetch disabled - function removed');
-        setCreditRequests([]);
+        const requests = await fetchUserPaymentRequests();
+        console.log('[DEBUG] History rows received:', requests.length, requests[0] || null);
+        setCreditRequests(requests);
       } catch (error: any) {
         console.error('Error loading history:', error);
         
@@ -111,18 +106,17 @@ const Dashboard = () => {
     if (user?.email) {
       setIsRefreshing(true);
       try {
-        // DISABLED - fetch functions removed
         // Wait for balance to complete first
-        console.log('[DEBUG] Refresh disabled - functions removed');
-        // const balanceData = await fetchCreditBalance(user.email);
-        // setBalance(balanceData.credit);
-        // console.log('[DEBUG] Balance refreshed successfully');
+        console.log('[DEBUG] Refreshing balance first...');
+        const balanceData = await fetchUserBalance();
+        setBalance(balanceData);
+        console.log('[DEBUG] Balance refreshed successfully');
         
         // Only fetch history after balance is done
-        // console.log('[DEBUG] Now refreshing history...');
-        // const historyData = await fetchCreditHistory(user.email);
-        // setCreditRequests(historyData);
-        // console.log('[DEBUG] History refreshed successfully');
+        console.log('[DEBUG] Now refreshing history...');
+        const historyData = await fetchUserPaymentRequests();
+        setCreditRequests(historyData);
+        console.log('[DEBUG] History refreshed successfully');
       } catch (error) {
         console.error('[DEBUG] Error refreshing credit data:', error);
         toast.error("Failed to refresh data after submission");

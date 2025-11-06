@@ -8,6 +8,7 @@ import { Download, Upload, Loader2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import qrCode from "@/assets/ug-gaming-topup-qr.jpg";
+import { submitPaymentRequest } from "@/lib/creditApi";
 
 
 interface TopUpModalProps {
@@ -96,15 +97,19 @@ export const TopUpModal = ({ open, onOpenChange, onSuccess }: TopUpModalProps) =
       formData.append('username', profile.username || '');
       formData.append('avatar_url', profile.avatar_url || '');
       
-      // Add the image file as binary data with metadata
-      formData.append('screenshot', screenshot, screenshot.name);
+      // Submit to Supabase
+      const result = await submitPaymentRequest(
+        amountNum,
+        amountNum, // 1:1 ratio
+        remarks,
+        screenshot
+      );
 
-      // Send to n8n webhook - DISABLED (webhook function removed)
-      // const webhookResult = await submitCreditRequest(formData);
-      // console.log('Webhook response:', webhookResult);
-      console.log('Webhook submission disabled - function removed');
-
-      toast.success("Credit request submitted successfully! Status: Pending");
+      if (result.success) {
+        toast.success(result.message);
+      } else {
+        toast.error(result.message);
+      }
       
       // Reset form
       setAmount("");
