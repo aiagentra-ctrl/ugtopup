@@ -29,7 +29,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { CheckCircle, XCircle, Eye, RefreshCw, Search, ExternalLink, Copy } from "lucide-react";
+import { CheckCircle, XCircle, Eye, RefreshCw, Search, ExternalLink, CreditCard } from "lucide-react";
 import { toast } from "sonner";
 
 interface PaymentRequest {
@@ -142,201 +142,254 @@ export function CreditRequestsTable() {
   };
 
   const getStatusBadge = (status: string) => {
-    const config: Record<string, { variant: any; className: string }> = {
-      pending: { variant: "outline", className: "border-orange-500 text-orange-600 bg-orange-50" },
-      confirmed: { variant: "default", className: "bg-green-500 hover:bg-green-600" },
-      rejected: { variant: "destructive", className: "" },
+    const config: Record<string, { className: string }> = {
+      pending: { className: "bg-orange-500/10 text-orange-400 border-orange-500/30" },
+      confirmed: { className: "bg-green-500/10 text-green-400 border-green-500/30" },
+      rejected: { className: "bg-red-500/10 text-red-400 border-red-500/30" },
     };
 
     const c = config[status] || config.pending;
     return (
-      <Badge variant={c.variant} className={c.className}>
+      <Badge variant="outline" className={c.className}>
         {status.charAt(0).toUpperCase() + status.slice(1)}
       </Badge>
     );
   };
 
-  const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text);
-    toast.success("Copied to clipboard");
-  };
-
   return (
-    <div className="space-y-6">
-      <Card className="shadow-md">
-        <CardHeader>
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-            <div>
-              <CardTitle className="text-2xl">Credit Requests Management</CardTitle>
-              <p className="text-sm text-slate-500 mt-1">Review and process user credit top-up requests</p>
-            </div>
-            <Button onClick={loadRequests} disabled={loading} variant="outline" size="sm">
-              <RefreshCw className={`mr-2 h-4 w-4 ${loading ? "animate-spin" : ""}`} />
-              Refresh
-            </Button>
+    <Card className="bg-card/50 backdrop-blur-xl border-border">
+      <CardHeader>
+        <CardTitle className="text-foreground">Credit Requests Management</CardTitle>
+        <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 mt-4">
+          <div className="flex-1 relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search by email or name..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10 bg-muted/50 border-border"
+            />
           </div>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {/* Filters */}
-          <div className="flex flex-col sm:flex-row gap-4">
-            <div className="flex-1">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
-                <Input
-                  placeholder="Search by email or name..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
-            </div>
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-full sm:w-[200px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Status</SelectItem>
-                <SelectItem value="pending">Pending</SelectItem>
-                <SelectItem value="confirmed">Confirmed</SelectItem>
-                <SelectItem value="rejected">Rejected</SelectItem>
-              </SelectContent>
-            </Select>
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="w-full sm:w-40 bg-muted/50 border-border">
+              <SelectValue placeholder="Filter by status" />
+            </SelectTrigger>
+            <SelectContent className="bg-popover border-border">
+              <SelectItem value="all">All Status</SelectItem>
+              <SelectItem value="pending">Pending</SelectItem>
+              <SelectItem value="confirmed">Confirmed</SelectItem>
+              <SelectItem value="rejected">Rejected</SelectItem>
+            </SelectContent>
+          </Select>
+          <Button onClick={loadRequests} variant="outline" className="w-full sm:w-auto">
+            <RefreshCw className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`} />
+            Refresh
+          </Button>
+        </div>
+      </CardHeader>
+      <CardContent className="px-0 sm:px-6">
+        {loading ? (
+          <div className="flex justify-center py-12">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
           </div>
-
-          {/* Table */}
-          <div className="border rounded-lg overflow-hidden">
-            <div className="overflow-x-auto">
+        ) : filteredRequests.length === 0 ? (
+          <div className="text-center py-12 text-muted-foreground">
+            <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-muted/50 flex items-center justify-center">
+              <CreditCard className="h-8 w-8 text-muted-foreground" />
+            </div>
+            <p className="font-medium">No credit requests found</p>
+            <p className="text-sm mt-1">Try adjusting your filters</p>
+          </div>
+        ) : (
+          <>
+            {/* Desktop Table View */}
+            <div className="hidden lg:block overflow-x-auto">
               <Table>
-                <TableHeader className="bg-slate-50">
-                  <TableRow>
-                    <TableHead className="font-semibold">User</TableHead>
-                    <TableHead className="font-semibold">Amount / Credits</TableHead>
-                    <TableHead className="font-semibold">Timestamp</TableHead>
-                    <TableHead className="font-semibold">Remarks</TableHead>
-                    <TableHead className="font-semibold">Screenshot</TableHead>
-                    <TableHead className="font-semibold">Status</TableHead>
-                    <TableHead className="font-semibold text-right">Actions</TableHead>
+                <TableHeader>
+                  <TableRow className="border-border hover:bg-transparent">
+                    <TableHead className="text-muted-foreground">User</TableHead>
+                    <TableHead className="text-muted-foreground">Amount / Credits</TableHead>
+                    <TableHead className="text-muted-foreground">Timestamp</TableHead>
+                    <TableHead className="text-muted-foreground">Remarks</TableHead>
+                    <TableHead className="text-muted-foreground">Screenshot</TableHead>
+                    <TableHead className="text-muted-foreground">Status</TableHead>
+                    <TableHead className="text-muted-foreground text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {loading ? (
-                    <TableRow>
-                      <TableCell colSpan={7} className="text-center py-12">
-                        <RefreshCw className="animate-spin h-8 w-8 mx-auto text-blue-500 mb-2" />
-                        <p className="text-sm text-slate-500">Loading requests...</p>
+                  {filteredRequests.map((request) => (
+                    <TableRow key={request.id} className="border-border hover:bg-muted/50 transition-colors">
+                      <TableCell>
+                        <div>
+                          <p className="font-medium text-foreground">{request.user_name || "N/A"}</p>
+                          <p className="text-xs text-muted-foreground">{request.user_email}</p>
+                        </div>
                       </TableCell>
-                    </TableRow>
-                  ) : filteredRequests.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={7} className="text-center py-12 text-slate-500">
-                        No credit requests found
+                      <TableCell>
+                        <div>
+                          <p className="font-semibold text-green-400">₹{request.amount}</p>
+                          <p className="text-xs text-muted-foreground">{request.credits} credits</p>
+                        </div>
                       </TableCell>
-                    </TableRow>
-                  ) : (
-                    filteredRequests.map((request) => (
-                      <TableRow key={request.id} className="hover:bg-slate-50">
-                        <TableCell>
-                          <div>
-                            <p className="font-medium text-slate-900">{request.user_name || "N/A"}</p>
-                            <p className="text-xs text-slate-500">{request.user_email}</p>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div>
-                            <p className="font-semibold text-green-600">₹{request.amount}</p>
-                            <p className="text-xs text-slate-500">{request.credits} credits</p>
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-sm text-slate-600">
-                          {new Date(request.created_at).toLocaleString()}
-                        </TableCell>
-                        <TableCell>
-                          <p className="text-sm text-slate-600 max-w-[200px] truncate" title={request.remarks || ""}>
-                            {request.remarks || "-"}
-                          </p>
-                        </TableCell>
-                        <TableCell>
-                          {request.screenshot_url ? (
+                      <TableCell className="text-sm text-muted-foreground">
+                        {new Date(request.created_at).toLocaleString()}
+                      </TableCell>
+                      <TableCell>
+                        <p className="text-sm text-foreground max-w-[200px] truncate" title={request.remarks || ""}>
+                          {request.remarks || "-"}
+                        </p>
+                      </TableCell>
+                      <TableCell>
+                        {request.screenshot_url ? (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => {
+                              setSelectedRequest(request);
+                              setShowImageModal(true);
+                            }}
+                          >
+                            <Eye className="h-4 w-4 mr-1" />
+                            View
+                          </Button>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">No screenshot</span>
+                        )}
+                      </TableCell>
+                      <TableCell>{getStatusBadge(request.status)}</TableCell>
+                      <TableCell className="text-right">
+                        {request.status === "pending" && (
+                          <div className="flex justify-end gap-2">
                             <Button
                               size="sm"
-                              variant="ghost"
                               onClick={() => {
                                 setSelectedRequest(request);
-                                setShowImageModal(true);
+                                setActionType("approve");
+                                setShowActionModal(true);
                               }}
+                              className="bg-green-600 hover:bg-green-700"
                             >
-                              <Eye className="h-4 w-4 mr-1" />
-                              View
+                              <CheckCircle className="h-4 w-4 mr-1" />
+                              Approve
                             </Button>
-                          ) : (
-                            <span className="text-xs text-slate-400">No screenshot</span>
-                          )}
-                        </TableCell>
-                        <TableCell>{getStatusBadge(request.status)}</TableCell>
-                        <TableCell className="text-right">
-                          {request.status === "pending" && (
-                            <div className="flex justify-end gap-2">
-                              <Button
-                                size="sm"
-                                onClick={() => {
-                                  setSelectedRequest(request);
-                                  setActionType("approve");
-                                  setShowActionModal(true);
-                                }}
-                                className="bg-green-600 hover:bg-green-700"
-                              >
-                                <CheckCircle className="h-4 w-4 mr-1" />
-                                Approve
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="destructive"
-                                onClick={() => {
-                                  setSelectedRequest(request);
-                                  setActionType("reject");
-                                  setShowActionModal(true);
-                                }}
-                              >
-                                <XCircle className="h-4 w-4 mr-1" />
-                                Reject
-                              </Button>
-                            </div>
-                          )}
-                          {request.status !== "pending" && request.admin_remarks && (
                             <Button
                               size="sm"
-                              variant="ghost"
+                              variant="destructive"
                               onClick={() => {
                                 setSelectedRequest(request);
+                                setActionType("reject");
                                 setShowActionModal(true);
                               }}
                             >
-                              <Eye className="h-4 w-4" />
+                              <XCircle className="h-4 w-4 mr-1" />
+                              Reject
                             </Button>
-                          )}
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  )}
+                          </div>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  ))}
                 </TableBody>
               </Table>
             </div>
-          </div>
-        </CardContent>
-      </Card>
+
+            {/* Mobile Card View */}
+            <div className="lg:hidden space-y-4 px-4">
+              {filteredRequests.map((request) => (
+                <Card key={request.id} className="bg-muted/30 border-border">
+                  <CardContent className="p-4 space-y-3">
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <p className="font-medium text-foreground">{request.user_name || "N/A"}</p>
+                        <p className="text-sm text-muted-foreground">{request.user_email}</p>
+                      </div>
+                      {getStatusBadge(request.status)}
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-3 pt-3 border-t border-border">
+                      <div>
+                        <p className="text-xs text-muted-foreground">Amount</p>
+                        <p className="font-semibold text-green-400">₹{request.amount}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground">Credits</p>
+                        <p className="font-medium text-foreground">{request.credits}</p>
+                      </div>
+                    </div>
+
+                    <div>
+                      <p className="text-xs text-muted-foreground">Timestamp</p>
+                      <p className="text-sm text-foreground">{new Date(request.created_at).toLocaleString()}</p>
+                    </div>
+
+                    {request.remarks && (
+                      <div>
+                        <p className="text-xs text-muted-foreground">Remarks</p>
+                        <p className="text-sm text-foreground">{request.remarks}</p>
+                      </div>
+                    )}
+
+                    {request.screenshot_url && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setSelectedRequest(request);
+                          setShowImageModal(true);
+                        }}
+                        className="w-full"
+                      >
+                        View Screenshot
+                      </Button>
+                    )}
+
+                    {request.status === "pending" && (
+                      <div className="flex gap-2 pt-2">
+                        <Button
+                          size="sm"
+                          onClick={() => {
+                            setSelectedRequest(request);
+                            setActionType("approve");
+                            setShowActionModal(true);
+                          }}
+                          className="flex-1 bg-green-600 hover:bg-green-700"
+                        >
+                          Approve
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          onClick={() => {
+                            setSelectedRequest(request);
+                            setActionType("reject");
+                            setShowActionModal(true);
+                          }}
+                          className="flex-1"
+                        >
+                          Reject
+                        </Button>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </>
+        )}
+      </CardContent>
 
       {/* Action Modal */}
       <Dialog open={showActionModal} onOpenChange={setShowActionModal}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="bg-card border-border">
           <DialogHeader>
-            <DialogTitle>
+            <DialogTitle className="text-foreground">
               {selectedRequest?.status === "pending"
                 ? actionType === "approve"
                   ? "Approve Credit Request"
                   : "Reject Credit Request"
                 : "Request Details"}
             </DialogTitle>
-            <DialogDescription>
+            <DialogDescription className="text-muted-foreground">
               {selectedRequest?.status === "pending"
                 ? actionType === "approve"
                   ? `This will add ₹${selectedRequest?.amount} (${selectedRequest?.credits} credits) to the user's balance.`
@@ -348,8 +401,8 @@ export function CreditRequestsTable() {
           <div className="space-y-4">
             {selectedRequest?.status === "pending" && (
               <div>
-                <Label htmlFor="admin-remarks">
-                  Admin Remarks {actionType === "reject" && <span className="text-red-500">*</span>}
+                <Label htmlFor="admin-remarks" className="text-foreground">
+                  Admin Remarks {actionType === "reject" && <span className="text-red-400">*</span>}
                 </Label>
                 <Textarea
                   id="admin-remarks"
@@ -361,14 +414,15 @@ export function CreditRequestsTable() {
                       : "Explain why this request is being rejected..."
                   }
                   rows={4}
+                  className="mt-2 bg-muted/50 border-border"
                 />
               </div>
             )}
 
             {selectedRequest?.status !== "pending" && selectedRequest?.admin_remarks && (
               <div>
-                <Label>Admin Remarks</Label>
-                <p className="mt-2 p-3 bg-slate-50 rounded text-sm">{selectedRequest.admin_remarks}</p>
+                <Label className="text-foreground">Admin Remarks</Label>
+                <p className="mt-2 p-3 bg-muted/50 rounded text-sm text-foreground">{selectedRequest.admin_remarks}</p>
               </div>
             )}
           </div>
@@ -393,17 +447,19 @@ export function CreditRequestsTable() {
 
       {/* Image Modal */}
       <Dialog open={showImageModal} onOpenChange={setShowImageModal}>
-        <DialogContent className="max-w-3xl">
+        <DialogContent className="max-w-3xl bg-card border-border">
           <DialogHeader>
-            <DialogTitle>Payment Screenshot</DialogTitle>
+            <DialogTitle className="text-foreground">Payment Screenshot</DialogTitle>
           </DialogHeader>
           {selectedRequest?.screenshot_url && (
             <div className="space-y-4">
-              <img
-                src={selectedRequest.screenshot_url}
-                alt="Payment screenshot"
-                className="w-full rounded-lg border"
-              />
+              <div className="flex justify-center bg-muted/30 rounded-lg p-4">
+                <img
+                  src={selectedRequest.screenshot_url}
+                  alt="Payment screenshot"
+                  className="max-w-full h-auto rounded-lg border border-border shadow-lg"
+                />
+              </div>
               <Button
                 variant="outline"
                 size="sm"
@@ -416,6 +472,6 @@ export function CreditRequestsTable() {
           )}
         </DialogContent>
       </Dialog>
-    </div>
+    </Card>
   );
 }

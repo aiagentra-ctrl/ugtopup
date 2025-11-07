@@ -35,6 +35,7 @@ import {
   DashboardKPIs,
 } from "@/lib/adminDashboardApi";
 import { Badge } from "@/components/ui/badge";
+import { DashboardSkeleton } from "./DashboardSkeleton";
 
 export function EnhancedDashboard() {
   const [kpis, setKpis] = useState<DashboardKPIs | null>(null);
@@ -44,7 +45,7 @@ export function EnhancedDashboard() {
   const [recentActivity, setRecentActivity] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [dateRange] = useState<{ start: Date; end: Date }>({
-    start: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), // Last 30 days
+    start: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
     end: new Date(),
   });
 
@@ -74,7 +75,6 @@ export function EnhancedDashboard() {
   useEffect(() => {
     loadDashboardData();
 
-    // Real-time subscriptions
     const ordersChannel = supabase
       .channel("dashboard-orders")
       .on("postgres_changes", { event: "*", schema: "public", table: "product_orders" }, loadDashboardData)
@@ -92,11 +92,7 @@ export function EnhancedDashboard() {
   }, []);
 
   if (loading || !kpis) {
-    return (
-      <div className="flex items-center justify-center h-96">
-        <RefreshCw className="h-8 w-8 animate-spin text-blue-500" />
-      </div>
-    );
+    return <DashboardSkeleton />;
   }
 
   const kpiCards = [
@@ -105,66 +101,74 @@ export function EnhancedDashboard() {
       value: `₹${kpis.totalRevenue.toLocaleString()}`,
       change: kpis.revenueChange,
       icon: DollarSign,
-      gradient: "from-green-500 to-green-600",
+      colorClass: "from-green-500/80 to-green-600/80",
+      shadowClass: "shadow-green-500/30",
     },
     {
       title: "Total Orders",
       value: kpis.totalOrders.toString(),
       change: kpis.ordersChange,
       icon: ShoppingBag,
-      gradient: "from-blue-500 to-blue-600",
+      colorClass: "from-blue-500/80 to-blue-600/80",
+      shadowClass: "shadow-blue-500/30",
     },
     {
       title: "Total Users",
       value: kpis.totalUsers.toString(),
       change: kpis.usersChange,
       icon: Users,
-      gradient: "from-purple-500 to-purple-600",
+      colorClass: "from-purple-500/80 to-purple-600/80",
+      shadowClass: "shadow-purple-500/30",
     },
     {
       title: "Pending Requests",
       value: kpis.pendingRequests.toString(),
       change: 0,
       icon: Clock,
-      gradient: "from-orange-500 to-orange-600",
+      colorClass: "from-orange-500/80 to-orange-600/80",
+      shadowClass: "shadow-orange-500/30",
     },
     {
       title: "Conversion Rate",
       value: `${kpis.conversionRate.toFixed(1)}%`,
       change: 0,
       icon: TrendingUp,
-      gradient: "from-indigo-500 to-indigo-600",
+      colorClass: "from-indigo-500/80 to-indigo-600/80",
+      shadowClass: "shadow-indigo-500/30",
     },
     {
       title: "Avg Order Value",
       value: `₹${kpis.avgOrderValue.toFixed(0)}`,
       change: 0,
       icon: DollarSign,
-      gradient: "from-pink-500 to-pink-600",
+      colorClass: "from-pink-500/80 to-pink-600/80",
+      shadowClass: "shadow-pink-500/30",
     },
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 lg:space-y-6 animate-fade-in">
       {/* KPI Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6">
         {kpiCards.map((kpi, index) => (
-          <Card key={index} className="overflow-hidden border-none shadow-md hover:shadow-lg transition-shadow">
-            <div className={`h-2 bg-gradient-to-r ${kpi.gradient}`} />
+          <Card 
+            key={index} 
+            className="overflow-hidden bg-card/50 backdrop-blur-xl border-border hover:bg-card/60 transition-all duration-300 hover:scale-[1.02]"
+          >
             <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-slate-500">{kpi.title}</p>
-                  <h3 className="text-3xl font-bold text-slate-900 mt-2">{kpi.value}</h3>
+              <div className="flex items-start justify-between">
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-muted-foreground">{kpi.title}</p>
+                  <h3 className="text-2xl lg:text-3xl font-bold mt-2 text-foreground truncate">{kpi.value}</h3>
                   {kpi.change !== 0 && (
-                    <div className={`flex items-center gap-1 mt-2 text-sm ${kpi.change > 0 ? "text-green-600" : "text-red-600"}`}>
+                    <div className={`flex items-center gap-1 mt-2 text-xs lg:text-sm ${kpi.change > 0 ? "text-green-400" : "text-red-400"}`}>
                       {kpi.change > 0 ? <TrendingUp className="h-4 w-4" /> : <TrendingDown className="h-4 w-4" />}
                       <span>{Math.abs(kpi.change).toFixed(1)}%</span>
                     </div>
                   )}
                 </div>
-                <div className={`p-4 rounded-full bg-gradient-to-br ${kpi.gradient}`}>
-                  <kpi.icon className="h-8 w-8 text-white" />
+                <div className={`w-12 h-12 shrink-0 rounded-lg bg-gradient-to-br ${kpi.colorClass} flex items-center justify-center shadow-lg ${kpi.shadowClass}`}>
+                  <kpi.icon className="h-6 w-6 text-white" />
                 </div>
               </div>
             </CardContent>
@@ -172,42 +176,54 @@ export function EnhancedDashboard() {
         ))}
       </div>
 
-      {/* Charts Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      {/* Charts Row 1 */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
         {/* Revenue Chart */}
-        <Card className="shadow-md">
+        <Card className="bg-card/50 backdrop-blur-xl border-border">
           <CardHeader>
-            <CardTitle className="text-lg">Revenue Over Time</CardTitle>
+            <CardTitle className="text-foreground">Revenue Over Time</CardTitle>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
               <LineChart data={revenueData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                <XAxis dataKey="date" stroke="#64748b" fontSize={12} />
-                <YAxis stroke="#64748b" fontSize={12} />
-                <Tooltip
-                  contentStyle={{ backgroundColor: "#ffffff", border: "1px solid #e2e8f0", borderRadius: "8px" }}
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                <XAxis dataKey="date" stroke="hsl(var(--muted-foreground))" style={{ fontSize: '12px' }} />
+                <YAxis stroke="hsl(var(--muted-foreground))" style={{ fontSize: '12px' }} />
+                <Tooltip 
+                  contentStyle={{ 
+                    backgroundColor: 'hsl(var(--popover))',
+                    border: '1px solid hsl(var(--border))',
+                    borderRadius: '8px',
+                    color: 'hsl(var(--popover-foreground))'
+                  }}
                   formatter={(value: any) => [`₹${value}`, "Revenue"]}
                 />
-                <Line type="monotone" dataKey="revenue" stroke="#10b981" strokeWidth={3} dot={{ fill: "#10b981", r: 4 }} />
+                <Line type="monotone" dataKey="revenue" stroke="#10b981" strokeWidth={3} dot={{ fill: '#10b981', r: 4 }} />
               </LineChart>
             </ResponsiveContainer>
           </CardContent>
         </Card>
 
         {/* Orders Chart */}
-        <Card className="shadow-md">
+        <Card className="bg-card/50 backdrop-blur-xl border-border">
           <CardHeader>
-            <CardTitle className="text-lg">Orders Breakdown</CardTitle>
+            <CardTitle className="text-foreground">Orders Breakdown</CardTitle>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
               <BarChart data={ordersData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                <XAxis dataKey="date" stroke="#64748b" fontSize={12} />
-                <YAxis stroke="#64748b" fontSize={12} />
-                <Tooltip contentStyle={{ backgroundColor: "#ffffff", border: "1px solid #e2e8f0", borderRadius: "8px" }} />
-                <Legend />
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                <XAxis dataKey="date" stroke="hsl(var(--muted-foreground))" style={{ fontSize: '12px' }} />
+                <YAxis stroke="hsl(var(--muted-foreground))" style={{ fontSize: '12px' }} />
+                <Tooltip 
+                  contentStyle={{ 
+                    backgroundColor: 'hsl(var(--popover))',
+                    border: '1px solid hsl(var(--border))',
+                    borderRadius: '8px',
+                    color: 'hsl(var(--popover-foreground))'
+                  }}
+                />
+                <Legend wrapperStyle={{ color: 'hsl(var(--foreground))' }} />
                 <Bar dataKey="pending" fill="#f59e0b" name="Pending" />
                 <Bar dataKey="confirmed" fill="#10b981" name="Confirmed" />
                 <Bar dataKey="canceled" fill="#ef4444" name="Canceled" />
@@ -218,11 +234,11 @@ export function EnhancedDashboard() {
       </div>
 
       {/* Bottom Row: Category Distribution + Recent Activity */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
         {/* Category Distribution */}
-        <Card className="shadow-md">
+        <Card className="bg-card/50 backdrop-blur-xl border-border">
           <CardHeader>
-            <CardTitle className="text-lg">Product Category Distribution</CardTitle>
+            <CardTitle className="text-foreground">Product Category Distribution</CardTitle>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
@@ -232,37 +248,55 @@ export function EnhancedDashboard() {
                     <Cell key={`cell-${index}`} fill={entry.fill} />
                   ))}
                 </Pie>
-                <Tooltip />
-                <Legend />
+                <Tooltip 
+                  contentStyle={{ 
+                    backgroundColor: 'hsl(var(--popover))',
+                    border: '1px solid hsl(var(--border))',
+                    borderRadius: '8px',
+                    color: 'hsl(var(--popover-foreground))'
+                  }}
+                />
+                <Legend wrapperStyle={{ color: 'hsl(var(--foreground))' }} />
               </PieChart>
             </ResponsiveContainer>
           </CardContent>
         </Card>
 
         {/* Recent Activity */}
-        <Card className="shadow-md">
+        <Card className="bg-card/50 backdrop-blur-xl border-border">
           <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="text-lg">Recent Activity</CardTitle>
-            <Button size="sm" variant="outline" onClick={loadDashboardData}>
+            <CardTitle className="text-foreground">Recent Activity</CardTitle>
+            <Button size="sm" variant="ghost" onClick={loadDashboardData} className="hover:bg-muted">
               <RefreshCw className="h-4 w-4" />
             </Button>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4 max-h-[300px] overflow-y-auto">
-              {recentActivity.map((activity) => (
-                <div key={activity.id} className="flex items-start gap-3 pb-3 border-b last:border-0">
-                  <div className="w-2 h-2 mt-2 rounded-full bg-blue-500 flex-shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm text-slate-900 font-medium">{activity.description}</p>
-                    <div className="flex items-center gap-2 mt-1">
-                      <Badge variant="outline" className="text-xs">{activity.type}</Badge>
-                      <span className="text-xs text-slate-500">
-                        {new Date(activity.timestamp).toLocaleString()}
-                      </span>
+            <div className="space-y-3 max-h-[300px] overflow-y-auto pr-2">
+              {recentActivity.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-8">No recent activity</p>
+              ) : (
+                recentActivity.map((activity) => (
+                  <div 
+                    key={activity.id} 
+                    className="flex items-start gap-3 p-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors"
+                  >
+                    <div className={`w-2 h-2 rounded-full mt-2 shrink-0 ${
+                      activity.type === 'order' ? 'bg-blue-500' :
+                      activity.type === 'payment' ? 'bg-green-500' :
+                      'bg-purple-500'
+                    }`} />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm text-foreground font-medium truncate">{activity.description}</p>
+                      <div className="flex items-center gap-2 mt-1">
+                        <Badge variant="outline" className="text-xs">{activity.type}</Badge>
+                        <span className="text-xs text-muted-foreground">
+                          {new Date(activity.timestamp).toLocaleString()}
+                        </span>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                ))
+              )}
             </div>
           </CardContent>
         </Card>
