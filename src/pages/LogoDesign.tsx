@@ -1,28 +1,26 @@
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { RobloxProductHeader } from "@/components/roblox/RobloxProductHeader";
-import { RobloxUserInputForm } from "@/components/roblox/RobloxUserInputForm";
-import { RobloxPackageSelector } from "@/components/roblox/RobloxPackageSelector";
-import { RobloxOrderReview } from "@/components/roblox/RobloxOrderReview";
-import { RobloxSuccessModal } from "@/components/roblox/RobloxSuccessModal";
-import { type RobloxPackage } from "@/data/robloxPackages";
+import { DesignProductHeader } from "@/components/design/DesignProductHeader";
+import { DesignContactForm } from "@/components/design/DesignContactForm";
+import { DesignPackageDisplay } from "@/components/design/DesignPackageDisplay";
+import { DesignOrderReview } from "@/components/design/DesignOrderReview";
+import { DesignSuccessModal } from "@/components/design/DesignSuccessModal";
+import { logoDesignPackage } from "@/data/designPackages";
 import { Button } from "@/components/ui/button";
 import { createOrder, generateOrderNumber } from "@/lib/orderApi";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 
-const RobloxTopUp = () => {
+const LogoDesign = () => {
   const { user, profile } = useAuth();
   const navigate = useNavigate();
   
   const [formData, setFormData] = useState({
-    username: "",
-    password: "",
+    email: "",
     whatsapp: "",
   });
   
-  const [errors, setErrors] = useState<{ username?: string; password?: string }>({});
-  const [selectedPackage, setSelectedPackage] = useState<RobloxPackage | null>(null);
+  const [errors, setErrors] = useState<{ email?: string; whatsapp?: string }>({});
   const [showReviewModal, setShowReviewModal] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -34,14 +32,15 @@ const RobloxTopUp = () => {
   };
 
   const validateForm = (): boolean => {
-    const newErrors: { username?: string; password?: string } = {};
+    const newErrors: { email?: string; whatsapp?: string } = {};
     
-    if (!formData.username || formData.username.length < 3) {
-      newErrors.username = "Username must be at least 3 characters";
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!formData.email || !emailRegex.test(formData.email)) {
+      newErrors.email = "Please enter a valid email address";
     }
     
-    if (!formData.password || formData.password.length < 6) {
-      newErrors.password = "Password must be at least 6 characters";
+    if (!formData.whatsapp || formData.whatsapp.length < 10) {
+      newErrors.whatsapp = "Please enter a valid WhatsApp number (min 10 digits)";
     }
     
     setErrors(newErrors);
@@ -60,32 +59,27 @@ const RobloxTopUp = () => {
       return;
     }
 
-    if (!selectedPackage) {
-      toast.error("Please select a package");
-      return;
-    }
-
     const orderId = generateOrderNumber();
     setCurrentOrderId(orderId);
     setShowReviewModal(true);
   };
 
   const handleConfirmOrder = async () => {
-    if (!user || !selectedPackage) return;
+    if (!user) return;
 
     setIsSubmitting(true);
     try {
       await createOrder({
         order_number: currentOrderId,
-        product_category: "other",
-        product_name: "Roblox Robux",
-        package_name: selectedPackage.name,
-        quantity: selectedPackage.quantity,
-        price: selectedPackage.price,
+        product_category: "design",
+        product_name: "Logo Design",
+        package_name: logoDesignPackage.name,
+        quantity: 1,
+        price: logoDesignPackage.price,
         product_details: {
-          username: formData.username,
-          password: formData.password,
-          whatsapp: formData.whatsapp || "",
+          email: formData.email,
+          whatsapp: formData.whatsapp,
+          designType: "logo",
         },
       });
 
@@ -99,44 +93,33 @@ const RobloxTopUp = () => {
     }
   };
 
-  const handleTopUpAgain = () => {
+  const handleOrderAgain = () => {
     setShowSuccessModal(false);
-    setFormData({ username: "", password: "", whatsapp: "" });
-    setSelectedPackage(null);
+    setFormData({ email: "", whatsapp: "" });
     setCurrentOrderId("");
   };
 
-  const getButtonText = () => {
-    if (!formData.username || !formData.password) {
-      return "Enter Details to Buy";
-    }
-    if (!selectedPackage) {
-      return "Select Package to Buy";
-    }
-    return `Buy Now - ₹ ${selectedPackage.price}`;
-  };
-
-  const isFormValid = formData.username.length >= 3 && formData.password.length >= 6 && selectedPackage;
+  const isFormValid = formData.email && formData.whatsapp.length >= 10;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950">
-      <RobloxProductHeader />
+    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 pb-24">
+      <DesignProductHeader 
+        title="Logo Design Service"
+        subtitle="Professional Custom Logos"
+        icon={logoDesignPackage.icon}
+      />
       
-      <div className="container mx-auto px-4 py-6 pb-28">
-        <div className="space-y-6">
-          <RobloxUserInputForm
-            formData={formData}
-            onChange={handleInputChange}
-            errors={errors}
-          />
-          
-          <RobloxPackageSelector
-            selectedPackage={selectedPackage}
-            onSelectPackage={setSelectedPackage}
-          />
-        </div>
+      <div className="container mx-auto px-4 py-6 space-y-6">
+        <DesignContactForm
+          formData={formData}
+          onChange={handleInputChange}
+          errors={errors}
+        />
+        
+        <DesignPackageDisplay package={logoDesignPackage} />
       </div>
 
+      {/* Fixed Bottom Button */}
       <div className="fixed bottom-0 left-0 right-0 p-4 bg-slate-900/80 backdrop-blur-lg border-t border-slate-800">
         <div className="container mx-auto">
           <Button
@@ -152,37 +135,41 @@ const RobloxTopUp = () => {
           >
             <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent 
               translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700" />
-            <span className="relative z-10">{getButtonText()}</span>
+            <span className="relative z-10">
+              {!isFormValid
+                ? "Enter Details to Order"
+                : `Order Now - ₹${logoDesignPackage.price}`}
+            </span>
           </Button>
         </div>
       </div>
 
-      {user && profile && selectedPackage && (
-        <RobloxOrderReview
+      {/* Modals */}
+      {user && profile && (
+        <DesignOrderReview
           isOpen={showReviewModal}
           onClose={() => setShowReviewModal(false)}
           onConfirm={handleConfirmOrder}
           orderData={{
             orderId: currentOrderId,
-            package: selectedPackage,
-            username: formData.username,
-            password: formData.password,
+            package: logoDesignPackage,
+            email: formData.email,
             whatsapp: formData.whatsapp,
-            email: user.email!,
+            userEmail: user.email!,
             currentBalance: profile.balance,
           }}
           isSubmitting={isSubmitting}
         />
       )}
 
-      <RobloxSuccessModal
+      <DesignSuccessModal
         isOpen={showSuccessModal}
         onClose={() => setShowSuccessModal(false)}
         orderId={currentOrderId}
-        onTopUpAgain={handleTopUpAgain}
+        onOrderAgain={handleOrderAgain}
       />
     </div>
   );
 };
 
-export default RobloxTopUp;
+export default LogoDesign;

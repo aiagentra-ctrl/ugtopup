@@ -25,12 +25,12 @@ export const MLPackageSelector = ({ selectedPackage, onSelectPackage }: MLPackag
                 onClick={() => onSelectPackage(pkg)}
                 className={`relative p-4 rounded-lg border-2 transition-all duration-300 ${
                   selectedPackage?.id === pkg.id
-                    ? "border-blue-500 bg-blue-500/10 shadow-lg shadow-blue-500/30"
+                    ? "border-primary bg-primary/10 shadow-lg shadow-primary/40 scale-105 selected-pulse"
                     : "border-slate-700 bg-slate-800/50 hover:border-slate-600 hover:bg-slate-800/70"
                 }`}
               >
                 {selectedPackage?.id === pkg.id && (
-                  <div className="absolute -top-2 -right-2 w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center">
+                  <div className="absolute -top-2 -right-2 w-6 h-6 bg-primary rounded-full flex items-center justify-center">
                     <Check className="w-4 h-4 text-white" />
                   </div>
                 )}
@@ -38,7 +38,7 @@ export const MLPackageSelector = ({ selectedPackage, onSelectPackage }: MLPackag
                   <div className="text-2xl">{pkg.icon}</div>
                   <div className="text-lg font-bold text-slate-100">{pkg.quantity}</div>
                   <div className="text-sm text-slate-400">Diamonds</div>
-                  <div className="text-base font-semibold text-blue-400">
+                  <div className="text-base font-semibold text-primary">
                     {pkg.currency} {pkg.price}
                   </div>
                 </div>
@@ -63,19 +63,19 @@ export const MLPackageSelector = ({ selectedPackage, onSelectPackage }: MLPackag
                 onClick={() => onSelectPackage(pkg)}
                 className={`relative p-4 rounded-lg border-2 transition-all duration-300 ${
                   selectedPackage?.id === pkg.id
-                    ? "border-purple-500 bg-purple-500/10 shadow-lg shadow-purple-500/30"
+                    ? "border-secondary bg-secondary/10 shadow-lg shadow-secondary/40 scale-105 selected-pulse"
                     : "border-slate-700 bg-slate-800/50 hover:border-slate-600 hover:bg-slate-800/70"
                 }`}
               >
                 {selectedPackage?.id === pkg.id && (
-                  <div className="absolute -top-2 -right-2 w-6 h-6 bg-purple-500 rounded-full flex items-center justify-center">
+                  <div className="absolute -top-2 -right-2 w-6 h-6 bg-secondary rounded-full flex items-center justify-center">
                     <Check className="w-4 h-4 text-white" />
                   </div>
                 )}
                 <div className="text-center space-y-2">
                   <div className="text-3xl">{pkg.icon}</div>
                   <div className="text-lg font-bold text-slate-100">{pkg.name}</div>
-                  <div className="text-base font-semibold text-purple-400">
+                  <div className="text-base font-semibold text-secondary">
                     {pkg.currency} {pkg.price}
                   </div>
                 </div>

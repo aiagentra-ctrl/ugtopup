@@ -202,6 +202,8 @@ export const OrderManagement = () => {
                   <SelectItem value="smilecoin">Smile Coin</SelectItem>
                   <SelectItem value="chatgpt">ChatGPT</SelectItem>
                   <SelectItem value="unipin">Unipin</SelectItem>
+                  <SelectItem value="other">Mobile Legends & Roblox</SelectItem>
+                  <SelectItem value="design">Design Services</SelectItem>
                 </SelectContent>
               </Select>
             </div>

@@ -2,7 +2,7 @@ import { supabase } from "@/integrations/supabase/client";
 
 export interface OrderInput {
   order_number: string;
-  product_category: 'freefire' | 'tiktok' | 'netflix' | 'garena' | 'youtube' | 'smilecoin' | 'chatgpt' | 'unipin' | 'other';
+  product_category: 'freefire' | 'tiktok' | 'netflix' | 'garena' | 'youtube' | 'smilecoin' | 'chatgpt' | 'unipin' | 'other' | 'design';
   product_name: string;
   package_name: string;
   quantity: number;
@@ -57,12 +57,18 @@ export const createOrder = async (orderData: OrderInput): Promise<Order> => {
 
   const { data, error } = await supabase
     .from('product_orders')
-    .insert({
+    .insert([{
       user_id: user.id,
       user_email: user.email!,
       user_name: profile?.full_name || user.email!.split('@')[0],
-      ...orderData
-    })
+      order_number: orderData.order_number,
+      product_category: orderData.product_category as any,
+      product_name: orderData.product_name,
+      package_name: orderData.package_name,
+      quantity: orderData.quantity,
+      price: orderData.price,
+      product_details: orderData.product_details
+    }])
     .select()
     .single();
 

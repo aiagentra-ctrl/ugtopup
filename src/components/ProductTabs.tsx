@@ -31,9 +31,10 @@ const productData = {
     { id: 3, title: "Netflix Subscription", image: productNetflix, link: "/product/netflix" },
   ],
   design: [
-    { id: 1, title: "Logo Designs", image: "https://images.unsplash.com/photo-1626785774625-ddcddc3445e9?w=400&h=400&fit=crop" },
-    { id: 2, title: "Post Designs", image: "https://images.unsplash.com/photo-1558655146-d09347e92766?w=400&h=400&fit=crop" },
-    { id: 3, title: "Banner Designs", image: "https://images.unsplash.com/photo-1561070791-2526d30994b5?w=400&h=400&fit=crop" },
+    { id: 1, title: "Logo Design", image: "https://images.unsplash.com/photo-1626785774625-ddcddc3445e9?w=400&h=400&fit=crop", link: "/product/logo-design" },
+    { id: 2, title: "Post Design", image: "https://images.unsplash.com/photo-1558655146-d09347e92766?w=400&h=400&fit=crop", link: "/product/post-design" },
+    { id: 3, title: "Banner Design", image: "https://images.unsplash.com/photo-1561070791-2526d30994b5?w=400&h=400&fit=crop", link: "/product/banner-design" },
+    { id: 4, title: "Thumbnail Design", image: "https://images.unsplash.com/photo-1611162617474-5b21e879e113?w=400&h=400&fit=crop", link: "/product/thumbnail-design" },
   ],
 };
 
@@ -120,12 +121,13 @@ export const ProductTabs = () => {
         </TabsContent>
 
         <TabsContent value="design" className="animate-fade-in">
-          <div className="grid grid-cols-2 gap-4 sm:gap-6 sm:grid-cols-3 md:grid-cols-3">
+          <div className="grid grid-cols-2 gap-4 sm:gap-6 sm:grid-cols-3 md:grid-cols-4">
             {productData.design.map((product) => (
               <ProductCard
                 key={product.id}
                 image={product.image}
                 title={product.title}
+                link={product.link}
                 onBuyNow={() => handleBuyNow(product.title)}
               />
             ))}

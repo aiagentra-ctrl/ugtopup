@@ -143,9 +143,17 @@ const MobileLegends = () => {
           <Button
             onClick={handleBuyNow}
             disabled={!isFormValid}
-            className="w-full h-14 text-lg font-semibold bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-red-500/30"
+            className="w-full h-16 text-lg font-bold rounded-2xl 
+              bg-gradient-to-r from-primary via-red-600 to-secondary 
+              hover:opacity-90 hover:shadow-[0_0_40px_rgba(255,0,0,0.6)] 
+              hover:scale-[1.02] active:scale-[0.98] 
+              transition-all duration-300 
+              disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:scale-100
+              relative overflow-hidden group"
           >
-            {getButtonText()}
+            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent 
+              translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700" />
+            <span className="relative z-10">{getButtonText()}</span>
           </Button>
         </div>
       </div>

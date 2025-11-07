@@ -24,12 +24,12 @@ export const RobloxPackageSelector = ({ selectedPackage, onSelectPackage }: Robl
               onClick={() => onSelectPackage(pkg)}
               className={`relative p-4 rounded-lg border-2 transition-all duration-300 ${
                 selectedPackage?.id === pkg.id
-                  ? "border-green-500 bg-green-500/10 shadow-lg shadow-green-500/30"
+                  ? "border-primary bg-primary/10 shadow-lg shadow-primary/40 scale-105 selected-pulse"
                   : "border-slate-700 bg-slate-800/50 hover:border-slate-600 hover:bg-slate-800/70"
               }`}
             >
               {selectedPackage?.id === pkg.id && (
-                <div className="absolute -top-2 -right-2 w-6 h-6 bg-green-500 rounded-full flex items-center justify-center">
+                <div className="absolute -top-2 -right-2 w-6 h-6 bg-primary rounded-full flex items-center justify-center">
                   <Check className="w-4 h-4 text-white" />
                 </div>
               )}
@@ -37,7 +37,7 @@ export const RobloxPackageSelector = ({ selectedPackage, onSelectPackage }: Robl
                 <div className="text-3xl">{pkg.icon}</div>
                 <div className="text-lg font-bold text-slate-100">{pkg.quantity}</div>
                 <div className="text-sm text-slate-400">Robux</div>
-                <div className="text-base font-semibold text-green-400">
+                <div className="text-base font-semibold text-primary">
                   {pkg.currency} {pkg.price}
                 </div>
               </div>
