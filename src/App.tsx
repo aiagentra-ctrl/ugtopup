@@ -23,6 +23,8 @@ import ChatGPT from "./pages/ChatGPT";
 import YouTube from "./pages/YouTube";
 import Netflix from "./pages/Netflix";
 import GarenaShell from "./pages/GarenaShell";
+import MobileLegends from "./pages/MobileLegends";
+import RobloxTopUp from "./pages/RobloxTopUp";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -47,8 +49,10 @@ const App = () => (
             <Route path="/product/youtube-premium" element={<YouTube />} />
             <Route path="/product/netflix" element={<Netflix />} />
             <Route path="/product/garena-shell" element={<GarenaShell />} />
+            <Route path="/product/mobile-legends" element={<MobileLegends />} />
+            <Route path="/product/roblox-topup" element={<RobloxTopUp />} />
             <Route
-              path="/dashboard" 
+              path="/dashboard"
               element={
                 <ProtectedRoute>
                   <Dashboard />
