@@ -100,7 +100,7 @@ export const EditProduct = () => {
       await updateProduct(product.id, {
         product_id: formData.product_id,
         name: formData.name,
-        category: formData.category as any,
+        category: formData.category,
         description: formData.description || undefined,
         price: Number(formData.price),
         original_price: formData.original_price ? Number(formData.original_price) : undefined,
