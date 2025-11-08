@@ -4,13 +4,13 @@ import { Header } from "@/components/Header";
 import { UserProfileCard } from "@/components/dashboard/UserProfileCard";
 import { StatisticsCard } from "@/components/dashboard/StatisticsCard";
 import { CreditBalanceCard } from "@/components/dashboard/CreditBalanceCard";
-import { EmptyStateCard } from "@/components/dashboard/EmptyStateCard";
+import { OrderHistoryCard } from "@/components/dashboard/OrderHistoryCard";
 import { TrustBadges } from "@/components/dashboard/TrustBadges";
 import { CreditRequestHistory } from "@/components/topup/CreditRequestHistory";
 import { TopUpModal } from "@/components/topup/TopUpModal";
-import { ShoppingBag } from "lucide-react";
 import { toast } from "sonner";
-import { fetchUserPaymentRequests, fetchUserBalance, type CreditHistoryEntry } from "@/lib/creditApi";
+import { fetchUserPaymentRequests, type CreditHistoryEntry } from "@/lib/creditApi";
+import { fetchUserOrders, type Order } from "@/lib/orderApi";
 import { supabase } from "@/integrations/supabase/client";
 
 const Dashboard = () => {
@@ -18,19 +18,24 @@ const Dashboard = () => {
   const [topUpModalOpen, setTopUpModalOpen] = useState(false);
   const [balance, setBalance] = useState(profile?.balance || 0);
   const [creditRequests, setCreditRequests] = useState<CreditHistoryEntry[]>([]);
+  const [orders, setOrders] = useState<Order[]>([]);
   const [loadingBalance, setLoadingBalance] = useState(true);
   const [loadingHistory, setLoadingHistory] = useState(true);
+  const [loadingOrders, setLoadingOrders] = useState(true);
   const [historyError, setHistoryError] = useState<string | null>(null);
+  const [ordersError, setOrdersError] = useState<string | null>(null);
 
   // Extract username from profile or email
   const username = profile?.username || profile?.full_name || user?.email?.split('@')[0] || 'User';
   const email = user?.email || '';
-  const orders = 0; // Will integrate with real orders later
-  const pendingOrders = 0;
 
   // Calculate stats from credit data
   const topUps = creditRequests.length;
   const pendingTopUps = creditRequests.filter(r => r.status.toLowerCase() === 'pending').length;
+  
+  // Calculate stats from orders
+  const totalOrders = orders.length;
+  const pendingOrders = orders.filter(o => o.status === 'pending').length;
 
   // Real-time balance updates
   useEffect(() => {
@@ -109,6 +114,49 @@ const Dashboard = () => {
     };
   }, [user?.id]);
 
+  // Real-time order updates
+  useEffect(() => {
+    if (!user?.id) return;
+
+    const loadOrders = async () => {
+      setOrdersError(null);
+      try {
+        const userOrders = await fetchUserOrders();
+        setOrders(userOrders);
+      } catch (error: any) {
+        console.error('Error loading orders:', error);
+        setOrdersError('Failed to load order history.');
+      } finally {
+        setLoadingOrders(false);
+      }
+    };
+
+    loadOrders();
+
+    // Subscribe to real-time order changes
+    const channel = supabase
+      .channel('order-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'product_orders',
+          filter: `user_id=eq.${user.id}`
+        },
+        (payload) => {
+          console.log('[Real-time] Order updated:', payload);
+          loadOrders(); // Reload orders when any change occurs
+          toast.success('Order status updated!');
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user?.id]);
+
   const handleTopUpClick = () => {
     setTopUpModalOpen(true);
   };
@@ -143,7 +191,7 @@ const Dashboard = () => {
           
           <StatisticsCard 
             topUps={topUps}
-            orders={orders}
+            orders={totalOrders}
             pendingTopUps={pendingTopUps}
             pendingOrders={pendingOrders}
           />
@@ -170,12 +218,10 @@ const Dashboard = () => {
 
         {/* Order History */}
         <div className="mb-6 animate-fade-in" style={{ animationDelay: '400ms' }}>
-          <EmptyStateCard 
-            title="Order History"
-            total={orders}
-            icon={<ShoppingBag className="h-10 w-10 text-green-500" />}
-            emptyTitle="No orders yet"
-            emptySubtitle="Your order history will appear here"
+          <OrderHistoryCard 
+            orders={orders}
+            loading={loadingOrders}
+            error={ordersError}
           />
         </div>
 
