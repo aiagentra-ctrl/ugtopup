@@ -1,4 +1,4 @@
-import { ReactNode, useState, useEffect } from "react";
+import { ReactNode } from "react";
 import {
   LayoutDashboard,
   CreditCard,
@@ -7,11 +7,6 @@ import {
   Package,
   Menu,
   LogOut,
-  ChevronDown,
-  ChevronRight,
-  ShoppingBag,
-  FolderOpen,
-  Plus,
 } from "lucide-react";
 import {
   Sidebar,
@@ -26,7 +21,6 @@ import {
   SidebarTrigger,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -42,21 +36,8 @@ const menuItems = [
   { id: "dashboard", title: "Dashboard", icon: LayoutDashboard },
   { id: "payments", title: "Credit Requests", icon: CreditCard },
   { id: "orders", title: "Order Management", icon: ShoppingCart },
+  { id: "products", title: "Products", icon: Package },
   { id: "activity", title: "Activity Logs", icon: Activity },
-];
-
-const productMenuItems = [
-  { id: "products", title: "All Products", icon: ShoppingBag },
-  { id: "add-product", title: "Add New Product", icon: Plus },
-];
-
-const categoryItems = [
-  { id: "products-freefire", title: "Free Fire", emoji: "🔥" },
-  { id: "products-mobile_legends", title: "Mobile Legends", emoji: "🎮" },
-  { id: "products-roblox", title: "Roblox", emoji: "🎨" },
-  { id: "products-tiktok", title: "TikTok", emoji: "🎵" },
-  { id: "products-netflix", title: "Netflix", emoji: "🎬" },
-  { id: "products-design", title: "Design Services", emoji: "✨" },
 ];
 
 function AdminSidebar({ 
@@ -71,17 +52,6 @@ function AdminSidebar({
   const { state } = useSidebar();
   const { user, profile, logout } = useAuth();
   const isCollapsed = !isMobile && state === "collapsed";
-  
-  const [isProductsOpen, setIsProductsOpen] = useState(() => {
-    const saved = localStorage.getItem("admin-products-expanded");
-    return saved ? JSON.parse(saved) : true;
-  });
-
-  useEffect(() => {
-    localStorage.setItem("admin-products-expanded", JSON.stringify(isProductsOpen));
-  }, [isProductsOpen]);
-
-  const isProductSection = activeSection.startsWith("products") || activeSection === "add-product" || activeSection === "edit-product";
 
   const sidebarContent = (
     <>
@@ -127,89 +97,6 @@ function AdminSidebar({
                 </button>
               );
             })}
-
-            {/* Products Collapsible Section */}
-            <Collapsible open={isProductsOpen} onOpenChange={setIsProductsOpen}>
-              <CollapsibleTrigger asChild>
-                <button
-                  className={`
-                    w-full flex items-center gap-3 px-3 py-2.5 rounded-lg
-                    transition-all duration-200 font-medium
-                    ${isProductSection
-                      ? "bg-primary/10 text-primary border border-primary/20" 
-                      : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                    }
-                  `}
-                >
-                  <Package className="h-5 w-5 shrink-0" />
-                  {!isCollapsed && (
-                    <>
-                      <span className="flex-1 text-left">Products</span>
-                      {isProductsOpen ? (
-                        <ChevronDown className="h-4 w-4" />
-                      ) : (
-                        <ChevronRight className="h-4 w-4" />
-                      )}
-                    </>
-                  )}
-                </button>
-              </CollapsibleTrigger>
-              
-              {!isCollapsed && (
-                <CollapsibleContent className="ml-4 mt-1 space-y-1 border-l-2 border-primary/20 pl-2">
-                  {productMenuItems.map((item) => {
-                    const isActive = activeSection === item.id;
-                    return (
-                      <button
-                        key={item.id}
-                        onClick={() => onSectionChange(item.id)}
-                        className={`
-                          w-full flex items-center gap-3 px-3 py-2 rounded-lg
-                          transition-all duration-200 text-sm
-                          ${isActive 
-                            ? "bg-primary text-primary-foreground shadow-md shadow-primary/20" 
-                            : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
-                          }
-                        `}
-                      >
-                        <item.icon className="h-4 w-4 shrink-0" />
-                        <span>{item.title}</span>
-                      </button>
-                    );
-                  })}
-
-                  {/* By Category Section */}
-                  <div className="pt-2">
-                    <div className="flex items-center gap-2 px-3 py-1.5 text-xs font-semibold text-muted-foreground">
-                      <FolderOpen className="h-3.5 w-3.5" />
-                      <span>By Category</span>
-                    </div>
-                    <div className="space-y-1 mt-1">
-                      {categoryItems.map((item) => {
-                        const isActive = activeSection === item.id;
-                        return (
-                          <button
-                            key={item.id}
-                            onClick={() => onSectionChange(item.id)}
-                            className={`
-                              w-full flex items-center gap-2 px-3 py-1.5 rounded-lg
-                              transition-all duration-200 text-sm
-                              ${isActive 
-                                ? "bg-primary/20 text-primary border border-primary/30" 
-                                : "text-muted-foreground hover:bg-muted/30 hover:text-foreground"
-                              }
-                            `}
-                          >
-                            <span className="text-base">{item.emoji}</span>
-                            <span className="text-xs">{item.title}</span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                </CollapsibleContent>
-              )}
-            </Collapsible>
           </div>
         </div>
       </div>

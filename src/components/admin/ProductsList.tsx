@@ -7,10 +7,10 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Edit, Trash2, Search, Plus, Package, Check, X, ImageIcon } from "lucide-react";
+import { Edit, Trash2, Search, Plus, Package } from "lucide-react";
 import { toast } from "sonner";
+import { format } from "date-fns";
 import { useNavigate } from "react-router-dom";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -22,22 +22,16 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
-interface ProductsListProps {
-  initialCategory?: string;
-}
-
-export const ProductsList = ({ initialCategory }: ProductsListProps = {}) => {
+export const ProductsList = () => {
   const navigate = useNavigate();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
-  const [categoryFilter, setCategoryFilter] = useState<string>(initialCategory || "all");
+  const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [stockFilter, setStockFilter] = useState<string>("all");
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 20;
-  const [editingPriceId, setEditingPriceId] = useState<string | null>(null);
-  const [editingPrice, setEditingPrice] = useState<string>("");
 
   const loadProducts = async () => {
     setLoading(true);
@@ -101,33 +95,6 @@ export const ProductsList = ({ initialCategory }: ProductsListProps = {}) => {
     }
   };
 
-  const handlePriceEdit = (product: Product) => {
-    setEditingPriceId(product.id);
-    setEditingPrice(product.price.toString());
-  };
-
-  const handlePriceSave = async (productId: string) => {
-    try {
-      const newPrice = parseFloat(editingPrice);
-      if (isNaN(newPrice) || newPrice <= 0) {
-        toast.error("Please enter a valid price");
-        return;
-      }
-      await updateProduct(productId, { price: newPrice });
-      toast.success("✅ Price updated successfully");
-      setEditingPriceId(null);
-      setEditingPrice("");
-      loadProducts();
-    } catch (error: any) {
-      toast.error(error.message || "Failed to update price");
-    }
-  };
-
-  const handlePriceCancel = () => {
-    setEditingPriceId(null);
-    setEditingPrice("");
-  };
-
   const getCategoryBadge = (category: string) => {
     const colors: Record<string, string> = {
       freefire: "bg-red-500/20 text-red-400 border-red-500/30",
@@ -164,14 +131,14 @@ export const ProductsList = ({ initialCategory }: ProductsListProps = {}) => {
         </div>
         <Button
           onClick={() => navigate("/admin?section=add-product")}
-          className="bg-gradient-to-r from-primary via-red-600 to-secondary hover:shadow-[0_0_40px_rgba(255,0,0,0.6)] transition-all"
+          className="bg-gradient-to-r from-primary to-secondary hover:opacity-90"
         >
           <Plus className="w-4 h-4 mr-2" />
           Add Product
         </Button>
       </div>
 
-      <Card className="bg-slate-950/50 backdrop-blur-sm border-primary/20">
+      <Card className="bg-card/50 backdrop-blur-sm border-border">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Package className="w-5 h-5 text-primary" />
@@ -228,113 +195,43 @@ export const ProductsList = ({ initialCategory }: ProductsListProps = {}) => {
             </div>
           ) : (
             <>
-              <div className="rounded-lg border border-primary/20 overflow-hidden">
+              <div className="rounded-lg border border-border overflow-hidden">
                 <Table>
                   <TableHeader>
-                    <TableRow className="bg-slate-900/50 hover:bg-slate-900/50">
-                      <TableHead className="w-20">Image</TableHead>
-                      <TableHead>Product Name</TableHead>
+                    <TableRow className="bg-muted/50">
+                      <TableHead>Product ID</TableHead>
+                      <TableHead>Name</TableHead>
                       <TableHead>Category</TableHead>
-                      <TableHead className="max-w-xs">Description</TableHead>
                       <TableHead>Price</TableHead>
+                      <TableHead>Stock</TableHead>
                       <TableHead>Status</TableHead>
+                      <TableHead>Created</TableHead>
                       <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {paginatedProducts.map((product) => (
-                      <TableRow key={product.id} className="hover:bg-slate-900/30 border-primary/10">
-                        <TableCell>
-                          <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger>
-                                <div className="w-14 h-14 rounded-lg overflow-hidden bg-slate-900 border border-primary/20 flex items-center justify-center group hover:border-primary/50 transition-all">
-                                  {product.image_url ? (
-                                    <img 
-                                      src={product.image_url} 
-                                      alt={product.name}
-                                      className="w-full h-full object-cover group-hover:scale-110 transition-transform"
-                                    />
-                                  ) : (
-                                    <ImageIcon className="w-6 h-6 text-muted-foreground" />
-                                  )}
-                                </div>
-                              </TooltipTrigger>
-                              <TooltipContent side="right" className="bg-slate-900 border-primary/20">
-                                <div className="space-y-1 text-xs">
-                                  <p><strong>ID:</strong> {product.product_id}</p>
-                                  <p><strong>Created:</strong> {new Date(product.created_at).toLocaleDateString()}</p>
-                                </div>
-                              </TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
-                        </TableCell>
-                        <TableCell className="font-medium text-foreground">{product.name}</TableCell>
+                      <TableRow key={product.id} className="hover:bg-muted/30">
+                        <TableCell className="font-mono text-xs">{product.product_id}</TableCell>
+                        <TableCell className="font-medium">{product.name}</TableCell>
                         <TableCell>
                           <Badge className={getCategoryBadge(product.category)}>
                             {product.category.replace('_', ' ')}
                           </Badge>
                         </TableCell>
-                        <TableCell className="max-w-xs">
-                          <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <p className="text-sm text-muted-foreground truncate cursor-help">
-                                  {product.description || "No description"}
-                                </p>
-                              </TooltipTrigger>
-                              {product.description && (
-                                <TooltipContent className="max-w-sm bg-slate-900 border-primary/20">
-                                  <p className="text-xs">{product.description}</p>
-                                </TooltipContent>
-                              )}
-                            </Tooltip>
-                          </TooltipProvider>
+                        <TableCell className="font-semibold text-primary">₹{product.price}</TableCell>
+                        <TableCell>
+                          <Badge className={getStockBadge(product.stock_status)}>
+                            {product.stock_status.replace('_', ' ')}
+                          </Badge>
                         </TableCell>
                         <TableCell>
-                          {editingPriceId === product.id ? (
-                            <div className="flex items-center gap-2">
-                              <Input
-                                type="number"
-                                value={editingPrice}
-                                onChange={(e) => setEditingPrice(e.target.value)}
-                                className="w-24 h-8 text-sm bg-slate-900 border-primary/30"
-                                autoFocus
-                              />
-                              <Button
-                                size="icon"
-                                variant="ghost"
-                                className="h-8 w-8 hover:bg-green-500/20 hover:text-green-400"
-                                onClick={() => handlePriceSave(product.id)}
-                              >
-                                <Check className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                size="icon"
-                                variant="ghost"
-                                className="h-8 w-8 hover:bg-destructive/20 hover:text-destructive"
-                                onClick={handlePriceCancel}
-                              >
-                                <X className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          ) : (
-                            <button
-                              onClick={() => handlePriceEdit(product)}
-                              className="font-semibold text-primary hover:text-primary/80 transition-colors cursor-pointer flex items-center gap-2 group"
-                            >
-                              ₹{product.price}
-                              <Edit className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity" />
-                            </button>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          <Badge 
-                            variant={product.is_active ? "default" : "secondary"}
-                            className={product.is_active ? "bg-green-500/20 text-green-400 border-green-500/30" : ""}
-                          >
+                          <Badge variant={product.is_active ? "default" : "secondary"}>
                             {product.is_active ? "Active" : "Inactive"}
                           </Badge>
+                        </TableCell>
+                        <TableCell className="text-xs text-muted-foreground">
+                          {format(new Date(product.created_at), "MMM dd, yyyy")}
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex items-center justify-end gap-2">
@@ -342,7 +239,7 @@ export const ProductsList = ({ initialCategory }: ProductsListProps = {}) => {
                               variant="ghost"
                               size="sm"
                               onClick={() => handleToggleActive(product)}
-                              className="hover:bg-primary/10 hover:text-primary transition-all"
+                              className="hover:bg-primary/10"
                             >
                               {product.is_active ? "Deactivate" : "Activate"}
                             </Button>
@@ -350,7 +247,7 @@ export const ProductsList = ({ initialCategory }: ProductsListProps = {}) => {
                               variant="ghost"
                               size="icon"
                               onClick={() => navigate(`/admin?section=edit-product&id=${product.id}`)}
-                              className="hover:bg-blue-500/10 hover:text-blue-400 transition-all"
+                              className="hover:bg-blue-500/10 hover:text-blue-400"
                             >
                               <Edit className="w-4 h-4" />
                             </Button>
@@ -358,7 +255,7 @@ export const ProductsList = ({ initialCategory }: ProductsListProps = {}) => {
                               variant="ghost"
                               size="icon"
                               onClick={() => setDeleteId(product.id)}
-                              className="hover:bg-destructive/10 hover:text-destructive transition-all"
+                              className="hover:bg-destructive/10 hover:text-destructive"
                             >
                               <Trash2 className="w-4 h-4" />
                             </Button>
