@@ -11,6 +11,7 @@ import { Edit, Trash2, Search, Plus, Package, Check, X, ImageIcon } from "lucide
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { ProductEditDialog } from "@/components/admin/ProductEditDialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -38,6 +39,7 @@ export const ProductsList = ({ initialCategory }: ProductsListProps = {}) => {
   const itemsPerPage = 20;
   const [editingPriceId, setEditingPriceId] = useState<string | null>(null);
   const [editingPrice, setEditingPrice] = useState<string>("");
+  const [editingProductDetails, setEditingProductDetails] = useState<Product | null>(null);
 
   const loadProducts = async () => {
     setLoading(true);
@@ -205,17 +207,6 @@ export const ProductsList = ({ initialCategory }: ProductsListProps = {}) => {
                 <SelectItem value="netflix">Netflix</SelectItem>
               </SelectContent>
             </Select>
-            <Select value={stockFilter} onValueChange={setStockFilter}>
-              <SelectTrigger className="w-full md:w-48 bg-background border-border">
-                <SelectValue placeholder="All Stock Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Status</SelectItem>
-                <SelectItem value="in_stock">In Stock</SelectItem>
-                <SelectItem value="out_of_stock">Out of Stock</SelectItem>
-                <SelectItem value="coming_soon">Coming Soon</SelectItem>
-              </SelectContent>
-            </Select>
           </div>
 
           {/* Table */}
@@ -237,7 +228,6 @@ export const ProductsList = ({ initialCategory }: ProductsListProps = {}) => {
                       <TableHead>Category</TableHead>
                       <TableHead className="max-w-xs">Description</TableHead>
                       <TableHead>Price</TableHead>
-                      <TableHead>Status</TableHead>
                       <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -328,28 +318,12 @@ export const ProductsList = ({ initialCategory }: ProductsListProps = {}) => {
                             </button>
                           )}
                         </TableCell>
-                        <TableCell>
-                          <Badge 
-                            variant={product.is_active ? "default" : "secondary"}
-                            className={product.is_active ? "bg-green-500/20 text-green-400 border-green-500/30" : ""}
-                          >
-                            {product.is_active ? "Active" : "Inactive"}
-                          </Badge>
-                        </TableCell>
                         <TableCell className="text-right">
                           <div className="flex items-center justify-end gap-2">
                             <Button
                               variant="ghost"
-                              size="sm"
-                              onClick={() => handleToggleActive(product)}
-                              className="hover:bg-primary/10 hover:text-primary transition-all"
-                            >
-                              {product.is_active ? "Deactivate" : "Activate"}
-                            </Button>
-                            <Button
-                              variant="ghost"
                               size="icon"
-                              onClick={() => navigate(`/admin?section=edit-product&id=${product.id}`)}
+                              onClick={() => setEditingProductDetails(product)}
                               className="hover:bg-blue-500/10 hover:text-blue-400 transition-all"
                             >
                               <Edit className="w-4 h-4" />
@@ -419,6 +393,13 @@ export const ProductsList = ({ initialCategory }: ProductsListProps = {}) => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <ProductEditDialog
+        open={!!editingProductDetails}
+        product={editingProductDetails}
+        onClose={() => setEditingProductDetails(null)}
+        onSaved={loadProducts}
+      />
     </div>
   );
 };
