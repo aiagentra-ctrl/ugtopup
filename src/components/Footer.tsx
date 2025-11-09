@@ -33,10 +33,10 @@ export const Footer = () => {
             <div className="text-[hsl(var(--footer-text))] text-base">
               <span className="font-medium">Phone:</span>{" "}
               <a 
-                href="tel:9802436393" 
+                href="tel:+9779708562001" 
                 className="hover:text-[hsl(var(--footer-heading))] transition-colors duration-300"
               >
-                Helpline. 9802436393
+                Helpline. +977 9708562001
               </a>
             </div>
           </div>

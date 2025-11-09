@@ -52,7 +52,7 @@ export const Header = () => {
   }, [user?.id, profile?.balance]);
 
   return (
-    <header className="sticky top-0 z-50 bg-black/95 backdrop-blur-lg border-b border-white/5">
+    <header className="sticky top-0 z-50 bg-black border-b border-white/5">
       <div className="container mx-auto px-4">
         <div className="flex h-16 md:h-20 items-center justify-between gap-4">
           {/* Logo */}
@@ -88,19 +88,13 @@ export const Header = () => {
                 {/* User Profile Dropdown - Desktop */}
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <button className="hidden sm:flex items-center gap-2 bg-black/60 border border-white/10 rounded-xl px-3 py-2 hover:border-primary/50 transition-colors">
-                      <Avatar className="h-6 w-6">
-                        <AvatarImage src={profile?.avatar_url || undefined} />
-                        <AvatarFallback className="bg-primary/20 text-primary text-xs">
-                          {user?.email?.charAt(0).toUpperCase()}
-                        </AvatarFallback>
-                      </Avatar>
+                    <button className="hidden sm:flex items-center gap-2 bg-black border border-white/10 rounded-xl px-3 py-2 hover:border-primary/50 transition-colors">
                       <span className="text-sm font-medium text-white max-w-[100px] truncate">
                         {profile?.username || user?.email?.split('@')[0]}
                       </span>
                     </button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-48 bg-black/95 border-white/10">
+                  <DropdownMenuContent align="end" className="w-48 bg-black border-white/10">
                     <DropdownMenuItem asChild>
                       <Link to="/account" className="cursor-pointer">
                         Account
@@ -120,16 +114,13 @@ export const Header = () => {
                 {/* User Profile Icon - Mobile */}
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <button className="sm:hidden flex items-center justify-center h-10 w-10 bg-black/60 border border-white/10 rounded-xl hover:border-primary/50 transition-colors">
-                      <Avatar className="h-7 w-7">
-                        <AvatarImage src={profile?.avatar_url || undefined} />
-                        <AvatarFallback className="bg-primary/20 text-primary text-xs">
-                          {user?.email?.charAt(0).toUpperCase()}
-                        </AvatarFallback>
-                      </Avatar>
+                    <button className="sm:hidden flex items-center justify-center h-10 w-10 bg-black border border-white/10 rounded-xl hover:border-primary/50 transition-colors">
+                      <span className="text-sm font-medium text-white">
+                        {user?.email?.charAt(0).toUpperCase()}
+                      </span>
                     </button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-48 bg-black/95 border-white/10">
+                  <DropdownMenuContent align="end" className="w-48 bg-black border-white/10">
                     <DropdownMenuItem asChild>
                       <Link to="/account" className="cursor-pointer">
                         Account
@@ -174,7 +165,7 @@ export const Header = () => {
 
       {/* Mobile Navigation Menu */}
       {mobileMenuOpen && (
-        <div className="sm:hidden border-t border-white/5 bg-black/98 backdrop-blur-lg">
+        <div className="sm:hidden border-t border-white/5 bg-black">
           <div className="container mx-auto px-4 py-4 space-y-2">
             <Link to="/" onClick={() => setMobileMenuOpen(false)}>
               <Button variant="ghost" className="w-full justify-start text-white">

@@ -52,7 +52,7 @@ export const HeroBanner = () => {
   return (
     <div className="relative w-full max-w-7xl mx-auto mb-8 overflow-hidden rounded-2xl shadow-2xl animate-fade-in">
       {/* 16:9 Aspect Ratio Container */}
-      <AspectRatio ratio={16 / 9} className="relative w-full bg-muted">
+      <AspectRatio ratio={16 / 9} className="relative w-full bg-black">
         <div className="relative h-full w-full">
           {slides.map((slide, index) => (
             <div
@@ -65,7 +65,7 @@ export const HeroBanner = () => {
             >
               <div className="relative h-full w-full">
                 {imageLoading[index] && (
-                  <div className="absolute inset-0 flex items-center justify-center bg-background">
+                  <div className="absolute inset-0 flex items-center justify-center bg-black">
                     <Loader2 className="h-12 w-12 animate-spin text-primary" />
                   </div>
                 )}

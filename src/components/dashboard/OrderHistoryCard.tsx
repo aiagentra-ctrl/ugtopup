@@ -2,8 +2,10 @@ import { Order } from "@/lib/orderApi";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { ShoppingBag, Loader2 } from "lucide-react";
 import { format } from "date-fns";
+import { useState } from "react";
 
 interface OrderHistoryCardProps {
   orders: Order[];
@@ -12,6 +14,9 @@ interface OrderHistoryCardProps {
 }
 
 export const OrderHistoryCard = ({ orders, loading, error }: OrderHistoryCardProps) => {
+  const [showAll, setShowAll] = useState(false);
+  const displayedOrders = showAll ? orders : orders.slice(0, 4);
+
   const getStatusColor = (status: string) => {
     switch (status.toLowerCase()) {
       case 'pending':
@@ -80,7 +85,7 @@ export const OrderHistoryCard = ({ orders, loading, error }: OrderHistoryCardPro
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {orders.map((order) => (
+                {displayedOrders.map((order) => (
                   <TableRow key={order.id} className="border-slate-800 hover:bg-slate-900/50">
                     <TableCell className="font-mono text-sm">
                       {order.order_number}
@@ -104,6 +109,17 @@ export const OrderHistoryCard = ({ orders, loading, error }: OrderHistoryCardPro
                 ))}
               </TableBody>
             </Table>
+            {orders.length > 4 && (
+              <div className="mt-4 text-center">
+                <Button
+                  variant="outline"
+                  onClick={() => setShowAll(!showAll)}
+                  className="w-full sm:w-auto"
+                >
+                  {showAll ? 'Show Less' : 'View All'}
+                </Button>
+              </div>
+            )}
           </div>
         )}
       </CardContent>

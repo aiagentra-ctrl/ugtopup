@@ -60,8 +60,10 @@ export const Testimonials = () => {
                 }`}
               >
                 <div className="glass-card rounded-2xl p-8 md:p-12">
-                  <div className="flex items-center gap-2 mb-4">
-                    <span className="text-2xl">⭐</span>
+                  <div className="flex items-center gap-4 mb-4">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/20 text-primary text-xl font-bold">
+                      {testimonial.name.charAt(0).toUpperCase()}
+                    </div>
                     <p className="font-bold text-lg text-primary">
                       {testimonial.name}
                     </p>
