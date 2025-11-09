@@ -2,8 +2,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ProductCard } from "@/components/ProductCard";
 import { useToast } from "@/hooks/use-toast";
 
-import gameRoblox from "@/assets/game-roblox.jpg";
-import gamePubg from "@/assets/game-pubg.jpg";
 import productUnipin from "@/assets/product-unipin.jpg";
 import productGarena from "@/assets/product-garena.jpg";
 import productSmile from "@/assets/product-smile.jpg";
@@ -13,11 +11,11 @@ import productCapcut from "@/assets/product-capcut.jpg";
 
 const productData = {
   topup: [
-    { id: 1, title: "Free Fire Diamond 🔥", image: "https://i.ibb.co/C5spS0zQ/SAVE-20251108-163350.jpg", link: "/product/freefire-diamond" },
+    { id: 1, title: "Free Fire Diamond", image: "https://i.ibb.co/C5spS0zQ/SAVE-20251108-163350.jpg", link: "/product/freefire-diamond" },
     { id: 2, title: "Mobile Legends Diamond", image: "https://i.ibb.co/KjW0Ptdt/SAVE-20251108-180521.jpg", link: "/product/mobile-legends" },
     { id: 3, title: "TikTok Coins", image: "https://i.ibb.co/H0FwhXn/SAVE-20251108-180527.jpg", link: "/product/tiktok-coins" },
-    { id: 4, title: "Roblox Robux Top-Ups", image: gameRoblox, link: "/product/roblox-topup" },
-    { id: 5, title: "PUBG Mobile UC 🎯", image: gamePubg, link: "/product/pubg-mobile" },
+    { id: 4, title: "Roblox Robux", image: "https://i.ibb.co/0pYYFxyL/SAVE-20251108-163423.jpg", link: "/product/roblox-topup" },
+    { id: 5, title: "PUBG Mobile UC", image: "https://i.ibb.co/SDDFYS1T/SAVE-20251108-163359.jpg", link: "/product/pubg-mobile" },
   ],
   voucher: [
     { id: 1, title: "Unipin UC", image: productUnipin, link: "/product/unipin-uc" },

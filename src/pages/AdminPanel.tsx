@@ -8,6 +8,7 @@ import { ActivityLogs } from "@/components/admin/ActivityLogs";
 import { ProductsList } from "@/components/admin/ProductsList";
 import { AddProduct } from "@/components/admin/AddProduct";
 import { EditProduct } from "@/components/admin/EditProduct";
+import { UserData } from "@/components/admin/UserData";
 import { checkAdminAccess } from "@/lib/adminApi";
 import { toast } from "sonner";
 
@@ -62,6 +63,8 @@ const AdminPanel = () => {
         return <AddProduct />;
       case "edit-product":
         return <EditProduct />;
+      case "users":
+        return <UserData />;
       case "activity":
         return <ActivityLogs />;
       default:

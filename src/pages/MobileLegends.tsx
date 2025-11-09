@@ -120,7 +120,7 @@ const MobileLegends = () => {
   const isFormValid = formData.userId.length >= 6 && formData.zoneId.length === 4 && selectedPackage;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950">
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-background">
       <MLProductHeader />
       
       <div className="container mx-auto px-4 py-6 pb-28">
@@ -138,14 +138,14 @@ const MobileLegends = () => {
         </div>
       </div>
 
-      <div className="fixed bottom-0 left-0 right-0 p-4 bg-slate-900/80 backdrop-blur-lg border-t border-slate-800">
+      <div className="fixed bottom-0 left-0 right-0 p-4 bg-background/90 backdrop-blur-lg border-t border-border">
         <div className="container mx-auto">
           <Button
             onClick={handleBuyNow}
             disabled={!isFormValid}
             className="w-full h-16 text-lg font-bold rounded-2xl 
-              bg-gradient-to-r from-primary via-red-600 to-secondary 
-              hover:opacity-90 hover:shadow-[0_0_40px_rgba(255,0,0,0.6)] 
+              bg-gradient-to-r from-destructive via-destructive to-destructive 
+              hover:opacity-90 hover:shadow-[0_0_40px_rgba(220,38,38,0.6)] 
               hover:scale-[1.02] active:scale-[0.98] 
               transition-all duration-300 
               disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:scale-100

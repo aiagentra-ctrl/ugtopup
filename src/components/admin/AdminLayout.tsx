@@ -7,6 +7,7 @@ import {
   Package,
   Menu,
   LogOut,
+  Users,
 } from "lucide-react";
 import {
   Sidebar,
@@ -37,6 +38,7 @@ const menuItems = [
   { id: "payments", title: "Credit Requests", icon: CreditCard },
   { id: "orders", title: "Order Management", icon: ShoppingCart },
   { id: "products", title: "Products", icon: Package },
+  { id: "users", title: "User Data", icon: Users },
   { id: "activity", title: "Activity Logs", icon: Activity },
 ];
 
