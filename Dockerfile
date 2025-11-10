@@ -24,15 +24,18 @@ FROM nginx:alpine
 # Copy built files from builder stage
 COPY --from=builder /app/dist /usr/share/nginx/html
 
-# Copy custom nginx configuration
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+# Copy templated nginx configuration (will be rendered at container start)
+COPY nginx.conf.template /etc/nginx/conf.d/default.conf.template
 
 # Expose port 80
 EXPOSE 80
 
-# Health check for monitoring
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD wget --quiet --tries=1 --spider http://localhost:80 || exit 1
+# Ensure wget and envsubst (from gettext) are available for the healthcheck and templating
+RUN apk add --no-cache wget gettext
+
+# Health check for monitoring (uses runtime $PORT; fall back to 80)
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+  CMD sh -c 'wget --quiet --tries=1 --spider "http://localhost:${PORT:-80}" || exit 1'
 
 # Start nginx in foreground
 CMD ["nginx", "-g", "daemon off;"]
