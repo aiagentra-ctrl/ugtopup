@@ -55,7 +55,7 @@ export const TikTokUserInputForm = ({ onDataChange, initialData }: TikTokUserInp
     <Card className="glass-card border-border/50">
       <CardHeader>
         <CardTitle className="text-2xl flex items-center gap-3">
-          <span className="w-8 h-8 rounded-lg bg-gradient-to-r from-[#FE2C55] to-[#25F4EE] text-white flex items-center justify-center font-bold text-lg">
+          <span className="w-8 h-8 rounded-full bg-destructive text-white flex items-center justify-center font-bold text-lg">
             1
           </span>
           Enter TikTok Details

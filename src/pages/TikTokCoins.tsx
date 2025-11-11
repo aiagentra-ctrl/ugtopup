@@ -146,7 +146,7 @@ const TikTokCoins = () => {
       </main>
 
       {/* Fixed Bottom Button */}
-      <div className="fixed bottom-0 left-0 right-0 z-50 p-4 bg-destructive/95 backdrop-blur-xl border-t border-destructive shadow-[0_-4px_24px_rgba(220,38,38,0.4)]">
+      <div className="fixed bottom-0 left-0 right-0 z-50 p-4 bg-background/95 backdrop-blur-xl border-t border-border/40">
         <div className="container mx-auto max-w-6xl">
           <Button
             onClick={handleReviewOrder}

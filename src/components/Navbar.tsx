@@ -22,7 +22,7 @@ export const Navbar = () => {
             <img 
               src={ugGamingLogo} 
               alt="UG GAMING" 
-              className="h-18 w-auto object-contain md:h-24"
+              className="h-10 w-auto object-contain md:h-12"
               loading="eager"
             />
           </Link>
