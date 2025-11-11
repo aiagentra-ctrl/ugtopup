@@ -32,11 +32,11 @@ const FreefireDiamond = () => {
     );
   };
 
-  const generateShortOrderId = () => {
-    return generateOrderNumber();
+  const generateShortOrderId = async () => {
+    return await generateOrderNumber();
   };
 
-  const handleReviewOrder = () => {
+  const handleReviewOrder = async () => {
     if (!user) {
       toast({
         title: "Authentication Required",
@@ -65,7 +65,7 @@ const FreefireDiamond = () => {
       return;
     }
 
-    const newOrderId = generateShortOrderId();
+    const newOrderId = await generateShortOrderId();
     setOrderId(newOrderId);
     setIsReviewOpen(true);
   };

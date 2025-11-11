@@ -47,7 +47,7 @@ const ThumbnailDesign = () => {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleBuyNow = () => {
+  const handleBuyNow = async () => {
     if (!user) {
       toast.error("Please log in to place an order");
       navigate("/login");
@@ -59,7 +59,7 @@ const ThumbnailDesign = () => {
       return;
     }
 
-    const orderId = generateOrderNumber();
+    const orderId = await generateOrderNumber();
     setCurrentOrderId(orderId);
     setShowReviewModal(true);
   };

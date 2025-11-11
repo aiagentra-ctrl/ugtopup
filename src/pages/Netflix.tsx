@@ -18,16 +18,16 @@ const Netflix = () => {
   const [orderId, setOrderId] = useState("");
   const { profile } = useAuth();
 
-  const generateOrderId = () => {
-    return generateOrderNumber();
+  const generateOrderId = async () => {
+    return await generateOrderNumber();
   };
 
-  const handleBuyNow = () => {
+  const handleBuyNow = async () => {
     if (!formData || !selectedPackage) {
       toast.error("Please complete all required fields");
       return;
     }
-    const newOrderId = generateOrderId();
+    const newOrderId = await generateOrderId();
     setOrderId(newOrderId);
     setShowOrderReview(true);
   };

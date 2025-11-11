@@ -112,9 +112,39 @@ export const fetchOrderById = async (orderId: string): Promise<Order | null> => 
 
 /**
  * Generate a unique order number
+ * Format: username-3randomChars (e.g., abhiraj-a4b)
  */
-export const generateOrderNumber = (): string => {
-  const timestamp = Date.now().toString(36).toUpperCase();
-  const random = Math.random().toString(36).substring(2, 6).toUpperCase();
-  return `ORD-${timestamp}-${random}`;
+export const generateOrderNumber = async (): Promise<string> => {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    if (!user) {
+      // Fallback if no user
+      const random = Math.random().toString(36).substring(2, 5);
+      return `guest-${random}`;
+    }
+
+    // Get username from profile
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('username, email')
+      .eq('id', user.id)
+      .single();
+
+    // Use username or fallback to email prefix
+    const username = profile?.username || profile?.email?.split('@')[0] || user.email?.split('@')[0] || 'user';
+    
+    // Generate 3 random characters (mix of letters and numbers)
+    const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+    let random = '';
+    for (let i = 0; i < 3; i++) {
+      random += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    
+    return `${username}-${random}`;
+  } catch (error) {
+    console.error('Error generating order number:', error);
+    const random = Math.random().toString(36).substring(2, 5);
+    return `order-${random}`;
+  }
 };

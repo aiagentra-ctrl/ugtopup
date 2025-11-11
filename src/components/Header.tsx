@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { supabase } from "@/integrations/supabase/client";
+import ugGamingLogo from "@/assets/ug-gaming-logo.jpg";
 
 export const Header = () => {
   const { isAuthenticated, profile, user, logout } = useAuth();
@@ -58,9 +59,9 @@ export const Header = () => {
           {/* Logo */}
           <Link to="/" className="flex items-center py-2">
             <img 
-              src="https://i.ibb.co/JR0CQPpN/SAVE-20251108-175711.jpg" 
-              alt="UG TOP-UP" 
-              className="h-14 md:h-20 w-auto object-contain"
+              src={ugGamingLogo} 
+              alt="UG GAMING" 
+              className="h-16 md:h-24 w-auto object-contain"
               loading="eager"
             />
           </Link>

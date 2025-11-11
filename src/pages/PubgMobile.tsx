@@ -31,7 +31,7 @@ const PubgMobile = () => {
     );
   };
 
-  const handleReviewOrder = () => {
+  const handleReviewOrder = async () => {
     if (!user) {
       toast({
         title: "Authentication Required",
@@ -60,7 +60,7 @@ const PubgMobile = () => {
       return;
     }
 
-    const newOrderId = generateOrderNumber();
+    const newOrderId = await generateOrderNumber();
     setOrderId(newOrderId);
     setIsReviewOpen(true);
   };

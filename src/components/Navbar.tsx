@@ -8,6 +8,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import ugGamingLogo from "@/assets/ug-gaming-logo.jpg";
 
 export const Navbar = () => {
   const [walletBalance] = useState(0);
@@ -19,9 +20,9 @@ export const Navbar = () => {
           {/* Logo */}
           <Link to="/" className="flex items-center py-2">
             <img 
-              src="https://i.ibb.co/JR0CQPpN/SAVE-20251108-175711.jpg" 
-              alt="UG TOP-UP" 
-              className="h-16 w-auto object-contain md:h-20"
+              src={ugGamingLogo} 
+              alt="UG GAMING" 
+              className="h-18 w-auto object-contain md:h-24"
               loading="eager"
             />
           </Link>

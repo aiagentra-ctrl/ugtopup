@@ -28,6 +28,6 @@ export const mlDiamondPackages: MLPackage[] = [
 ];
 
 export const mlSpecialDeals: MLPackage[] = [
-  { id: 'mls1', type: 'special', name: 'Weekly', quantity: 1, price: 248, currency: '₹', icon: '⭐' },
-  { id: 'mls2', type: 'special', name: 'Twilight', quantity: 1, price: 1198, currency: '₹', icon: '🌙' },
+  { id: 'mls1', type: 'special', name: 'Weekly', quantity: 1, price: 248, currency: '₹', icon: '' },
+  { id: 'mls2', type: 'special', name: 'Twilight', quantity: 1, price: 1198, currency: '₹', icon: '' },
 ];

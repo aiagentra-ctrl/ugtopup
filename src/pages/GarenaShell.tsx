@@ -28,11 +28,11 @@ const GarenaShell = () => {
     setIsFormValid(isValid && !!data?.email);
   };
 
-  const generateShortOrderId = (): string => {
-    return generateOrderNumber();
+  const generateShortOrderId = async (): Promise<string> => {
+    return await generateOrderNumber();
   };
 
-  const handleReviewOrder = () => {
+  const handleReviewOrder = async () => {
     if (!user) {
       toast({
         title: "Please login",
@@ -61,7 +61,7 @@ const GarenaShell = () => {
       return;
     }
 
-    const newOrderId = generateShortOrderId();
+    const newOrderId = await generateShortOrderId();
     setOrderId(newOrderId);
     setIsReviewOpen(true);
   };

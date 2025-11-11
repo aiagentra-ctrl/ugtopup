@@ -50,7 +50,6 @@ export const MLUserInputForm = ({ formData, onChange, errors }: MLUserInputFormP
             placeholder="Enter your Zone ID"
             value={formData.zoneId}
             onChange={(e) => onChange("zoneId", e.target.value.replace(/\D/g, ""))}
-            maxLength={4}
             className={`bg-slate-800/50 border-slate-700 text-slate-100 placeholder:text-slate-500 focus:border-blue-500 ${
               errors.zoneId ? "border-red-500" : ""
             }`}

@@ -31,11 +31,11 @@ const TikTokCoins = () => {
     );
   };
 
-  const generateShortOrderId = () => {
-    return generateOrderNumber();
+  const generateShortOrderId = async () => {
+    return await generateOrderNumber();
   };
 
-  const handleReviewOrder = () => {
+  const handleReviewOrder = async () => {
     if (!user) {
       toast({
         title: "Authentication Required",
@@ -64,7 +64,7 @@ const TikTokCoins = () => {
       return;
     }
 
-    const newOrderId = generateShortOrderId();
+    const newOrderId = await generateShortOrderId();
     setOrderId(newOrderId);
     setIsReviewOpen(true);
   };
@@ -146,13 +146,13 @@ const TikTokCoins = () => {
       </main>
 
       {/* Fixed Bottom Button */}
-      <div className="fixed bottom-0 left-0 right-0 z-50 p-4 bg-background/98 backdrop-blur-xl border-t border-border shadow-[0_-4px_24px_rgba(0,0,0,0.3)]">
+      <div className="fixed bottom-0 left-0 right-0 z-50 p-4 bg-destructive/95 backdrop-blur-xl border-t border-destructive shadow-[0_-4px_24px_rgba(220,38,38,0.4)]">
         <div className="container mx-auto max-w-6xl">
           <Button
             onClick={handleReviewOrder}
             disabled={!canReviewOrder}
             className="w-full h-16 text-lg sm:text-xl font-bold rounded-2xl 
-              bg-gradient-to-r from-primary via-red-600 to-secondary 
+              bg-gradient-to-r from-destructive via-red-600 to-destructive 
               hover:opacity-90 hover:shadow-[0_0_40px_rgba(255,0,0,0.6)] 
               hover:scale-[1.02] active:scale-[0.98] 
               transition-all duration-300 
