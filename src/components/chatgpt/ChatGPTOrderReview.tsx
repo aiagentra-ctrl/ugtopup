@@ -58,7 +58,7 @@ export const ChatGPTOrderReview = ({
 
             <div className="pb-3 border-b border-border/20">
               <p className="text-sm text-muted-foreground mb-1">Selected Plan</p>
-              <p className="font-semibold text-base">{selectedPackage.name} 🤖</p>
+              <p className="font-semibold text-base">{selectedPackage.name}</p>
               <p className="text-sm text-muted-foreground">{selectedPackage.duration}</p>
             </div>
 

@@ -167,7 +167,7 @@ export const TopUpModal = ({ open, onOpenChange, onSuccess }: TopUpModalProps) =
               Download QR Code
             </Button>
             <p className="text-xs text-muted-foreground bg-muted/30 p-3 rounded-lg">
-              Add your Name <span className="font-semibold text-foreground">(G_D Gaming PC)</span> on the remarks registered on the website of payment
+              Add your Name <span className="font-semibold text-foreground">({profile?.username || profile?.full_name || user?.email?.split('@')[0] || 'Your Name'})</span> on the remarks registered on the website of payment
             </p>
           </div>
 
@@ -273,7 +273,7 @@ export const TopUpModal = ({ open, onOpenChange, onSuccess }: TopUpModalProps) =
                   Submitting...
                 </>
               ) : (
-                "Submit Top-Up"
+                "Submit Credit"
               )}
             </Button>
           </div>

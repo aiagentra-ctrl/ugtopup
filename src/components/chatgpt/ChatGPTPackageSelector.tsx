@@ -37,7 +37,6 @@ export const ChatGPTPackageSelector = ({ selectedPackage, onSelectPackage }: Cha
                   : "border-border hover:border-primary/50"
               )}
             >
-              <div className="text-4xl mb-1">🤖</div>
               <div className="text-center">
                 <p className={cn(
                   "font-bold text-base transition-colors",
