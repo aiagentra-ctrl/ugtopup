@@ -48,19 +48,10 @@ export const fetchDashboardStats = async (): Promise<DashboardStats | null> => {
   try {
     const { data, error } = await supabase.rpc('get_dashboard_stats');
     
-    if (error) {
-      console.error('Error fetching dashboard stats:', error);
-      if (error.message?.includes('permission') || error.message?.includes('denied')) {
-        throw new Error('Access denied. Admin privileges required.');
-      }
-      throw error;
-    }
+    if (error) throw error;
     return data?.[0] || null;
-  } catch (error: any) {
+  } catch (error) {
     console.error('Error fetching dashboard stats:', error);
-    if (error.message?.includes('Access denied')) {
-      throw error;
-    }
     return null;
   }
 };
@@ -77,42 +68,31 @@ export const refreshDashboardStats = async (): Promise<void> => {
  * Fetch all orders with optional filters (admin only)
  */
 export const fetchAllOrders = async (filters?: OrderFilters): Promise<Order[]> => {
-  try {
-    let query = supabase
-      .from('product_orders')
-      .select('*')
-      .order('created_at', { ascending: false });
+  let query = supabase
+    .from('product_orders')
+    .select('*')
+    .order('created_at', { ascending: false });
 
-    if (filters?.status) {
-      query = query.eq('status', filters.status);
-    }
-
-    if (filters?.category) {
-      query = query.eq('product_category', filters.category);
-    }
-
-    if (filters?.startDate) {
-      query = query.gte('created_at', filters.startDate);
-    }
-
-    if (filters?.endDate) {
-      query = query.lte('created_at', filters.endDate);
-    }
-
-    const { data, error } = await query;
-    
-    if (error) {
-      console.error('Error fetching orders:', error);
-      if (error.message?.includes('permission') || error.message?.includes('denied')) {
-        throw new Error('Access denied. Admin privileges required.');
-      }
-      throw error;
-    }
-    return (data as Order[]) || [];
-  } catch (error: any) {
-    console.error('Error in fetchAllOrders:', error);
-    throw error;
+  if (filters?.status) {
+    query = query.eq('status', filters.status);
   }
+
+  if (filters?.category) {
+    query = query.eq('product_category', filters.category);
+  }
+
+  if (filters?.startDate) {
+    query = query.gte('created_at', filters.startDate);
+  }
+
+  if (filters?.endDate) {
+    query = query.lte('created_at', filters.endDate);
+  }
+
+  const { data, error } = await query;
+  
+  if (error) throw error;
+  return (data as Order[]) || [];
 };
 
 /**

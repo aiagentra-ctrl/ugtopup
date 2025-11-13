@@ -10,30 +10,6 @@ export interface OrderInput {
   product_details: Record<string, any>;
 }
 
-// Validation helper
-const validateOrderInput = (orderData: OrderInput): void => {
-  if (!orderData.order_number || orderData.order_number.length > 100) {
-    throw new Error('Invalid order number');
-  }
-  if (!orderData.product_name || orderData.product_name.length > 200) {
-    throw new Error('Invalid product name');
-  }
-  if (!orderData.package_name || orderData.package_name.length > 200) {
-    throw new Error('Invalid package name');
-  }
-  if (orderData.quantity <= 0 || orderData.quantity > 1000) {
-    throw new Error('Invalid quantity');
-  }
-  if (orderData.price <= 0 || orderData.price > 1000000) {
-    throw new Error('Invalid price');
-  }
-  // Validate product_details size
-  const detailsStr = JSON.stringify(orderData.product_details);
-  if (detailsStr.length > 10000) {
-    throw new Error('Product details too large');
-  }
-}
-
 export interface Order {
   id: string;
   order_number: string;
@@ -64,49 +40,40 @@ export interface Order {
  * Create a new order
  */
 export const createOrder = async (orderData: OrderInput): Promise<Order> => {
-  // Validate input
-  validateOrderInput(orderData);
-  
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error('User not authenticated');
 
-  try {
-    // Call the atomic RPC function that handles both credit deduction and order creation
-    const { data: result, error: rpcError } = await supabase.rpc(
-      'create_order_with_deduction' as any,
-      {
-        p_user_id: user.id,
-        p_order_number: orderData.order_number,
-        p_product_category: orderData.product_category,
-        p_product_name: orderData.product_name,
-        p_package_name: orderData.package_name,
-        p_quantity: orderData.quantity,
-        p_price: orderData.price,
-        p_product_details: orderData.product_details
-      }
-    );
+  // Get user profile
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('full_name, balance')
+    .eq('id', user.id)
+    .single();
 
-    if (rpcError) throw rpcError;
-
-    const rpcResult = result as any;
-    
-    if (!rpcResult.success) {
-      throw new Error(rpcResult.error || 'Failed to create order');
-    }
-
-    // Fetch the created order
-    const { data: order, error: fetchError } = await supabase
-      .from('product_orders')
-      .select('*')
-      .eq('id', rpcResult.order_id)
-      .single();
-
-    if (fetchError) throw fetchError;
-    return order as Order;
-  } catch (error: any) {
-    console.error('Error creating order:', error);
-    throw error;
+  // Check balance
+  if (!profile || profile.balance < orderData.price) {
+    throw new Error('Insufficient credits. Please top up your account.');
   }
+
+  const { data, error } = await supabase
+    .from('product_orders')
+    .insert([{
+      user_id: user.id,
+      user_email: user.email!,
+      user_name: profile?.full_name || user.email!.split('@')[0],
+      order_number: orderData.order_number,
+      product_category: orderData.product_category as any,
+      product_name: orderData.product_name,
+      package_name: orderData.package_name,
+      quantity: orderData.quantity,
+      price: orderData.price,
+      product_details: orderData.product_details
+    }])
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data as Order;
 };
 
 /**
