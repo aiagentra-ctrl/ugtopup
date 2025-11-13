@@ -37,43 +37,40 @@ export interface Order {
 }
 
 /**
- * Create a new order
+ * Create a new order with atomic credit deduction
  */
 export const createOrder = async (orderData: OrderInput): Promise<Order> => {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error('User not authenticated');
 
-  // Get user profile
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('full_name, balance')
-    .eq('id', user.id)
-    .single();
-
-  // Check balance
-  if (!profile || profile.balance < orderData.price) {
-    throw new Error('Insufficient credits. Please top up your account.');
-  }
-
-  const { data, error } = await supabase
-    .from('product_orders')
-    .insert([{
-      user_id: user.id,
-      user_email: user.email!,
-      user_name: profile?.full_name || user.email!.split('@')[0],
-      order_number: orderData.order_number,
-      product_category: orderData.product_category as any,
-      product_name: orderData.product_name,
-      package_name: orderData.package_name,
-      quantity: orderData.quantity,
-      price: orderData.price,
-      product_details: orderData.product_details
-    }])
-    .select()
-    .single();
+  // Call the database function to atomically create order and deduct credits
+  const { data: result, error } = await supabase.rpc('create_order_with_deduction', {
+    p_user_id: user.id,
+    p_order_number: orderData.order_number,
+    p_product_category: orderData.product_category,
+    p_product_name: orderData.product_name,
+    p_package_name: orderData.package_name,
+    p_quantity: orderData.quantity,
+    p_price: orderData.price,
+    p_product_details: orderData.product_details
+  });
 
   if (error) throw error;
-  return data as Order;
+
+  // Check if the function returned an error
+  if (!result.success) {
+    throw new Error(result.error);
+  }
+
+  // Fetch the created order
+  const { data: order, error: fetchError } = await supabase
+    .from('product_orders')
+    .select('*')
+    .eq('id', result.order_id)
+    .single();
+
+  if (fetchError) throw fetchError;
+  return order as Order;
 };
 
 /**
@@ -111,40 +108,63 @@ export const fetchOrderById = async (orderId: string): Promise<Order | null> => 
 };
 
 /**
- * Generate a unique order number
- * Format: username-3randomChars (e.g., abhiraj-a4b)
+ * Generate a unique order number with collision detection
+ * Format: username-6randomChars (e.g., abhiraj-a4b7x9)
  */
-export const generateOrderNumber = async (): Promise<string> => {
-  try {
-    const { data: { user } } = await supabase.auth.getUser();
-    
-    if (!user) {
-      // Fallback if no user
-      const random = Math.random().toString(36).substring(2, 5);
-      return `guest-${random}`;
-    }
+export const generateOrderNumber = async (maxRetries = 5): Promise<string> => {
+  const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+  
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        // Fallback if no user - use 6 random chars
+        const random = Math.random().toString(36).substring(2, 8);
+        return `guest-${random}`;
+      }
 
-    // Get username from profile
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('username, email')
-      .eq('id', user.id)
-      .single();
+      // Get username from profile
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('username, email')
+        .eq('id', user.id)
+        .single();
 
-    // Use username or fallback to email prefix
-    const username = profile?.username || profile?.email?.split('@')[0] || user.email?.split('@')[0] || 'user';
-    
-    // Generate 3 random characters (mix of letters and numbers)
-    const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
-    let random = '';
-    for (let i = 0; i < 3; i++) {
-      random += chars.charAt(Math.floor(Math.random() * chars.length));
+      // Use username or fallback to email prefix
+      const username = profile?.username || profile?.email?.split('@')[0] || user.email?.split('@')[0] || 'user';
+      
+      // Generate 6 random characters for more uniqueness (36^6 = 2.1 billion combinations)
+      let random = '';
+      for (let i = 0; i < 6; i++) {
+        random += chars.charAt(Math.floor(Math.random() * chars.length));
+      }
+      
+      const orderNumber = `${username}-${random}`;
+      
+      // Check if order number already exists
+      const { data: existing, error } = await supabase
+        .from('product_orders')
+        .select('order_number')
+        .eq('order_number', orderNumber)
+        .maybeSingle();
+      
+      if (error) throw error;
+      
+      // If doesn't exist, return it
+      if (!existing) {
+        return orderNumber;
+      }
+      
+      // If exists, retry with different random chars
+      console.log(`Order number collision detected: ${orderNumber}, retrying (attempt ${attempt + 1})...`);
+    } catch (error) {
+      console.error('Error generating order number:', error);
     }
-    
-    return `${username}-${random}`;
-  } catch (error) {
-    console.error('Error generating order number:', error);
-    const random = Math.random().toString(36).substring(2, 5);
-    return `order-${random}`;
   }
+  
+  // Fallback with timestamp to ensure absolute uniqueness
+  const timestamp = Date.now().toString(36);
+  const random = Math.random().toString(36).substring(2, 5);
+  return `order-${timestamp}-${random}`;
 };
