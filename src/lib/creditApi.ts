@@ -32,6 +32,19 @@ export const submitPaymentRequest = async (
   remarks: string,
   screenshot: File
 ): Promise<{ success: boolean; message: string; request_id?: string }> => {
+  // Input validation
+  if (amount <= 0 || amount > 1000000) {
+    throw new Error('Invalid amount');
+  }
+  if (credits <= 0 || credits > 1000000) {
+    throw new Error('Invalid credits');
+  }
+  if (remarks.length > 500) {
+    throw new Error('Remarks too long');
+  }
+  if (screenshot.size > 5 * 1024 * 1024) { // 5MB limit
+    throw new Error('Screenshot file too large (max 5MB)');
+  }
   try {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error('Not authenticated');

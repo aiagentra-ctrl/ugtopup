@@ -21,12 +21,8 @@ export const AdminRoute = ({ children }: AdminRouteProps) => {
       }
       
       try {
-        const { data, error } = await supabase
-          .from('user_roles')
-          .select('role')
-          .eq('user_id', user.id)
-          .in('role', ['admin', 'super_admin', 'sub_admin'])
-          .maybeSingle();
+        // Use server-side RPC function for enhanced security
+        const { data, error } = await supabase.rpc('is_admin');
         
         if (error) {
           console.error('Error checking admin status:', error);
