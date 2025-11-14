@@ -43,6 +43,8 @@ interface PaymentRequest {
   status: string;
   created_at: string;
   admin_remarks: string | null;
+  reviewed_by: string | null;
+  reviewed_at: string | null;
 }
 
 export function CreditRequestsTable() {
@@ -66,11 +68,17 @@ export function CreditRequestsTable() {
         .select("*")
         .order("created_at", { ascending: false });
 
-      if (error) throw error;
-      setRequests(data || []);
+      if (error) {
+        console.error("Error loading requests:", error);
+        toast.error("Failed to load credit requests. Please check your admin permissions.");
+        setRequests([]);
+      } else {
+        setRequests(data || []);
+      }
     } catch (error) {
       console.error("Error loading requests:", error);
       toast.error("Failed to load credit requests");
+      setRequests([]);
     } finally {
       setLoading(false);
     }
@@ -118,24 +126,31 @@ export function CreditRequestsTable() {
     setProcessing(true);
     try {
       const rpcFunction = actionType === "approve" ? "approve_payment_request" : "reject_payment_request";
-      const { error } = await supabase.rpc(rpcFunction, {
+      const { data, error } = await supabase.rpc(rpcFunction, {
         request_id: selectedRequest.id,
         admin_remarks_text: adminRemarks || null,
       });
 
       if (error) throw error;
 
-      toast.success(
-        actionType === "approve"
-          ? "Credit request approved! Credits added to user balance."
-          : "Credit request rejected"
-      );
+      // Only show success if the RPC function returned success
+      const result = data as { success: boolean; message: string };
+      if (result && result.success) {
+        toast.success(
+          actionType === "approve"
+            ? "Credit request approved! Credits added to user balance."
+            : "Credit request rejected successfully"
+        );
+      } else {
+        toast.error("Failed to process credit request");
+      }
+
       setShowActionModal(false);
       setAdminRemarks("");
       loadRequests();
     } catch (error: any) {
       console.error("Error processing request:", error);
-      toast.error(error.message || "Failed to process request");
+      toast.error(error.message || "Failed to process credit request");
     } finally {
       setProcessing(false);
     }
