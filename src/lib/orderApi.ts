@@ -37,80 +37,31 @@ export interface Order {
 }
 
 /**
- * Create a new order with retry logic and proper balance checking
+ * Create a new order using atomic server-side function
+ * Credits are deducted immediately at order placement
  */
 export const createOrder = async (orderData: OrderInput): Promise<Order> => {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error('User not authenticated');
 
-  // Get user profile
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('full_name, balance')
-    .eq('id', user.id)
-    .single();
+  try {
+    // Call server-side place_order function (atomic transaction)
+    const { data, error } = await supabase.rpc('place_order', {
+      p_product_category: orderData.product_category,
+      p_product_name: orderData.product_name,
+      p_package_name: orderData.package_name,
+      p_quantity: orderData.quantity,
+      p_price: orderData.price,
+      p_product_details: orderData.product_details,
+      p_payment_method: 'credit'
+    });
 
-  if (!profile) throw new Error('User profile not found');
-
-  // Get total pending orders value
-  const { data: pendingOrders } = await supabase
-    .from('product_orders')
-    .select('price')
-    .eq('user_id', user.id)
-    .in('status', ['pending', 'processing']);
-
-  const pendingTotal = pendingOrders?.reduce((sum, order) => sum + Number(order.price), 0) || 0;
-  const totalRequired = pendingTotal + orderData.price;
-
-  // Check if user has enough balance for all pending + new order
-  if (profile.balance < totalRequired) {
-    throw new Error(
-      `Insufficient credits. You have ${profile.balance} credits, but need ${totalRequired} credits (including ${pendingTotal} in pending orders). Please top up your account.`
-    );
+    if (error) throw error;
+    return data as Order;
+  } catch (error: any) {
+    // Re-throw with user-friendly message
+    throw new Error(error.message || 'Failed to create order. Please try again.');
   }
-
-  // Retry logic for duplicate order numbers (up to 5 attempts)
-  let lastError: any = null;
-  for (let attempt = 1; attempt <= 5; attempt++) {
-    try {
-      const { data, error } = await supabase
-        .from('product_orders')
-        .insert([{
-          user_id: user.id,
-          user_email: user.email!,
-          user_name: profile?.full_name || user.email!.split('@')[0],
-          order_number: orderData.order_number,
-          product_category: orderData.product_category as any,
-          product_name: orderData.product_name,
-          package_name: orderData.package_name,
-          quantity: orderData.quantity,
-          price: orderData.price,
-          product_details: orderData.product_details
-        }])
-        .select()
-        .single();
-
-      if (error) {
-        // Check if it's a duplicate order number error
-        if (error.code === '23505' && error.message.includes('order_number')) {
-          lastError = error;
-          // Generate new order number and retry
-          orderData.order_number = await generateOrderNumber();
-          console.log(`Duplicate order number detected. Retrying with new order number (attempt ${attempt}/5)...`);
-          continue;
-        }
-        throw error;
-      }
-
-      return data as Order;
-    } catch (error) {
-      if (attempt === 5) {
-        throw lastError || error;
-      }
-    }
-  }
-
-  throw new Error('Failed to create order after multiple attempts. Please try again.');
 };
 
 /**
