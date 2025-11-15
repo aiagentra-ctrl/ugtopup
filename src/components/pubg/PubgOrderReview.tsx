@@ -10,7 +10,8 @@ import {
 } from "@/components/ui/alert-dialog";
 import { PubgPackage } from "@/data/pubgPackages";
 import { PubgFormData } from "./PubgUserInputForm";
-import { useAuth } from "@/contexts/AuthContext";
+import { useLiveBalance } from "@/hooks/useLiveBalance";
+import { useEffect } from "react";
 
 interface PubgOrderReviewProps {
   isOpen: boolean;
@@ -19,6 +20,7 @@ interface PubgOrderReviewProps {
   selectedPackage: PubgPackage | null;
   formData: PubgFormData | null;
   orderId: string;
+  isPlacingOrder?: boolean;
 }
 
 export const PubgOrderReview = ({
@@ -28,12 +30,22 @@ export const PubgOrderReview = ({
   selectedPackage,
   formData,
   orderId,
+  isPlacingOrder = false,
 }: PubgOrderReviewProps) => {
-  const { profile } = useAuth();
+  const { balance, fetchNow } = useLiveBalance();
+
+  useEffect(() => {
+    if (isOpen) {
+      fetchNow();
+    }
+  }, [isOpen]);
 
   if (!selectedPackage || !formData) return null;
 
-  const hasEnoughCredits = (profile?.balance || 0) >= selectedPackage.price;
+  const currentBalance = balance;
+  const totalPrice = selectedPackage.price;
+  const balanceAfter = currentBalance - totalPrice;
+  const hasInsufficientBalance = balanceAfter < 0;
 
   return (
     <AlertDialog open={isOpen} onOpenChange={onClose}>
@@ -79,15 +91,21 @@ export const PubgOrderReview = ({
 
           <div className="p-4 rounded-lg bg-primary/10 border-2 border-primary/30">
             <div className="flex justify-between items-center mb-2">
-              <span className="text-sm text-muted-foreground">Your Balance</span>
-              <span className="font-bold text-foreground">₹{profile?.balance || 0}</span>
+              <span className="text-sm text-muted-foreground">Current Balance</span>
+              <span className="font-bold text-foreground">₹{currentBalance}</span>
             </div>
-            <div className="flex justify-between items-center mb-3">
+            <div className="flex justify-between items-center mb-2">
               <span className="text-sm text-muted-foreground">Total Cost</span>
-              <span className="font-bold text-primary text-lg">₹{selectedPackage.price}</span>
+              <span className="font-bold text-primary text-lg">₹{totalPrice}</span>
             </div>
-            {!hasEnoughCredits && (
-              <p className="text-xs text-destructive bg-destructive/10 p-2 rounded">
+            <div className="flex justify-between items-center">
+              <span className="text-sm text-muted-foreground">Balance After</span>
+              <span className={`font-bold ${balanceAfter >= 0 ? 'text-dashboard-green-bright' : 'text-destructive'}`}>
+                ₹{balanceAfter}
+              </span>
+            </div>
+            {hasInsufficientBalance && (
+              <p className="text-xs text-destructive bg-destructive/10 p-2 rounded mt-3">
                 ⚠️ Insufficient balance. Please add credits to your account.
               </p>
             )}
@@ -98,10 +116,10 @@ export const PubgOrderReview = ({
           <AlertDialogCancel className="hover:bg-muted">Cancel</AlertDialogCancel>
           <AlertDialogAction
             onClick={onConfirm}
-            disabled={!hasEnoughCredits}
+            disabled={hasInsufficientBalance || isPlacingOrder}
             className="bg-gradient-to-r from-primary via-red-600 to-secondary hover:opacity-90 disabled:opacity-40"
           >
-            Confirm Purchase
+            {isPlacingOrder ? "Processing..." : "Confirm Purchase"}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

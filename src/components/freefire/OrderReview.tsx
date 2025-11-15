@@ -10,6 +10,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { useLiveBalance } from "@/hooks/useLiveBalance";
+import { useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 
 interface OrderReviewProps {
@@ -19,6 +21,7 @@ interface OrderReviewProps {
   selectedPackage: Package | null;
   formData: UserFormData | null;
   orderId: string;
+  isPlacingOrder?: boolean;
 }
 
 export const OrderReview = ({
@@ -28,10 +31,24 @@ export const OrderReview = ({
   selectedPackage,
   formData,
   orderId,
+  isPlacingOrder = false,
 }: OrderReviewProps) => {
-  const { user, profile } = useAuth();
+  const { user } = useAuth();
+  const { balance, fetchNow } = useLiveBalance();
+
+  // Fetch fresh balance when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      fetchNow();
+    }
+  }, [isOpen]);
 
   if (!selectedPackage || !formData) return null;
+
+  const currentBalance = balance;
+  const totalPrice = selectedPackage.price;
+  const balanceAfter = currentBalance - totalPrice;
+  const hasInsufficientBalance = balanceAfter < 0;
 
   return (
     <AlertDialog open={isOpen} onOpenChange={onClose}>
@@ -109,30 +126,30 @@ export const OrderReview = ({
               <div className="flex justify-between items-center">
                 <span className="text-base font-bold text-white">Total Price</span>
                 <span className="text-2xl font-extrabold text-primary">
-                  ₹{selectedPackage.price}
+                  ₹{totalPrice}
                 </span>
               </div>
 
               <div className="flex justify-between items-center text-sm bg-background/50 p-3 rounded-lg">
                 <span className="text-[#B0B0B0]">Current Balance</span>
-                <span className="font-bold text-white">₹{profile?.balance || 0}</span>
+                <span className="font-bold text-white">₹{currentBalance}</span>
               </div>
 
               <div className="flex justify-between items-center text-sm bg-background/50 p-3 rounded-lg">
                 <span className="text-[#B0B0B0]">After Purchase</span>
                 <span className={
-                  (profile?.balance || 0) - selectedPackage.price >= 0 
+                  balanceAfter >= 0 
                     ? "font-bold text-dashboard-green-bright" 
                     : "font-bold text-destructive"
                 }>
-                  ₹{(profile?.balance || 0) - selectedPackage.price}
+                  ₹{balanceAfter}
                 </span>
               </div>
             </div>
           </div>
 
           {/* Insufficient Credits Warning */}
-          {(profile?.balance || 0) < selectedPackage.price && (
+          {hasInsufficientBalance && (
             <div className="p-4 rounded-xl bg-destructive/10 border-2 border-destructive/30 animate-pulse">
               <p className="text-sm font-semibold text-destructive flex items-center gap-2">
                 <span className="text-xl">⚠️</span>
@@ -148,12 +165,12 @@ export const OrderReview = ({
           </AlertDialogCancel>
           <AlertDialogAction
             onClick={onConfirm}
-            disabled={(profile?.balance || 0) < selectedPackage.price}
+            disabled={hasInsufficientBalance || isPlacingOrder}
             className="bg-gradient-to-r from-primary to-secondary hover:opacity-90 
               disabled:opacity-40 font-bold px-8 py-3 h-12 rounded-xl
               shadow-[0_0_20px_rgba(255,0,0,0.4)]"
           >
-            Confirm Purchase
+            {isPlacingOrder ? "Processing..." : "Confirm Purchase"}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
