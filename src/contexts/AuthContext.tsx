@@ -25,6 +25,7 @@ interface AuthContextType {
   loginWithGoogle: () => Promise<void>;
   logout: () => Promise<void>;
   updateProfile: (data: Partial<Profile>) => Promise<{ error: any }>;
+  refreshProfile: () => Promise<void>;
   isAuthenticated: boolean;
 }
 
@@ -50,6 +51,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setProfile(data);
     } catch (error) {
       console.error('Error fetching profile:', error);
+    }
+  };
+
+  // Refresh profile manually
+  const refreshProfile = async () => {
+    if (user?.id) {
+      await fetchProfile(user.id);
     }
   };
 
@@ -88,6 +96,31 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     return () => subscription.unsubscribe();
   }, []);
+
+  // Real-time profile subscription
+  useEffect(() => {
+    if (!user?.id) return;
+
+    const channel = supabase
+      .channel(`profile-updates-${user.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'profiles',
+          filter: `id=eq.${user.id}`,
+        },
+        (payload) => {
+          setProfile(prev => prev ? { ...prev, ...payload.new as Partial<Profile> } : null);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user?.id]);
 
   // Email/Password Login
   const login = async (email: string, password: string) => {
@@ -242,6 +275,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         loginWithGoogle,
         logout, 
         updateProfile,
+        refreshProfile,
         isAuthenticated: !!user 
       }}
     >

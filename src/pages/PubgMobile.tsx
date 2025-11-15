@@ -10,6 +10,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 import { createOrder, generateOrderNumber } from "@/lib/orderApi";
+import { ensureSufficientBalance } from "@/lib/creditApi";
+import { requestDeduplicator } from "@/lib/requestDeduplicator";
 
 const PubgMobile = () => {
   const [formData, setFormData] = useState<PubgFormData | null>(null);
@@ -18,8 +20,9 @@ const PubgMobile = () => {
   const [isSuccessOpen, setIsSuccessOpen] = useState(false);
   const [orderId, setOrderId] = useState("");
   const [isFormValid, setIsFormValid] = useState(false);
+  const [isPlacingOrder, setIsPlacingOrder] = useState(false);
 
-  const { user, profile } = useAuth();
+  const { user, refreshProfile } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -60,37 +63,48 @@ const PubgMobile = () => {
       return;
     }
 
+    // Check balance from DB before opening review
+    const { ok, balance } = await ensureSufficientBalance(selectedPackage.price);
+    if (!ok) {
+      toast({
+        title: "Insufficient Credits",
+        description: `You have ₹${balance} credits, but need ₹${selectedPackage.price}. Please top up.`,
+        variant: "destructive",
+      });
+      return;
+    }
+
     const newOrderId = await generateOrderNumber();
     setOrderId(newOrderId);
     setIsReviewOpen(true);
   };
 
   const handleConfirmPurchase = async () => {
-    if (!user || !selectedPackage || !formData || !profile) return;
+    if (!user || !selectedPackage || !formData || isPlacingOrder) return;
     
-    if (profile.balance < selectedPackage.price) {
-      toast({
-        title: "Insufficient Credits",
-        description: "Please add credits to your account",
-        variant: "destructive",
-      });
-      return;
-    }
+    setIsPlacingOrder(true);
 
     try {
-      await createOrder({
-        order_number: orderId,
-        product_category: 'pubg',
-        product_name: 'PUBG Mobile UC',
-        package_name: selectedPackage.name,
-        quantity: selectedPackage.quantity,
-        price: selectedPackage.price,
-        product_details: {
-          pubgId: formData.pubgId,
-          username: formData.username,
-          whatsapp: formData.whatsapp || "",
+      await requestDeduplicator.dedupe(
+        `place_order:${user.id}:${selectedPackage.name}`,
+        async () => {
+          await createOrder({
+            order_number: orderId,
+            product_category: 'pubg',
+            product_name: 'PUBG Mobile UC',
+            package_name: selectedPackage.name,
+            quantity: selectedPackage.quantity,
+            price: selectedPackage.price,
+            product_details: {
+              pubgId: formData.pubgId,
+              username: formData.username,
+              whatsapp: formData.whatsapp || "",
+            }
+          });
         }
-      });
+      );
+
+      await refreshProfile();
 
       setIsReviewOpen(false);
       setIsSuccessOpen(true);
@@ -102,11 +116,16 @@ const PubgMobile = () => {
       });
     } catch (error: any) {
       console.error('Error creating order:', error);
+      
+      await refreshProfile();
+
       toast({
         title: "Order Failed",
         description: error.message || "Failed to place order. Please try again.",
         variant: "destructive",
       });
+    } finally {
+      setIsPlacingOrder(false);
     }
   };
 
@@ -117,7 +136,7 @@ const PubgMobile = () => {
     setIsSuccessOpen(false);
   };
 
-  const canReviewOrder = isFormValid && selectedPackage !== null;
+  const canReviewOrder = isFormValid && selectedPackage !== null && !isPlacingOrder;
 
   return (
     <div className="min-h-screen bg-background pb-24">
@@ -158,7 +177,9 @@ const PubgMobile = () => {
               translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700" />
             
             <span className="relative z-10">
-              {!isFormValid
+              {isPlacingOrder
+                ? "Processing..."
+                : !isFormValid
                 ? "Enter Details to Buy"
                 : !selectedPackage
                 ? "Select Package to Buy"
@@ -175,6 +196,7 @@ const PubgMobile = () => {
         selectedPackage={selectedPackage}
         formData={formData}
         orderId={orderId}
+        isPlacingOrder={isPlacingOrder}
       />
 
       <PubgSuccessModal

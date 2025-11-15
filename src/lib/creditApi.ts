@@ -128,6 +128,12 @@ export const fetchUserBalance = async (): Promise<number> => {
   }
 };
 
+// Ensure sufficient balance before allowing purchase
+export const ensureSufficientBalance = async (required: number): Promise<{ ok: boolean; balance: number }> => {
+  const balance = await fetchUserBalance();
+  return { ok: balance >= required, balance };
+};
+
 
 
 
