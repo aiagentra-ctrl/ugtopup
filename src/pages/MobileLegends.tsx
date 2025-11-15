@@ -8,11 +8,13 @@ import { MLSuccessModal } from "@/components/ml/MLSuccessModal";
 import { type MLPackage } from "@/data/mlPackages";
 import { Button } from "@/components/ui/button";
 import { createOrder, generateOrderNumber } from "@/lib/orderApi";
+import { ensureSufficientBalance } from "@/lib/creditApi";
+import { requestDeduplicator } from "@/lib/requestDeduplicator";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 
 const MobileLegends = () => {
-  const { user, profile } = useAuth();
+  const { user, refreshProfile } = useAuth();
   const navigate = useNavigate();
   
   const [formData, setFormData] = useState({
@@ -26,6 +28,7 @@ const MobileLegends = () => {
   const [showReviewModal, setShowReviewModal] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isPlacingOrder, setIsPlacingOrder] = useState(false);
   const [currentOrderId, setCurrentOrderId] = useState("");
 
   const handleInputChange = (field: string, value: string) => {
@@ -65,38 +68,56 @@ const MobileLegends = () => {
       return;
     }
 
+    // Check balance from DB before opening review
+    const { ok, balance } = await ensureSufficientBalance(selectedPackage.price);
+    if (!ok) {
+      toast.error(`Insufficient credits. You have ₹${balance}, but need ₹${selectedPackage.price}. Please top up.`);
+      return;
+    }
+
     const orderId = await generateOrderNumber();
     setCurrentOrderId(orderId);
     setShowReviewModal(true);
   };
 
   const handleConfirmOrder = async () => {
-    if (!user || !selectedPackage) return;
+    if (!user || !selectedPackage || isPlacingOrder) return;
 
+    setIsPlacingOrder(true);
     setIsSubmitting(true);
+    
     try {
-      await createOrder({
-        order_number: currentOrderId,
-        product_category: "other",
-        product_name: "Mobile Legends Diamond",
-        package_name: selectedPackage.name,
-        quantity: selectedPackage.quantity,
-        price: selectedPackage.price,
-        product_details: {
-          userId: formData.userId,
-          zoneId: formData.zoneId,
-          whatsapp: formData.whatsapp || "",
-          packageType: selectedPackage.type,
-        },
-      });
+      await requestDeduplicator.dedupe(
+        `place_order:${user.id}:${selectedPackage.name}`,
+        async () => {
+          await createOrder({
+            order_number: currentOrderId,
+            product_category: "mobile_legends",
+            product_name: "Mobile Legends Diamond",
+            package_name: selectedPackage.name,
+            quantity: selectedPackage.quantity,
+            price: selectedPackage.price,
+            product_details: {
+              userId: formData.userId,
+              zoneId: formData.zoneId,
+              whatsapp: formData.whatsapp || "",
+              packageType: selectedPackage.type,
+            },
+          });
+        }
+      );
+
+      await refreshProfile();
 
       setShowReviewModal(false);
       setShowSuccessModal(true);
       toast.success("Order placed successfully!");
     } catch (error: any) {
+      await refreshProfile();
       toast.error(error.message || "Failed to place order");
     } finally {
       setIsSubmitting(false);
+      setIsPlacingOrder(false);
     }
   };
 
@@ -108,6 +129,9 @@ const MobileLegends = () => {
   };
 
   const getButtonText = () => {
+    if (isPlacingOrder) {
+      return "Processing...";
+    }
     if (!formData.userId || !formData.zoneId) {
       return "Enter Details to Buy";
     }
@@ -117,7 +141,7 @@ const MobileLegends = () => {
     return `Buy Now - ₹ ${selectedPackage.price}`;
   };
 
-  const isFormValid = formData.userId.length >= 6 && formData.zoneId.length === 4 && selectedPackage;
+  const isFormValid = formData.userId.length >= 6 && formData.zoneId.length === 4 && selectedPackage && !isPlacingOrder;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-background">
@@ -158,7 +182,7 @@ const MobileLegends = () => {
         </div>
       </div>
 
-      {user && profile && selectedPackage && (
+      {user && selectedPackage && (
         <MLOrderReview
           isOpen={showReviewModal}
           onClose={() => setShowReviewModal(false)}
@@ -170,9 +194,8 @@ const MobileLegends = () => {
             zoneId: formData.zoneId,
             whatsapp: formData.whatsapp,
             email: user.email!,
-            currentBalance: profile.balance,
           }}
-          isSubmitting={isSubmitting}
+          isPlacingOrder={isPlacingOrder}
         />
       )}
 

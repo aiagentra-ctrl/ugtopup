@@ -10,6 +10,9 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { type MLPackage } from "@/data/mlPackages";
 import { AlertCircle } from "lucide-react";
+import { useLiveBalance } from "@/hooks/useLiveBalance";
+import { useEffect } from "react";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface MLOrderReviewProps {
   isOpen: boolean;
@@ -22,9 +25,8 @@ interface MLOrderReviewProps {
     zoneId: string;
     whatsapp?: string;
     email: string;
-    currentBalance: number;
   };
-  isSubmitting: boolean;
+  isPlacingOrder?: boolean;
 }
 
 export const MLOrderReview = ({
@@ -32,11 +34,22 @@ export const MLOrderReview = ({
   onClose,
   onConfirm,
   orderData,
-  isSubmitting,
+  isPlacingOrder = false,
 }: MLOrderReviewProps) => {
-  const { orderId, package: pkg, userId, zoneId, whatsapp, email, currentBalance } = orderData;
-  const insufficientBalance = currentBalance < pkg.price;
-  const balanceAfter = currentBalance - pkg.price;
+  const { user } = useAuth();
+  const { balance, fetchNow } = useLiveBalance();
+  const { orderId, package: pkg, userId, zoneId, whatsapp, email } = orderData;
+
+  useEffect(() => {
+    if (isOpen) {
+      fetchNow();
+    }
+  }, [isOpen]);
+
+  const currentBalance = balance;
+  const totalPrice = pkg.price;
+  const balanceAfter = currentBalance - totalPrice;
+  const insufficientBalance = balanceAfter < 0;
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -115,15 +128,15 @@ export const MLOrderReview = ({
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={onClose} disabled={isSubmitting} className="bg-slate-800 border-slate-700 text-slate-100 hover:bg-slate-700">
+          <Button variant="outline" onClick={onClose} disabled={isPlacingOrder} className="bg-slate-800 border-slate-700 text-slate-100 hover:bg-slate-700">
             Cancel
           </Button>
           <Button
             onClick={onConfirm}
-            disabled={isSubmitting || insufficientBalance}
+            disabled={isPlacingOrder || insufficientBalance}
             className="bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800"
           >
-            {isSubmitting ? "Processing..." : "Confirm Purchase"}
+            {isPlacingOrder ? "Processing..." : "Confirm Purchase"}
           </Button>
         </DialogFooter>
       </DialogContent>
