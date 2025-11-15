@@ -12,7 +12,7 @@ const formSchema = z.object({
 export type NetflixFormData = z.infer<typeof formSchema>;
 
 interface NetflixUserInputFormProps {
-  onDataChange: (data: NetflixFormData | null) => void;
+  onDataChange: (data: NetflixFormData | null, isValid: boolean) => void;
   initialData?: NetflixFormData;
 }
 
@@ -26,7 +26,7 @@ export const NetflixUserInputForm = ({ onDataChange, initialData }: NetflixUserI
     
     if (result.success) {
       setErrors({});
-      onDataChange(result.data);
+      onDataChange(result.data, true);
     } else {
       const fieldErrors: { whatsapp?: string; email?: string } = {};
       result.error.errors.forEach((err) => {
@@ -34,7 +34,7 @@ export const NetflixUserInputForm = ({ onDataChange, initialData }: NetflixUserI
         if (err.path[0] === "email") fieldErrors.email = err.message;
       });
       setErrors(fieldErrors);
-      onDataChange(null);
+      onDataChange(null, false);
     }
   }, [whatsapp, email, onDataChange]);
 

@@ -12,11 +12,17 @@ import { createOrder, generateOrderNumber } from "@/lib/orderApi";
 
 const YouTube = () => {
   const [formData, setFormData] = useState<YouTubeFormData | null>(null);
+  const [isFormValid, setIsFormValid] = useState(false);
   const [selectedPackage, setSelectedPackage] = useState<YouTubePackage | null>(null);
   const [showOrderReview, setShowOrderReview] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [orderId, setOrderId] = useState("");
   const { profile } = useAuth();
+
+  const handleFormDataChange = (data: YouTubeFormData | null, isValid: boolean) => {
+    setFormData(data);
+    setIsFormValid(isValid);
+  };
 
   const generateOrderId = async () => {
     return await generateOrderNumber();
@@ -72,7 +78,7 @@ const YouTube = () => {
     setOrderId("");
   };
 
-  const isFormComplete = formData !== null && selectedPackage !== null;
+  const isFormComplete = isFormValid && selectedPackage !== null;
 
   const getButtonText = () => {
     if (!formData) return "Enter Details to Subscribe";
@@ -85,7 +91,7 @@ const YouTube = () => {
       <YouTubeProductHeader />
       
       <div className="container mx-auto px-4 py-6 space-y-6">
-        <YouTubeUserInputForm onDataChange={setFormData} initialData={formData || undefined} />
+        <YouTubeUserInputForm onDataChange={handleFormDataChange} initialData={formData || undefined} />
         <YouTubePackageSelector 
           selectedPackage={selectedPackage} 
           onSelectPackage={setSelectedPackage} 

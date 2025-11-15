@@ -437,6 +437,48 @@ export type Database = {
       }
       is_admin: { Args: never; Returns: boolean }
       is_super_admin: { Args: never; Returns: boolean }
+      place_order: {
+        Args: {
+          p_package_name: string
+          p_payment_method?: string
+          p_price: number
+          p_product_category: Database["public"]["Enums"]["product_category"]
+          p_product_details: Json
+          p_product_name: string
+          p_quantity: number
+        }
+        Returns: {
+          admin_remarks: string | null
+          canceled_at: string | null
+          cancellation_reason: string | null
+          completed_at: string | null
+          confirmed_at: string | null
+          created_at: string | null
+          credits_deducted: number | null
+          id: string
+          metadata: Json | null
+          order_number: string
+          package_name: string
+          payment_method: string | null
+          price: number
+          product_category: Database["public"]["Enums"]["product_category"]
+          product_details: Json
+          product_name: string
+          quantity: number
+          reviewed_by: string | null
+          status: Database["public"]["Enums"]["order_status"]
+          updated_at: string | null
+          user_email: string
+          user_id: string
+          user_name: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "product_orders"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       refresh_dashboard_stats: { Args: never; Returns: undefined }
       reject_payment_request: {
         Args: { admin_remarks_text: string; request_id: string }
@@ -455,6 +497,7 @@ export type Database = {
         | "role_changed"
         | "admin_action"
         | "system_action"
+        | "order_created"
       app_role: "admin" | "user" | "super_admin" | "sub_admin"
       order_status:
         | "pending"
@@ -615,6 +658,7 @@ export const Constants = {
         "role_changed",
         "admin_action",
         "system_action",
+        "order_created",
       ],
       app_role: ["admin", "user", "super_admin", "sub_admin"],
       order_status: [

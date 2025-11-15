@@ -12,7 +12,7 @@ const formSchema = z.object({
 export type ChatGPTFormData = z.infer<typeof formSchema>;
 
 interface ChatGPTUserInputFormProps {
-  onDataChange: (data: ChatGPTFormData | null) => void;
+  onDataChange: (data: ChatGPTFormData | null, isValid: boolean) => void;
   initialData?: ChatGPTFormData;
 }
 
@@ -26,7 +26,7 @@ export const ChatGPTUserInputForm = ({ onDataChange, initialData }: ChatGPTUserI
     
     if (result.success) {
       setErrors({});
-      onDataChange(result.data);
+      onDataChange(result.data, true);
     } else {
       const fieldErrors: { email?: string; password?: string } = {};
       result.error.errors.forEach((err) => {
@@ -34,7 +34,7 @@ export const ChatGPTUserInputForm = ({ onDataChange, initialData }: ChatGPTUserI
         if (err.path[0] === "password") fieldErrors.password = err.message;
       });
       setErrors(fieldErrors);
-      onDataChange(null);
+      onDataChange(null, false);
     }
   }, [email, password, onDataChange]);
 

@@ -12,11 +12,17 @@ import { createOrder, generateOrderNumber } from "@/lib/orderApi";
 
 const ChatGPT = () => {
   const [formData, setFormData] = useState<ChatGPTFormData | null>(null);
+  const [isFormValid, setIsFormValid] = useState(false);
   const [selectedPackage, setSelectedPackage] = useState<ChatGPTPackage | null>(null);
   const [showOrderReview, setShowOrderReview] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [orderId, setOrderId] = useState("");
   const { profile } = useAuth();
+
+  const handleFormDataChange = (data: ChatGPTFormData | null, isValid: boolean) => {
+    setFormData(data);
+    setIsFormValid(isValid);
+  };
 
   const generateOrderId = async () => {
     return await generateOrderNumber();
@@ -73,7 +79,7 @@ const ChatGPT = () => {
     setOrderId("");
   };
 
-  const isFormComplete = formData !== null && selectedPackage !== null;
+  const isFormComplete = isFormValid && selectedPackage !== null;
 
   const getButtonText = () => {
     if (!formData) return "Enter Details to Subscribe";
@@ -86,7 +92,7 @@ const ChatGPT = () => {
       <ChatGPTProductHeader />
       
       <div className="container mx-auto px-4 py-6 space-y-6">
-        <ChatGPTUserInputForm onDataChange={setFormData} initialData={formData || undefined} />
+        <ChatGPTUserInputForm onDataChange={handleFormDataChange} initialData={formData || undefined} />
         <ChatGPTPackageSelector 
           selectedPackage={selectedPackage} 
           onSelectPackage={setSelectedPackage} 
