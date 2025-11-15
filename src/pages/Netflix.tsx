@@ -12,11 +12,17 @@ import { createOrder, generateOrderNumber } from "@/lib/orderApi";
 
 const Netflix = () => {
   const [formData, setFormData] = useState<NetflixFormData | null>(null);
+  const [isFormValid, setIsFormValid] = useState(false);
   const [selectedPackage, setSelectedPackage] = useState<NetflixPackage | null>(null);
   const [showOrderReview, setShowOrderReview] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [orderId, setOrderId] = useState("");
   const { profile } = useAuth();
+
+  const handleFormDataChange = (data: NetflixFormData | null, isValid: boolean) => {
+    setFormData(data);
+    setIsFormValid(isValid);
+  };
 
   const generateOrderId = async () => {
     return await generateOrderNumber();
@@ -73,7 +79,7 @@ const Netflix = () => {
     setOrderId("");
   };
 
-  const isFormComplete = formData !== null && selectedPackage !== null;
+  const isFormComplete = isFormValid && selectedPackage !== null;
 
   const getButtonText = () => {
     if (!formData) return "Enter Details to Subscribe";
@@ -86,7 +92,7 @@ const Netflix = () => {
       <NetflixProductHeader />
       
       <div className="container mx-auto px-4 py-6 space-y-6">
-        <NetflixUserInputForm onDataChange={setFormData} initialData={formData || undefined} />
+        <NetflixUserInputForm onDataChange={handleFormDataChange} initialData={formData || undefined} />
         <NetflixPackageSelector 
           selectedPackage={selectedPackage} 
           onSelectPackage={setSelectedPackage} 

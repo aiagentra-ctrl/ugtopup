@@ -12,7 +12,7 @@ const formSchema = z.object({
 export type YouTubeFormData = z.infer<typeof formSchema>;
 
 interface YouTubeUserInputFormProps {
-  onDataChange: (data: YouTubeFormData | null) => void;
+  onDataChange: (data: YouTubeFormData | null, isValid: boolean) => void;
   initialData?: YouTubeFormData;
 }
 
@@ -26,7 +26,7 @@ export const YouTubeUserInputForm = ({ onDataChange, initialData }: YouTubeUserI
     
     if (result.success) {
       setErrors({});
-      onDataChange(result.data);
+      onDataChange(result.data, true);
     } else {
       const fieldErrors: { email?: string; password?: string } = {};
       result.error.errors.forEach((err) => {
@@ -34,7 +34,7 @@ export const YouTubeUserInputForm = ({ onDataChange, initialData }: YouTubeUserI
         if (err.path[0] === "password") fieldErrors.password = err.message;
       });
       setErrors(fieldErrors);
-      onDataChange(null);
+      onDataChange(null, false);
     }
   }, [email, password, onDataChange]);
 
