@@ -27,7 +27,7 @@ const PubgMobile = () => {
     setFormData(data);
     setIsFormValid(
       data.pubgId.length >= 6 && 
-      data.username.length >= 3
+      (data.username.length === 0 || data.username.length >= 3)
     );
   };
 
@@ -45,7 +45,7 @@ const PubgMobile = () => {
     if (!isFormValid) {
       toast({
         title: "Invalid Details",
-        description: "Please enter valid PUBG ID and username",
+        description: "Please enter a valid PUBG ID (minimum 6 characters)",
         variant: "destructive",
       });
       return;
