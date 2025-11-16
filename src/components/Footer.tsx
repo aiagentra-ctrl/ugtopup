@@ -1,19 +1,63 @@
-import { Facebook, Youtube, MessageCircle, Music } from "lucide-react";
+import { Facebook, Youtube, MessageCircle, Music, Download } from "lucide-react";
+import { usePWAInstall } from "@/hooks/usePWAInstall";
+import { toast } from "sonner";
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { useState } from "react";
 
 export const Footer = () => {
+  const { isInstallable, promptInstall, isIOS } = usePWAInstall();
+  const [showIOSInstructions, setShowIOSInstructions] = useState(false);
+
+  const handleInstallClick = async () => {
+    if (isIOS) {
+      setShowIOSInstructions(true);
+      return;
+    }
+
+    const result = await promptInstall();
+    
+    if (result === 'accepted') {
+      toast.success('App installed! Find UGTOPUPS on your home screen 🎉');
+    } else if (result === 'dismissed') {
+      toast.info('You can install UGTOPUPS later from your browser menu');
+    }
+  };
+
   return (
-    <footer className="bg-[hsl(var(--footer-bg))] border-t border-[hsl(var(--footer-border))] py-12 md:py-16">
-      <div className="container mx-auto px-6 md:px-8 lg:px-12 max-w-4xl">
-        
-        {/* Brand Section */}
-        <div className="mb-10">
-          <h2 className="text-4xl md:text-5xl font-bold text-[hsl(var(--footer-heading))] mb-4">
-            UGTOPUPS
-          </h2>
-          <p className="text-[hsl(var(--footer-text))] text-base leading-relaxed">
-            Fast, secure top-up for online games & digital gift cards. Trusted by gamers all over Nepal.
-          </p>
-        </div>
+    <>
+      <footer className="bg-[hsl(var(--footer-bg))] border-t border-[hsl(var(--footer-border))] py-12 md:py-16">
+        <div className="container mx-auto px-6 md:px-8 lg:px-12 max-w-4xl">
+          
+          {/* Brand Section */}
+          <div className="mb-10">
+            <div className="flex items-center gap-4 mb-4">
+              <h2 className="text-4xl md:text-5xl font-bold text-[hsl(var(--footer-heading))]">
+                UGTOPUPS
+              </h2>
+              {(isInstallable || isIOS) && (
+                <button
+                  onClick={handleInstallClick}
+                  className="group relative w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center hover:scale-110 transition-all duration-300 shadow-lg hover:shadow-blue-500/50 animate-pulse"
+                  aria-label="Add to Home Screen"
+                  title="Add to Home Screen"
+                >
+                  <Download className="h-5 w-5 text-white" />
+                  <span className="absolute -top-8 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-xs px-2 py-1 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity">
+                    Install App
+                  </span>
+                </button>
+              )}
+            </div>
+            <p className="text-[hsl(var(--footer-text))] text-base leading-relaxed">
+              Fast, secure top-up for online games & digital gift cards. Trusted by gamers all over Nepal.
+            </p>
+          </div>
 
         {/* Contact Info Section */}
         <div className="mb-10">
@@ -142,5 +186,24 @@ export const Footer = () => {
         </div>
       </div>
     </footer>
+
+    {/* iOS Installation Instructions Modal */}
+    <AlertDialog open={showIOSInstructions} onOpenChange={setShowIOSInstructions}>
+      <AlertDialogContent className="bg-slate-900 border-slate-800">
+        <AlertDialogHeader>
+          <AlertDialogTitle className="text-slate-100 text-xl">Install UGTOPUPS on iOS</AlertDialogTitle>
+          <AlertDialogDescription className="text-slate-300 space-y-3 text-left">
+            <p className="font-semibold">To install this app on your iPhone or iPad:</p>
+            <ol className="list-decimal list-inside space-y-2 ml-2">
+              <li>Tap the <strong>Share</strong> button at the bottom of Safari</li>
+              <li>Scroll down and tap <strong>Add to Home Screen</strong></li>
+              <li>Tap <strong>Add</strong> to confirm</li>
+            </ol>
+            <p className="mt-4 text-sm">The UGTOPUPS icon will appear on your home screen!</p>
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+      </AlertDialogContent>
+    </AlertDialog>
+    </>
   );
 };
