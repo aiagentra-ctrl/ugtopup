@@ -132,11 +132,14 @@ const MobileLegends = () => {
     if (isPlacingOrder) {
       return "Processing...";
     }
-    if (!formData.userId || !formData.zoneId) {
-      return "Enter Details to Buy";
+    if (!formData.userId || formData.userId.length < 6) {
+      return "Enter 6+ digit User ID";
+    }
+    if (!formData.zoneId || formData.zoneId.length !== 4) {
+      return "Enter exactly 4-digit Zone ID";
     }
     if (!selectedPackage) {
-      return "Select Package to Buy";
+      return "Select Package First";
     }
     return `Buy Now - ₹ ${selectedPackage.price}`;
   };
