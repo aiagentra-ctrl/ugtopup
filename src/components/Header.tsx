@@ -184,9 +184,9 @@ export const Header = () => {
         </div>
       </div>
 
-      {/* Mobile Navigation Menu */}
+      {/* Navigation Menu - Shows on all devices */}
       {mobileMenuOpen && (
-        <div className="sm:hidden border-t border-white/5 bg-black">
+        <div className="border-t border-white/5 bg-black">
           <div className="container mx-auto px-4 py-4 space-y-2">
             {/* Download App Banner */}
             {(isInstallable || isIOS) && (
