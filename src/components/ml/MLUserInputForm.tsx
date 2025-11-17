@@ -47,15 +47,13 @@ export const MLUserInputForm = ({ formData, onChange, errors }: MLUserInputFormP
           <Input
             id="zoneId"
             type="text"
-            placeholder="Enter 4-digit Zone ID"
+            placeholder="Enter your Zone ID"
             value={formData.zoneId}
-            maxLength={4}
             onChange={(e) => onChange("zoneId", e.target.value.replace(/\D/g, ""))}
             className={`bg-slate-800/50 border-slate-700 text-slate-100 placeholder:text-slate-500 focus:border-blue-500 ${
               errors.zoneId ? "border-red-500" : ""
             }`}
           />
-          <p className="text-xs text-slate-400">{formData.zoneId.length}/4 digits • Must be exactly 4 digits</p>
           {errors.zoneId && (
             <p className="text-sm text-red-400">{errors.zoneId}</p>
           )}

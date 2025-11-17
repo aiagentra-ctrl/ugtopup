@@ -43,8 +43,8 @@ const MobileLegends = () => {
       newErrors.userId = "User ID must be at least 6 digits";
     }
     
-    if (!formData.zoneId || formData.zoneId.length !== 4) {
-      newErrors.zoneId = "Zone ID must be exactly 4 digits";
+    if (!formData.zoneId || formData.zoneId.length < 1) {
+      newErrors.zoneId = "Zone ID is required";
     }
     
     setErrors(newErrors);
