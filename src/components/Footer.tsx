@@ -1,6 +1,7 @@
-import { Facebook, Youtube, MessageCircle, Music, Download } from "lucide-react";
+import { Facebook, Youtube, MessageCircle, Music } from "lucide-react";
 import { usePWAInstall } from "@/hooks/usePWAInstall";
 import { toast } from "sonner";
+import downloadIcon from "@/assets/download-icon.png";
 import {
   AlertDialog,
   AlertDialogContent,
@@ -43,11 +44,11 @@ export const Footer = () => {
               {(isInstallable || isIOS) && (
                 <button
                   onClick={handleInstallClick}
-                  className="group relative w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center hover:scale-110 transition-all duration-300 shadow-lg hover:shadow-blue-500/50 animate-pulse"
+                  className="group relative w-10 h-10 rounded-full bg-gradient-to-br from-blue-500/30 to-purple-600/30 flex items-center justify-center hover:scale-110 transition-transform duration-300 shadow-md"
                   aria-label="Add to Home Screen"
                   title="Add to Home Screen"
                 >
-                  <Download className="h-5 w-5 text-white" />
+                  <img src={downloadIcon} alt="Download" className="h-6 w-6 object-contain" />
                   <span className="absolute -top-8 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-xs px-2 py-1 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity">
                     Install App
                   </span>

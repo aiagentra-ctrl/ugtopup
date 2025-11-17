@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import ugGamingLogo from "@/assets/ug-gaming-logo.jpg";
+import ugGamingLogo from "@/assets/ug-app-icon.jpg";
 
 export const LoadingScreen = () => {
   const [isVisible, setIsVisible] = useState(true);
