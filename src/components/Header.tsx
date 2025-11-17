@@ -2,6 +2,9 @@ import { Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Menu, Plus } from "lucide-react";
+import { usePWAInstall } from "@/hooks/usePWAInstall";
+import { toast } from "sonner";
+import downloadIcon from "@/assets/download-icon.png";
 import { useState, useEffect } from "react";
 import { TopUpModal } from "./topup/TopUpModal";
 import {
@@ -19,6 +22,23 @@ export const Header = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [topUpModalOpen, setTopUpModalOpen] = useState(false);
   const [balance, setBalance] = useState(profile?.balance || 0);
+  const { isInstallable, promptInstall, isIOS } = usePWAInstall();
+
+  const handleInstallClick = async () => {
+    if (isIOS) {
+      toast.info('To install: Tap Share → Add to Home Screen');
+      return;
+    }
+
+    const result = await promptInstall();
+    
+    if (result === 'accepted') {
+      toast.success('App installed! Find UGTOPUPS on your home screen 🎉');
+      setMobileMenuOpen(false);
+    } else if (result === 'dismissed') {
+      toast.info('You can install UGTOPUPS later from your browser menu');
+    }
+  };
 
   // Real-time balance updates
   useEffect(() => {
@@ -168,6 +188,27 @@ export const Header = () => {
       {mobileMenuOpen && (
         <div className="sm:hidden border-t border-white/5 bg-black">
           <div className="container mx-auto px-4 py-4 space-y-2">
+            {/* Download App Banner */}
+            {(isInstallable || isIOS) && (
+              <div className="mb-4 p-4 bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl shadow-lg">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <img src={downloadIcon} alt="Download" className="h-8 w-8 object-contain" />
+                    <div>
+                      <h3 className="text-white font-bold text-base">Download the App</h3>
+                      <p className="text-white/80 text-xs">Install UGTOPUPS on your device</p>
+                    </div>
+                  </div>
+                  <Button
+                    onClick={handleInstallClick}
+                    className="bg-white text-purple-600 hover:bg-white/90 font-bold px-4 py-2 rounded-lg text-sm"
+                  >
+                    Install
+                  </Button>
+                </div>
+              </div>
+            )}
+            
             <Link to="/" onClick={() => setMobileMenuOpen(false)}>
               <Button variant="ghost" className="w-full justify-start text-white">
                 Home
