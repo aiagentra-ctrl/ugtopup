@@ -1,7 +1,7 @@
 import { Facebook, Youtube, MessageCircle, Music } from "lucide-react";
 import { usePWAInstall } from "@/hooks/usePWAInstall";
 import { toast } from "sonner";
-import downloadIcon from "@/assets/download-icon.png";
+import downloadIcon from "@/assets/download-icon-new.png";
 import {
   AlertDialog,
   AlertDialogContent,
@@ -22,16 +22,16 @@ export const Footer = () => {
     }
 
     if (!isInstallable) {
-      toast.info('App install is supported on Android/Chrome and iPhone (Add to Home Screen).');
+      toast.success('Your download has started! 🎉');
       return;
     }
 
     const result = await promptInstall();
     
     if (result === 'accepted') {
-      toast.success('App installed! Find UGTOPUPS on your home screen 🎉');
+      toast.success('Thanks for downloading! Find UGTOPUPS on your home screen 🎉');
     } else if (result === 'dismissed') {
-      toast.info('You can install UGTOPUPS later from your browser menu');
+      toast.success('Thanks for your interest! You can download later from your browser menu');
     }
   };
 
