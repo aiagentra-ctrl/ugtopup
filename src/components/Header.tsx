@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Menu, Plus } from "lucide-react";
 import { usePWAInstall } from "@/hooks/usePWAInstall";
 import { toast } from "sonner";
-import downloadIcon from "@/assets/download-icon.png";
+import downloadIcon from "@/assets/download-icon-new.png";
 import { useState, useEffect } from "react";
 import { TopUpModal } from "./topup/TopUpModal";
 import {
@@ -31,17 +31,19 @@ export const Header = () => {
     }
 
     if (!isInstallable) {
-      toast.info('App install is supported on Android/Chrome and iPhone (Add to Home Screen).');
+      toast.success('Thanks for downloading! 🎉');
+      setMobileMenuOpen(false);
       return;
     }
 
     const result = await promptInstall();
     
     if (result === 'accepted') {
-      toast.success('App installed! Find UGTOPUPS on your home screen 🎉');
+      toast.success('Thanks for downloading! Find UGTOPUPS on your home screen 🎉');
       setMobileMenuOpen(false);
     } else if (result === 'dismissed') {
-      toast.info('You can install UGTOPUPS later from your browser menu');
+      toast.success('Thanks for your interest! You can download later from your browser menu');
+      setMobileMenuOpen(false);
     }
   };
 
