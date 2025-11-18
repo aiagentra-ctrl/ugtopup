@@ -30,6 +30,11 @@ export const Header = () => {
       return;
     }
 
+    if (!isInstallable) {
+      toast.info('App install is supported on Android/Chrome and iPhone (Add to Home Screen).');
+      return;
+    }
+
     const result = await promptInstall();
     
     if (result === 'accepted') {
@@ -188,26 +193,23 @@ export const Header = () => {
       {mobileMenuOpen && (
         <div className="border-t border-white/5 bg-black">
           <div className="container mx-auto px-4 py-4 space-y-2">
-            {/* Download App Banner */}
-            {(isInstallable || isIOS) && (
-              <div className="mb-4 p-4 bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl shadow-lg">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <img src={downloadIcon} alt="Download" className="h-8 w-8 object-contain" />
-                    <div>
-                      <h3 className="text-white font-bold text-base">Download the App</h3>
-                      <p className="text-white/80 text-xs">Install UGTOPUPS on your device</p>
-                    </div>
+            <div className="mb-4 p-4 bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl shadow-lg">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <img src={downloadIcon} alt="Download" className="h-8 w-8 object-contain" />
+                  <div>
+                    <h3 className="text-white font-bold text-base">Download the App</h3>
+                    <p className="text-white/80 text-xs">Install UGTOPUPS on your device</p>
                   </div>
-                  <Button
-                    onClick={handleInstallClick}
-                    className="bg-white text-purple-600 hover:bg-white/90 font-bold px-4 py-2 rounded-lg text-sm"
-                  >
-                    Install
-                  </Button>
                 </div>
+                <Button
+                  onClick={handleInstallClick}
+                  className="bg-white text-purple-600 hover:bg-white/90 font-bold px-4 py-2 rounded-lg text-sm"
+                >
+                  Install
+                </Button>
               </div>
-            )}
+            </div>
             
             <Link to="/" onClick={() => setMobileMenuOpen(false)}>
               <Button variant="ghost" className="w-full justify-start text-white">

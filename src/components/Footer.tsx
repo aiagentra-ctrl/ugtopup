@@ -21,6 +21,11 @@ export const Footer = () => {
       return;
     }
 
+    if (!isInstallable) {
+      toast.info('App install is supported on Android/Chrome and iPhone (Add to Home Screen).');
+      return;
+    }
+
     const result = await promptInstall();
     
     if (result === 'accepted') {
@@ -39,21 +44,19 @@ export const Footer = () => {
           <div className="mb-10">
             <div className="flex items-center gap-4 mb-4">
               <h2 className="text-4xl md:text-5xl font-bold text-[hsl(var(--footer-heading))]">
-                UGTOPUPS
+                UGC Top Up
               </h2>
-              {(isInstallable || isIOS) && (
-                <button
-                  onClick={handleInstallClick}
-                  className="group relative w-10 h-10 rounded-full bg-gradient-to-br from-blue-500/30 to-purple-600/30 flex items-center justify-center hover:scale-110 transition-transform duration-300 shadow-md"
-                  aria-label="Add to Home Screen"
-                  title="Add to Home Screen"
-                >
-                  <img src={downloadIcon} alt="Download" className="h-6 w-6 object-contain" />
-                  <span className="absolute -top-8 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-xs px-2 py-1 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity">
-                    Install App
-                  </span>
-                </button>
-              )}
+              <button
+                onClick={handleInstallClick}
+                className="group relative w-10 h-10 rounded-full bg-gradient-to-br from-blue-500/30 to-purple-600/30 flex items-center justify-center hover:scale-110 transition-transform duration-300 shadow-md"
+                aria-label="Install UGTOPUPS App"
+                title="Install UGTOPUPS App"
+              >
+                <img src={downloadIcon} alt="Download UGTOPUPS app" className="h-6 w-6 object-contain" />
+                <span className="absolute -top-8 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-xs px-2 py-1 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity">
+                  Install App
+                </span>
+              </button>
             </div>
             <p className="text-[hsl(var(--footer-text))] text-base leading-relaxed">
               Fast, secure top-up for online games & digital gift cards. Trusted by gamers all over Nepal.
