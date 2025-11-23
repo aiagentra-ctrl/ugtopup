@@ -425,6 +425,7 @@ export type Database = {
           total_users: number
         }[]
       }
+      get_storage_usage: { Args: never; Returns: Json }
       has_permission: {
         Args: { _permission: string; _user_id: string }
         Returns: boolean
