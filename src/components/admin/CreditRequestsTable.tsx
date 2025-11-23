@@ -29,8 +29,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { CheckCircle, XCircle, Eye, RefreshCw, Search, ExternalLink, CreditCard } from "lucide-react";
+import { CheckCircle, XCircle, Eye, RefreshCw, Search, ExternalLink, CreditCard, Trash2, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
+import { deletePaymentRequest } from "@/lib/creditApi";
 
 interface PaymentRequest {
   id: string;
@@ -59,6 +60,8 @@ export function CreditRequestsTable() {
   const [adminRemarks, setAdminRemarks] = useState("");
   const [processing, setProcessing] = useState(false);
   const [showImageModal, setShowImageModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const loadRequests = async () => {
     setLoading(true);
@@ -153,6 +156,28 @@ export function CreditRequestsTable() {
       toast.error(error.message || "Failed to process credit request");
     } finally {
       setProcessing(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!selectedRequest) return;
+
+    setDeleting(true);
+    try {
+      const result = await deletePaymentRequest(selectedRequest.id);
+      
+      if (result.success) {
+        toast.success("Payment request deleted successfully");
+        setShowDeleteModal(false);
+        loadRequests();
+      } else {
+        toast.error(result.message);
+      }
+    } catch (error: any) {
+      console.error("Error deleting request:", error);
+      toast.error("Failed to delete payment request");
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -273,34 +298,47 @@ export function CreditRequestsTable() {
                       </TableCell>
                       <TableCell>{getStatusBadge(request.status)}</TableCell>
                       <TableCell className="text-right">
-                        {request.status === "pending" && (
-                          <div className="flex justify-end gap-2">
-                            <Button
-                              size="sm"
-                              onClick={() => {
-                                setSelectedRequest(request);
-                                setActionType("approve");
-                                setShowActionModal(true);
-                              }}
-                              className="bg-green-600 hover:bg-green-700"
-                            >
-                              <CheckCircle className="h-4 w-4 mr-1" />
-                              Approve
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="destructive"
-                              onClick={() => {
-                                setSelectedRequest(request);
-                                setActionType("reject");
-                                setShowActionModal(true);
-                              }}
-                            >
-                              <XCircle className="h-4 w-4 mr-1" />
-                              Reject
-                            </Button>
-                          </div>
-                        )}
+                        <div className="flex justify-end gap-2">
+                          {request.status === "pending" && (
+                            <>
+                              <Button
+                                size="sm"
+                                onClick={() => {
+                                  setSelectedRequest(request);
+                                  setActionType("approve");
+                                  setShowActionModal(true);
+                                }}
+                                className="bg-green-600 hover:bg-green-700"
+                              >
+                                <CheckCircle className="h-4 w-4 mr-1" />
+                                Approve
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="destructive"
+                                onClick={() => {
+                                  setSelectedRequest(request);
+                                  setActionType("reject");
+                                  setShowActionModal(true);
+                                }}
+                              >
+                                <XCircle className="h-4 w-4 mr-1" />
+                                Reject
+                              </Button>
+                            </>
+                          )}
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="border-red-500 text-red-500 hover:bg-red-500/10"
+                            onClick={() => {
+                              setSelectedRequest(request);
+                              setShowDeleteModal(true);
+                            }}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -358,33 +396,47 @@ export function CreditRequestsTable() {
                       </Button>
                     )}
 
-                    {request.status === "pending" && (
-                      <div className="flex gap-2 pt-2">
-                        <Button
-                          size="sm"
-                          onClick={() => {
-                            setSelectedRequest(request);
-                            setActionType("approve");
-                            setShowActionModal(true);
-                          }}
-                          className="flex-1 bg-green-600 hover:bg-green-700"
-                        >
-                          Approve
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="destructive"
-                          onClick={() => {
-                            setSelectedRequest(request);
-                            setActionType("reject");
-                            setShowActionModal(true);
-                          }}
-                          className="flex-1"
-                        >
-                          Reject
-                        </Button>
-                      </div>
-                    )}
+                    <div className="flex gap-2 pt-2">
+                      {request.status === "pending" && (
+                        <>
+                          <Button
+                            size="sm"
+                            onClick={() => {
+                              setSelectedRequest(request);
+                              setActionType("approve");
+                              setShowActionModal(true);
+                            }}
+                            className="flex-1 bg-green-600 hover:bg-green-700"
+                          >
+                            Approve
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            onClick={() => {
+                              setSelectedRequest(request);
+                              setActionType("reject");
+                              setShowActionModal(true);
+                            }}
+                            className="flex-1"
+                          >
+                            Reject
+                          </Button>
+                        </>
+                      )}
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="flex-1 border-red-500 text-red-500 hover:bg-red-500/10"
+                        onClick={() => {
+                          setSelectedRequest(request);
+                          setShowDeleteModal(true);
+                        }}
+                      >
+                        <Trash2 className="h-4 w-4 mr-1" />
+                        Delete
+                      </Button>
+                    </div>
                   </CardContent>
                 </Card>
               ))}
@@ -485,6 +537,56 @@ export function CreditRequestsTable() {
               </Button>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Modal */}
+      <Dialog open={showDeleteModal} onOpenChange={setShowDeleteModal}>
+        <DialogContent className="bg-card border-border">
+          <DialogHeader>
+            <DialogTitle className="text-foreground">Delete Payment Request</DialogTitle>
+            <DialogDescription className="text-muted-foreground">
+              This will permanently delete the payment request and its screenshot from storage. This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+
+          {selectedRequest && (
+            <div className="space-y-3 p-4 bg-muted/30 rounded-lg">
+              <div className="grid grid-cols-2 gap-2 text-sm">
+                <span className="text-muted-foreground">User:</span>
+                <span className="text-foreground font-medium">{selectedRequest.user_email}</span>
+                
+                <span className="text-muted-foreground">Amount:</span>
+                <span className="text-foreground font-medium">₹{selectedRequest.amount}</span>
+                
+                <span className="text-muted-foreground">Credits:</span>
+                <span className="text-foreground font-medium">{selectedRequest.credits}</span>
+                
+                <span className="text-muted-foreground">Status:</span>
+                <span>{getStatusBadge(selectedRequest.status)}</span>
+              </div>
+            </div>
+          )}
+
+          <div className="flex items-start gap-2 p-3 bg-red-500/10 border border-red-500/30 rounded-lg">
+            <AlertTriangle className="h-4 w-4 text-red-500 mt-0.5 shrink-0" />
+            <p className="text-xs text-red-500">
+              Warning: This will free up storage space but the deletion is permanent. Make sure this is a fake or invalid request.
+            </p>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowDeleteModal(false)} disabled={deleting}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDelete}
+              disabled={deleting}
+            >
+              {deleting ? "Deleting..." : "Delete Permanently"}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </Card>

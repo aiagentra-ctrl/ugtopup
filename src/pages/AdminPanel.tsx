@@ -9,6 +9,7 @@ import { ProductsList } from "@/components/admin/ProductsList";
 import { AddProduct } from "@/components/admin/AddProduct";
 import { EditProduct } from "@/components/admin/EditProduct";
 import { UserData } from "@/components/admin/UserData";
+import { SupabaseLimits } from "@/components/admin/SupabaseLimits";
 import { checkAdminAccess } from "@/lib/adminApi";
 import { toast } from "sonner";
 
@@ -67,6 +68,8 @@ const AdminPanel = () => {
         return <UserData />;
       case "activity":
         return <ActivityLogs />;
+      case "supabase-limits":
+        return <SupabaseLimits />;
       default:
         return <EnhancedDashboard />;
     }
