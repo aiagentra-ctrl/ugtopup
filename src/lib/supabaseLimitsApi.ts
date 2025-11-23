@@ -22,17 +22,18 @@ export interface SupabaseLimits {
 
 export const fetchSupabaseLimits = async (): Promise<SupabaseLimits | null> => {
   try {
-    // Fetch bucket files to calculate storage
-    const { data: files, error: filesError } = await supabase
-      .storage
-      .from('payment-screenshots')
-      .list();
+    // Call database function to get storage usage
+    const { data: storageData, error: storageError } = await supabase
+      .rpc('get_storage_usage');
 
-    if (filesError) throw filesError;
+    if (storageError) {
+      console.error('Storage query error:', storageError);
+      throw storageError;
+    }
 
-    // Calculate total storage used in payment-screenshots bucket
-    const totalBytes = files?.reduce((sum, file) => sum + (file.metadata?.size || 0), 0) || 0;
-    const totalMB = totalBytes / (1024 * 1024);
+    const storage = storageData as { total_bytes: number; file_count: number };
+    const totalMB = storage.total_bytes / (1024 * 1024);
+    const fileCount = storage.file_count;
 
     // Get database size (approximate from table rows)
     const { count: paymentCount } = await supabase
@@ -70,7 +71,7 @@ export const fetchSupabaseLimits = async (): Promise<SupabaseLimits | null> => {
         used_mb: totalMB,
         limit_mb: BUCKET_LIMIT_MB,
         percentage: (totalMB / BUCKET_LIMIT_MB) * 100,
-        file_count: files?.length || 0
+        file_count: fileCount
       },
       last_updated: new Date().toISOString()
     };
