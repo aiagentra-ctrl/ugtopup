@@ -8,6 +8,7 @@ import {
   Menu,
   LogOut,
   Users,
+  Database,
 } from "lucide-react";
 import {
   Sidebar,
@@ -40,6 +41,7 @@ const menuItems = [
   { id: "products", title: "Products", icon: Package },
   { id: "users", title: "User Data", icon: Users },
   { id: "activity", title: "Activity Logs", icon: Activity },
+  { id: "supabase-limits", title: "Supabase Limits", icon: Database },
 ];
 
 function AdminSidebar({ 

@@ -134,6 +134,45 @@ export const ensureSufficientBalance = async (required: number): Promise<{ ok: b
   return { ok: balance >= required, balance };
 };
 
+// Delete payment request (admin only) with storage cleanup
+export const deletePaymentRequest = async (
+  requestId: string
+): Promise<{ success: boolean; message: string }> => {
+  try {
+    // Call database function to delete record
+    const { data, error } = await supabase.rpc('delete_payment_request', {
+      request_id: requestId
+    });
+
+    if (error) throw error;
+
+    const result = data as { success: boolean; message: string; screenshot_path: string | null };
+    
+    // Delete screenshot from storage if exists
+    if (result.screenshot_path) {
+      const { error: storageError } = await supabase.storage
+        .from('payment-screenshots')
+        .remove([result.screenshot_path]);
+      
+      if (storageError) {
+        console.warn('Failed to delete screenshot:', storageError);
+        // Don't throw error - record is already deleted
+      }
+    }
+
+    return {
+      success: true,
+      message: 'Payment request and screenshot deleted successfully'
+    };
+  } catch (error: any) {
+    console.error('Delete payment request error:', error);
+    return {
+      success: false,
+      message: error.message || 'Failed to delete payment request'
+    };
+  }
+};
+
 
 
 

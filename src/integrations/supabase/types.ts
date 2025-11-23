@@ -405,6 +405,7 @@ export type Database = {
         Args: { admin_remarks_text?: string; order_id: string }
         Returns: Json
       }
+      delete_payment_request: { Args: { request_id: string }; Returns: Json }
       get_dashboard_stats: {
         Args: never
         Returns: {
