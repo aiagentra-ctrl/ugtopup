@@ -8,6 +8,7 @@ import productSmile from "@/assets/product-smile.jpg";
 import productNetflix from "@/assets/product-netflix.jpg";
 import productYoutube from "@/assets/product-youtube.jpg";
 import productCapcut from "@/assets/product-capcut.jpg";
+import productChatgpt from "@/assets/product-chatgpt.jpg";
 
 const productData = {
   topup: [
@@ -23,7 +24,7 @@ const productData = {
     { id: 3, title: "Garena Shell", image: productGarena, link: "/product/garena-shell" },
   ],
   subscription: [
-    { id: 1, title: "ChatGPT Plus", image: productCapcut, link: "/product/chatgpt-plus" },
+    { id: 1, title: "ChatGPT Plus", image: productChatgpt, link: "/product/chatgpt-plus" },
     { id: 2, title: "YouTube Premium", image: productYoutube, link: "/product/youtube-premium" },
     { id: 3, title: "Netflix Subscription", image: productNetflix, link: "/product/netflix" },
   ],
