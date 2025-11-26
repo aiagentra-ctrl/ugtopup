@@ -39,11 +39,11 @@ const MobileLegends = () => {
   const validateForm = (): boolean => {
     const newErrors: { userId?: string; zoneId?: string } = {};
     
-    if (!formData.userId || formData.userId.length < 6) {
-      newErrors.userId = "User ID must be at least 6 digits";
+    if (!formData.userId || formData.userId.trim() === "") {
+      newErrors.userId = "User ID is required";
     }
     
-    if (!formData.zoneId || formData.zoneId.length < 1) {
+    if (!formData.zoneId || formData.zoneId.trim() === "") {
       newErrors.zoneId = "Zone ID is required";
     }
     
@@ -132,11 +132,11 @@ const MobileLegends = () => {
     if (isPlacingOrder) {
       return "Processing...";
     }
-    if (!formData.userId || formData.userId.length < 6) {
-      return "Enter 6+ digit User ID";
+    if (!formData.userId || formData.userId.trim() === "") {
+      return "Enter User ID";
     }
-    if (!formData.zoneId || formData.zoneId.length !== 4) {
-      return "Enter exactly 4-digit Zone ID";
+    if (!formData.zoneId || formData.zoneId.trim() === "") {
+      return "Enter Zone ID";
     }
     if (!selectedPackage) {
       return "Select Package First";
@@ -144,7 +144,7 @@ const MobileLegends = () => {
     return `Buy Now - ₹ ${selectedPackage.price}`;
   };
 
-  const isFormValid = formData.userId.length >= 6 && formData.zoneId.length === 4 && selectedPackage && !isPlacingOrder;
+  const isFormValid = formData.userId.trim() !== "" && formData.zoneId.trim() !== "" && selectedPackage && !isPlacingOrder;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-background">

@@ -2,7 +2,7 @@ import { ChevronLeft } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { AccountDropdown } from "@/components/AccountDropdown";
 import { useAuth } from "@/contexts/AuthContext";
-import productChatgpt from "@/assets/product-capcut.jpg";
+import productChatgpt from "@/assets/product-chatgpt.jpg";
 
 export const ChatGPTProductHeader = () => {
   const navigate = useNavigate();
