@@ -1,28 +1,38 @@
 import { useState, useEffect } from "react";
 import { Zap, Flame } from "lucide-react";
 
+// 7 days in seconds
+const SEVEN_DAYS_IN_SECONDS = 7 * 24 * 60 * 60;
+
+// Fixed anchor date - November 30, 2025 00:00:00 UTC
+const ANCHOR_DATE = new Date('2025-11-30T00:00:00Z').getTime();
+
+// Calculate remaining time in current 7-day cycle
+const calculateRemainingTime = () => {
+  const now = Date.now();
+  const elapsedMs = now - ANCHOR_DATE;
+  const elapsedSeconds = Math.floor(elapsedMs / 1000);
+  
+  // Position in the current 7-day cycle
+  const positionInCycle = elapsedSeconds % SEVEN_DAYS_IN_SECONDS;
+  
+  // Remaining seconds in this cycle
+  const remaining = SEVEN_DAYS_IN_SECONDS - positionInCycle;
+  
+  return remaining;
+};
+
 export const BestDeals = () => {
-  // Initial countdown: 2 days, 3 hours, 19 minutes, 38 seconds
-  const initialSeconds = (2 * 24 * 60 * 60) + (3 * 60 * 60) + (19 * 60) + 38;
-  const [secondsLeft, setSecondsLeft] = useState(initialSeconds);
+  const [secondsLeft, setSecondsLeft] = useState(calculateRemainingTime());
 
   useEffect(() => {
-    // Exit if countdown is finished
-    if (secondsLeft <= 0) return;
-
     const timer = setInterval(() => {
-      setSecondsLeft((prev) => {
-        if (prev <= 1) {
-          // Reset to initial value when countdown ends (loop)
-          return initialSeconds;
-        }
-        return prev - 1;
-      });
+      setSecondsLeft(calculateRemainingTime());
     }, 1000);
 
     // Cleanup on unmount
     return () => clearInterval(timer);
-  }, [secondsLeft, initialSeconds]);
+  }, []);
 
   // Calculate days, hours, minutes, seconds from total seconds
   const days = Math.floor(secondsLeft / (24 * 60 * 60));
