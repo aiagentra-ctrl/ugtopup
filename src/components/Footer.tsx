@@ -112,6 +112,14 @@ export const Footer = () => {
                 Products
               </a>
             </li>
+            <li>
+              <a 
+                href="/contact" 
+                className="text-[hsl(var(--footer-text))] text-base hover:text-[hsl(var(--footer-heading))] transition-colors duration-300"
+              >
+                Contact Us
+              </a>
+            </li>
           </ul>
         </div>
         

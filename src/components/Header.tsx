@@ -218,7 +218,11 @@ export const Header = () => {
                 Home
               </Button>
             </Link>
-            {/* Add more navigation links here as needed */}
+            <Link to="/contact" onClick={() => setMobileMenuOpen(false)}>
+              <Button variant="ghost" className="w-full justify-start text-white">
+                Contact Us
+              </Button>
+            </Link>
           </div>
         </div>
       )}

@@ -32,6 +32,7 @@ import LogoDesign from "./pages/LogoDesign";
 import PostDesign from "./pages/PostDesign";
 import BannerDesign from "./pages/BannerDesign";
 import ThumbnailDesign from "./pages/ThumbnailDesign";
+import ContactUs from "./pages/ContactUs";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -64,6 +65,7 @@ const App = () => (
             <Route path="/product/post-design" element={<PostDesign />} />
             <Route path="/product/banner-design" element={<BannerDesign />} />
             <Route path="/product/thumbnail-design" element={<ThumbnailDesign />} />
+            <Route path="/contact" element={<ContactUs />} />
             <Route
               path="/dashboard"
               element={
