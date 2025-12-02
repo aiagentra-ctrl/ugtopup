@@ -10,6 +10,7 @@ import { AddProduct } from "@/components/admin/AddProduct";
 import { EditProduct } from "@/components/admin/EditProduct";
 import { UserData } from "@/components/admin/UserData";
 import { SupabaseLimits } from "@/components/admin/SupabaseLimits";
+import { GameProductPrices } from "@/components/admin/GameProductPrices";
 import { checkAdminAccess } from "@/lib/adminApi";
 import { toast } from "sonner";
 
@@ -60,6 +61,8 @@ const AdminPanel = () => {
         return <OrderManagement />;
       case "products":
         return <ProductsList />;
+      case "game-pricing":
+        return <GameProductPrices />;
       case "add-product":
         return <AddProduct />;
       case "edit-product":

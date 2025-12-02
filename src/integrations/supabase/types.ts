@@ -62,6 +62,51 @@ export type Database = {
         }
         Relationships: []
       }
+      game_product_prices: {
+        Row: {
+          created_at: string | null
+          currency: string | null
+          display_order: number | null
+          game: string
+          id: string
+          is_active: boolean | null
+          package_id: string
+          package_name: string
+          package_type: string
+          price: number
+          quantity: number
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          currency?: string | null
+          display_order?: number | null
+          game: string
+          id?: string
+          is_active?: boolean | null
+          package_id: string
+          package_name: string
+          package_type: string
+          price: number
+          quantity: number
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          currency?: string | null
+          display_order?: number | null
+          game?: string
+          id?: string
+          is_active?: boolean | null
+          package_id?: string
+          package_name?: string
+          package_type?: string
+          price?: number
+          quantity?: number
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       payment_request_history: {
         Row: {
           changed_at: string | null
