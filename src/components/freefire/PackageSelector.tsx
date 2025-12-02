@@ -1,6 +1,8 @@
-import { Package, topUpPackages, specialDeals } from "@/data/freefirePackages";
-import { ChevronRight } from "lucide-react";
+import { Package } from "@/data/freefirePackages";
+import { ChevronRight, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useGamePrices } from "@/hooks/useGamePrices";
+import { useMemo } from "react";
 
 interface PackageSelectorProps {
   selectedPackage: Package | null;
@@ -8,6 +10,42 @@ interface PackageSelectorProps {
 }
 
 export const PackageSelector = ({ selectedPackage, onSelectPackage }: PackageSelectorProps) => {
+  const { prices, loading, getPricesByType } = useGamePrices('freefire');
+
+  // Convert DB prices to Package format with real-time prices
+  const topUpPackages = useMemo(() => {
+    const dbPrices = getPricesByType('topup');
+    return dbPrices.map((p) => ({
+      id: p.package_id,
+      type: 'topup' as const,
+      name: p.package_name,
+      quantity: p.quantity,
+      price: p.price,
+      currency: '💵' as const,
+    }));
+  }, [prices]);
+
+  const specialDeals = useMemo(() => {
+    const dbPrices = getPricesByType('special');
+    return dbPrices.map((p) => ({
+      id: p.package_id,
+      type: 'special' as const,
+      name: p.package_name,
+      quantity: p.quantity,
+      price: p.price,
+      currency: '💵' as const,
+    }));
+  }, [prices]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <span className="ml-2 text-muted-foreground">Loading prices...</span>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-8">
       {/* Top-up Amount Section */}
@@ -37,12 +75,12 @@ export const PackageSelector = ({ selectedPackage, onSelectPackage }: PackageSel
                   : "border-border"
               )}
             >
-              {/* Diamond Icon - Larger and Sharper */}
+              {/* Diamond Icon */}
               <div className="text-3xl filter drop-shadow-[0_2px_4px_rgba(255,255,255,0.3)]">
                 💎
               </div>
               
-              {/* Quantity - More Prominent */}
+              {/* Quantity */}
               <div className="text-center">
                 <p className={cn(
                   "text-lg sm:text-xl font-bold transition-colors leading-none",
@@ -55,7 +93,7 @@ export const PackageSelector = ({ selectedPackage, onSelectPackage }: PackageSel
                 </p>
               </div>
               
-              {/* Price - Bolder */}
+              {/* Price */}
               <p className={cn(
                 "text-base sm:text-lg font-extrabold transition-colors",
                 selectedPackage?.id === pkg.id ? "text-primary" : "text-foreground"
@@ -63,7 +101,7 @@ export const PackageSelector = ({ selectedPackage, onSelectPackage }: PackageSel
                 ₹{pkg.price}
               </p>
 
-              {/* Selected Checkmark - Enhanced */}
+              {/* Selected Checkmark */}
               {selectedPackage?.id === pkg.id && (
                 <div className="absolute -top-2 -right-2 w-7 h-7 bg-primary rounded-full flex items-center justify-center shadow-lg animate-scale-in border-2 border-background">
                   <span className="text-sm text-primary-foreground font-bold">✓</span>
@@ -117,7 +155,7 @@ export const PackageSelector = ({ selectedPackage, onSelectPackage }: PackageSel
                 ₹{pkg.price}
               </p>
               
-              {/* Right: Arrow Icon with Animation */}
+              {/* Right: Arrow Icon */}
               <ChevronRight className={cn(
                 "w-6 h-6 transition-all duration-300",
                 selectedPackage?.id === pkg.id 
@@ -125,7 +163,7 @@ export const PackageSelector = ({ selectedPackage, onSelectPackage }: PackageSel
                   : "text-muted-foreground"
               )} />
 
-              {/* Selected Indicator - More Prominent */}
+              {/* Selected Indicator */}
               {selectedPackage?.id === pkg.id && (
                 <>
                   <div className="absolute -top-2 -right-2 w-7 h-7 bg-primary rounded-full flex items-center justify-center shadow-lg animate-scale-in border-2 border-background z-10">
