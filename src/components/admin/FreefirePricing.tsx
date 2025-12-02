@@ -7,20 +7,22 @@ import { Switch } from "@/components/ui/switch";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { RefreshCw, Save, CheckCircle2, Loader2, AlertCircle, Diamond } from "lucide-react";
-import { fetchAllGamePrices, updateGamePrice, togglePackageActive } from "@/lib/gamePricingApi";
+import { fetchAllGamePrices, updateGamePackage, togglePackageActive } from "@/lib/gamePricingApi";
 import type { GamePrice } from "@/hooks/useGamePrices";
 import { supabase } from "@/integrations/supabase/client";
 
-interface PriceRowState {
+interface RowState {
+  quantity: string;
   price: string;
   status: 'idle' | 'saving' | 'saved' | 'error';
-  original: number;
+  originalQuantity: number;
+  originalPrice: number;
 }
 
 export const FreefirePricing = () => {
   const [prices, setPrices] = useState<GamePrice[]>([]);
   const [loading, setLoading] = useState(true);
-  const [rowStates, setRowStates] = useState<Record<string, PriceRowState>>({});
+  const [rowStates, setRowStates] = useState<Record<string, RowState>>({});
   const [savingAll, setSavingAll] = useState(false);
 
   // Fetch prices
@@ -31,9 +33,15 @@ export const FreefirePricing = () => {
       setPrices(data);
       
       // Initialize row states
-      const states: Record<string, PriceRowState> = {};
+      const states: Record<string, RowState> = {};
       data.forEach((p) => {
-        states[p.id] = { price: String(p.price), status: 'idle', original: p.price };
+        states[p.id] = {
+          quantity: String(p.quantity),
+          price: String(p.price),
+          status: 'idle',
+          originalQuantity: p.quantity,
+          originalPrice: p.price,
+        };
       });
       setRowStates(states);
     } catch (error) {
@@ -68,9 +76,11 @@ export const FreefirePricing = () => {
           setRowStates((prev) => ({
             ...prev,
             [updated.id]: {
+              quantity: String(updated.quantity),
               price: String(updated.price),
               status: 'saved',
-              original: updated.price,
+              originalQuantity: updated.quantity,
+              originalPrice: updated.price,
             },
           }));
         }
@@ -82,6 +92,14 @@ export const FreefirePricing = () => {
     };
   }, []);
 
+  // Handle quantity input change
+  const handleQuantityChange = (id: string, value: string) => {
+    setRowStates((prev) => ({
+      ...prev,
+      [id]: { ...prev[id], quantity: value, status: 'idle' },
+    }));
+  };
+
   // Handle price input change
   const handlePriceChange = (id: string, value: string) => {
     setRowStates((prev) => ({
@@ -90,10 +108,16 @@ export const FreefirePricing = () => {
     }));
   };
 
-  // Save single price
-  const handleSavePrice = async (id: string) => {
+  // Save single row (quantity + price)
+  const handleSaveRow = async (id: string, pkg: GamePrice) => {
     const state = rowStates[id];
+    const newQuantity = parseInt(state.quantity, 10);
     const newPrice = parseFloat(state.price);
+    
+    if (isNaN(newQuantity) || newQuantity < 1) {
+      toast.error('Please enter a valid quantity (min 1)');
+      return;
+    }
     
     if (isNaN(newPrice) || newPrice < 0) {
       toast.error('Please enter a valid price');
@@ -106,26 +130,45 @@ export const FreefirePricing = () => {
     }));
 
     try {
-      await updateGamePrice(id, newPrice);
+      // Build updates object
+      const updates: { quantity?: number; price?: number; package_name?: string } = {};
+      
+      if (newQuantity !== state.originalQuantity) {
+        updates.quantity = newQuantity;
+        // Auto-update package name for diamond packages
+        if (pkg.package_type === 'topup') {
+          updates.package_name = `${newQuantity} Diamonds`;
+        }
+      }
+      
+      if (newPrice !== state.originalPrice) {
+        updates.price = newPrice;
+      }
+
+      await updateGamePackage(id, updates);
+      
       setRowStates((prev) => ({
         ...prev,
-        [id]: { ...prev[id], status: 'saved', original: newPrice },
+        [id]: {
+          ...prev[id],
+          status: 'saved',
+          originalQuantity: newQuantity,
+          originalPrice: newPrice,
+        },
       }));
-      toast.success('Price updated');
+      toast.success('Package updated');
     } catch (error) {
       setRowStates((prev) => ({
         ...prev,
         [id]: { ...prev[id], status: 'error' },
       }));
-      toast.error('Failed to update price');
+      toast.error('Failed to update package');
     }
   };
 
-  // Save all changed prices
+  // Save all changed rows
   const handleSaveAll = async () => {
-    const changedRows = Object.entries(rowStates).filter(
-      ([_, state]) => parseFloat(state.price) !== state.original
-    );
+    const changedRows = prices.filter((pkg) => hasChanges(pkg.id));
 
     if (changedRows.length === 0) {
       toast.info('No changes to save');
@@ -135,20 +178,36 @@ export const FreefirePricing = () => {
     setSavingAll(true);
     let successCount = 0;
 
-    for (const [id, state] of changedRows) {
+    for (const pkg of changedRows) {
+      const state = rowStates[pkg.id];
+      const newQuantity = parseInt(state.quantity, 10);
       const newPrice = parseFloat(state.price);
-      if (!isNaN(newPrice) && newPrice >= 0) {
+      
+      if (!isNaN(newQuantity) && newQuantity >= 1 && !isNaN(newPrice) && newPrice >= 0) {
         try {
-          await updateGamePrice(id, newPrice);
+          const updates: { quantity?: number; price?: number; package_name?: string } = {};
+          
+          if (newQuantity !== state.originalQuantity) {
+            updates.quantity = newQuantity;
+            if (pkg.package_type === 'topup') {
+              updates.package_name = `${newQuantity} Diamonds`;
+            }
+          }
+          
+          if (newPrice !== state.originalPrice) {
+            updates.price = newPrice;
+          }
+          
+          await updateGamePackage(pkg.id, updates);
           successCount++;
         } catch (error) {
-          console.error(`Failed to update ${id}:`, error);
+          console.error(`Failed to update ${pkg.id}:`, error);
         }
       }
     }
 
     setSavingAll(false);
-    toast.success(`Updated ${successCount} price(s)`);
+    toast.success(`Updated ${successCount} package(s)`);
     fetchPrices();
   };
 
@@ -172,7 +231,10 @@ export const FreefirePricing = () => {
   // Check if row has changes
   const hasChanges = (id: string) => {
     const state = rowStates[id];
-    return state && parseFloat(state.price) !== state.original;
+    if (!state) return false;
+    const qtyChanged = parseInt(state.quantity, 10) !== state.originalQuantity;
+    const priceChanged = parseFloat(state.price) !== state.originalPrice;
+    return qtyChanged || priceChanged;
   };
 
   // Render status indicator
@@ -235,7 +297,7 @@ export const FreefirePricing = () => {
             💎 Top-Up Packages
           </CardTitle>
           <CardDescription>
-            Diamond packages - quantity is fixed, only price can be edited
+            Diamond packages - edit quantity and price values
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -244,8 +306,8 @@ export const FreefirePricing = () => {
               <thead>
                 <tr className="border-b border-border">
                   <th className="text-left py-3 px-2 font-medium text-muted-foreground">Package</th>
-                  <th className="text-center py-3 px-2 font-medium text-muted-foreground">Quantity</th>
-                  <th className="text-center py-3 px-2 font-medium text-muted-foreground">Price (₹)</th>
+                  <th className="text-center py-3 px-2 font-medium text-muted-foreground">💎 Diamond Value</th>
+                  <th className="text-center py-3 px-2 font-medium text-muted-foreground">💰 Price (₹)</th>
                   <th className="text-center py-3 px-2 font-medium text-muted-foreground">Active</th>
                   <th className="text-center py-3 px-2 font-medium text-muted-foreground">Status</th>
                   <th className="text-right py-3 px-2 font-medium text-muted-foreground">Action</th>
@@ -260,10 +322,16 @@ export const FreefirePricing = () => {
                         <span className="font-medium">{pkg.package_name}</span>
                       </div>
                     </td>
-                    <td className="py-3 px-2 text-center">
-                      <Badge variant="secondary" className="font-mono">
-                        {pkg.quantity.toLocaleString()}
-                      </Badge>
+                    <td className="py-3 px-2">
+                      <div className="flex justify-center">
+                        <Input
+                          type="number"
+                          value={rowStates[pkg.id]?.quantity || ''}
+                          onChange={(e) => handleQuantityChange(pkg.id, e.target.value)}
+                          className="w-24 text-center font-mono"
+                          min="1"
+                        />
+                      </div>
                     </td>
                     <td className="py-3 px-2">
                       <div className="flex justify-center">
@@ -294,7 +362,7 @@ export const FreefirePricing = () => {
                       <Button
                         size="sm"
                         variant={hasChanges(pkg.id) ? "default" : "outline"}
-                        onClick={() => handleSavePrice(pkg.id)}
+                        onClick={() => handleSaveRow(pkg.id, pkg)}
                         disabled={!hasChanges(pkg.id) || rowStates[pkg.id]?.status === 'saving'}
                       >
                         {rowStates[pkg.id]?.status === 'saving' ? (
@@ -319,7 +387,7 @@ export const FreefirePricing = () => {
             ⭐ Special Deals
           </CardTitle>
           <CardDescription>
-            Memberships and special packages
+            Memberships - only price can be edited
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -329,7 +397,7 @@ export const FreefirePricing = () => {
                 <tr className="border-b border-border">
                   <th className="text-left py-3 px-2 font-medium text-muted-foreground">Package</th>
                   <th className="text-center py-3 px-2 font-medium text-muted-foreground">Type</th>
-                  <th className="text-center py-3 px-2 font-medium text-muted-foreground">Price (₹)</th>
+                  <th className="text-center py-3 px-2 font-medium text-muted-foreground">💰 Price (₹)</th>
                   <th className="text-center py-3 px-2 font-medium text-muted-foreground">Active</th>
                   <th className="text-center py-3 px-2 font-medium text-muted-foreground">Status</th>
                   <th className="text-right py-3 px-2 font-medium text-muted-foreground">Action</th>
@@ -376,7 +444,7 @@ export const FreefirePricing = () => {
                       <Button
                         size="sm"
                         variant={hasChanges(pkg.id) ? "default" : "outline"}
-                        onClick={() => handleSavePrice(pkg.id)}
+                        onClick={() => handleSaveRow(pkg.id, pkg)}
                         disabled={!hasChanges(pkg.id) || rowStates[pkg.id]?.status === 'saving'}
                       >
                         {rowStates[pkg.id]?.status === 'saving' ? (

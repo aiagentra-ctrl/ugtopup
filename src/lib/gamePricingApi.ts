@@ -26,6 +26,19 @@ export const updateGamePrice = async (
   if (error) throw error;
 };
 
+// Update package with quantity and/or price
+export const updateGamePackage = async (
+  id: string,
+  updates: { quantity?: number; price?: number; package_name?: string }
+): Promise<void> => {
+  const { error } = await supabase
+    .from('game_product_prices')
+    .update(updates)
+    .eq('id', id);
+
+  if (error) throw error;
+};
+
 // Bulk update prices
 export const bulkUpdatePrices = async (
   updates: { id: string; price: number }[]
