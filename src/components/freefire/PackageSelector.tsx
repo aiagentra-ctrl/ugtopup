@@ -142,9 +142,6 @@ export const PackageSelector = ({ selectedPackage, onSelectPackage }: PackageSel
                 )}>
                   {pkg.name}
                 </p>
-                <p className="text-xs text-muted-foreground font-medium mt-0.5">
-                  Membership
-                </p>
               </div>
               
               {/* Center: Price */}

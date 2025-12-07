@@ -30,7 +30,6 @@ export const PubgPackageSelector = ({ selectedPackage, onSelectPackage }: PubgPa
               `}
             >
               <div className="flex flex-col items-center gap-2">
-                <span className="text-3xl">{pkg.icon}</span>
                 <div className="text-center">
                   <p className="font-bold text-lg text-foreground">{pkg.quantity} UC</p>
                   <p className="text-sm text-primary font-semibold">₹{pkg.price}</p>
