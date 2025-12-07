@@ -34,7 +34,6 @@ export const RobloxPackageSelector = ({ selectedPackage, onSelectPackage }: Robl
                 </div>
               )}
               <div className="text-center space-y-2">
-                <div className="text-3xl">{pkg.icon}</div>
                 <div className="text-lg font-bold text-slate-100">{pkg.quantity}</div>
                 <div className="text-sm text-slate-400">Robux</div>
                 <div className="text-base font-semibold text-primary">
