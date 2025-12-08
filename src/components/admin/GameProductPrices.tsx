@@ -3,6 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Gamepad2 } from "lucide-react";
 import { FreefirePricing } from "./FreefirePricing";
+import { MobileLegendsPricing } from "./MobileLegendsPricing";
 
 export const GameProductPrices = () => {
   const [activeGame, setActiveGame] = useState("freefire");
@@ -28,16 +29,23 @@ export const GameProductPrices = () => {
 
       {/* Game Tabs */}
       <Tabs value={activeGame} onValueChange={setActiveGame}>
-        <TabsList className="grid w-full max-w-md grid-cols-1">
+        <TabsList className="grid w-full max-w-md grid-cols-2">
           <TabsTrigger value="freefire" className="flex items-center gap-2">
             <span className="text-lg">🎮</span>
             Free Fire
           </TabsTrigger>
-          {/* Future games can be added here */}
+          <TabsTrigger value="mobile_legends" className="flex items-center gap-2">
+            <span className="text-lg">⚔️</span>
+            Mobile Legends
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="freefire" className="mt-6">
           <FreefirePricing />
+        </TabsContent>
+
+        <TabsContent value="mobile_legends" className="mt-6">
+          <MobileLegendsPricing />
         </TabsContent>
       </Tabs>
     </div>

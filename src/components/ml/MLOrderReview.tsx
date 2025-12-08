@@ -8,7 +8,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { type MLPackage } from "@/data/mlPackages";
+import { type MLPackage } from "@/components/ml/MLPackageSelector";
 import { AlertCircle } from "lucide-react";
 import { useLiveBalance } from "@/hooks/useLiveBalance";
 import { useEffect } from "react";
