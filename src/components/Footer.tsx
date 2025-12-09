@@ -120,6 +120,14 @@ export const Footer = () => {
                 Contact Us
               </a>
             </li>
+            <li>
+              <a 
+                href="/refund-policy" 
+                className="text-[hsl(var(--footer-text))] text-base hover:text-[hsl(var(--footer-heading))] transition-colors duration-300"
+              >
+                Refund & Payment Policy
+              </a>
+            </li>
           </ul>
         </div>
         

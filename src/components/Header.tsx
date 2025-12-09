@@ -223,6 +223,11 @@ export const Header = () => {
                 Contact Us
               </Button>
             </Link>
+            <Link to="/refund-policy" onClick={() => setMobileMenuOpen(false)}>
+              <Button variant="ghost" className="w-full justify-start text-white">
+                Refund & Payment Policy
+              </Button>
+            </Link>
           </div>
         </div>
       )}
