@@ -18,8 +18,8 @@ export const Footer = () => {
   const handleInstallClick = async () => {
     // Already installed
     if (isInstalled) {
-      toast.success('App is already installed! Check your home screen 📱', {
-        description: 'UGTOPUPS is ready to use'
+      toast.success('App is already installed! 📱', {
+        description: 'Check your home screen for UGTOPUPS'
       });
       return;
     }
@@ -30,37 +30,22 @@ export const Footer = () => {
       return;
     }
 
-    // Android/Desktop with install prompt available
+    // Android/Desktop with install prompt available - one-click install
     if (isInstallable) {
-      toast.loading('Preparing download...', { id: 'pwa-install-footer' });
-      
       const result = await promptInstall();
       
       if (result === 'accepted') {
-        toast.success('Download started! 🎉', {
-          id: 'pwa-install-footer',
-          description: 'Find UGTOPUPS on your home screen'
+        toast.success('Installing UGTOPUPS! 🎉', {
+          description: 'App will appear on your home screen'
         });
       } else if (result === 'dismissed') {
-        toast.info('Download cancelled', {
-          id: 'pwa-install-footer',
-          description: 'You can install later from browser menu'
-        });
-      } else {
-        toast.error('Download unavailable', {
-          id: 'pwa-install-footer',
-          description: 'Please try again or use browser menu to install'
-        });
+        toast.info('Installation cancelled');
       }
-      return;
     }
-
-    // Fallback for browsers without PWA support
-    toast.info('Install from browser menu', {
-      description: 'Use your browser\'s "Add to Home Screen" or "Install App" option',
-      duration: 5000
-    });
   };
+
+  // Check if download option should be shown
+  const showDownloadOption = isIOS || isInstallable || isInstalled;
 
   return (
     <>
@@ -73,17 +58,20 @@ export const Footer = () => {
               <h2 className="text-4xl md:text-5xl font-bold text-[hsl(var(--footer-heading))]">
                 UGC Top Up
               </h2>
-              <button
-                onClick={handleInstallClick}
-                className="group relative w-10 h-10 rounded-full bg-gradient-to-br from-blue-500/30 to-purple-600/30 flex items-center justify-center hover:scale-110 transition-transform duration-300 shadow-md"
-                aria-label="Install UGTOPUPS App"
-                title="Install UGTOPUPS App"
-              >
-                <img src={downloadIcon} alt="Download UGTOPUPS app" className="h-6 w-6 object-contain" />
-                <span className="absolute -top-8 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-xs px-2 py-1 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity">
-                  Install App
-                </span>
-              </button>
+              {showDownloadOption && (
+                <button
+                  onClick={handleInstallClick}
+                  disabled={isLoading}
+                  className="group relative w-10 h-10 rounded-full bg-gradient-to-br from-blue-500/30 to-purple-600/30 flex items-center justify-center hover:scale-110 transition-transform duration-300 shadow-md disabled:opacity-50"
+                  aria-label="Install UGTOPUPS App"
+                  title={isInstalled ? 'App Installed' : 'Install UGTOPUPS App'}
+                >
+                  <img src={downloadIcon} alt="Download UGTOPUPS app" className="h-6 w-6 object-contain" />
+                  <span className="absolute -top-8 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-xs px-2 py-1 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity">
+                    {isInstalled ? 'Installed ✓' : 'Install App'}
+                  </span>
+                </button>
+              )}
             </div>
             <p className="text-[hsl(var(--footer-text))] text-base leading-relaxed">
               Fast, secure top-up for online games & digital gift cards. Trusted by gamers all over Nepal.

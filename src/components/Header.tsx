@@ -35,8 +35,8 @@ export const Header = () => {
   const handleInstallClick = async () => {
     // Already installed
     if (isInstalled) {
-      toast.success('App is already installed! Check your home screen 📱', {
-        description: 'UGTOPUPS is ready to use'
+      toast.success('App is already installed! 📱', {
+        description: 'Check your home screen for UGTOPUPS'
       });
       setMobileMenuOpen(false);
       return;
@@ -48,39 +48,23 @@ export const Header = () => {
       return;
     }
 
-    // Android/Desktop with install prompt available
+    // Android/Desktop with install prompt available - one-click install
     if (isInstallable) {
-      toast.loading('Preparing download...', { id: 'pwa-install' });
-      
       const result = await promptInstall();
       
       if (result === 'accepted') {
-        toast.success('Download started! 🎉', {
-          id: 'pwa-install',
-          description: 'Find UGTOPUPS on your home screen'
+        toast.success('Installing UGTOPUPS! 🎉', {
+          description: 'App will appear on your home screen'
         });
         setMobileMenuOpen(false);
       } else if (result === 'dismissed') {
-        toast.info('Download cancelled', {
-          id: 'pwa-install',
-          description: 'You can install later from browser menu'
-        });
-      } else {
-        toast.error('Download unavailable', {
-          id: 'pwa-install',
-          description: 'Please try again or use browser menu to install'
-        });
+        toast.info('Installation cancelled');
       }
-      return;
     }
-
-    // Fallback for browsers without PWA support or prompt not ready
-    toast.info('Install from browser menu', {
-      description: 'Use your browser\'s "Add to Home Screen" or "Install App" option',
-      duration: 5000
-    });
-    setMobileMenuOpen(false);
   };
+
+  // Check if download option should be shown
+  const showDownloadOption = isIOS || isInstallable || isInstalled;
 
   // Real-time balance updates
   useEffect(() => {
@@ -230,23 +214,30 @@ export const Header = () => {
       {mobileMenuOpen && (
         <div className="border-t border-white/5 bg-black">
           <div className="container mx-auto px-4 py-4 space-y-2">
-            <div className="mb-4 p-4 bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl shadow-lg">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <img src={downloadIcon} alt="Download" className="h-8 w-8 object-contain" />
-                  <div>
-                    <h3 className="text-white font-bold text-base">Download the App</h3>
-                    <p className="text-white/80 text-xs">Install UGTOPUPS on your device</p>
+            {showDownloadOption && (
+              <div className="mb-4 p-4 bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl shadow-lg">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <img src={downloadIcon} alt="Download" className="h-8 w-8 object-contain" />
+                    <div>
+                      <h3 className="text-white font-bold text-base">
+                        {isInstalled ? 'App Installed' : 'Download the App'}
+                      </h3>
+                      <p className="text-white/80 text-xs">
+                        {isInstalled ? 'UGTOPUPS is on your device' : 'Install UGTOPUPS on your device'}
+                      </p>
+                    </div>
                   </div>
+                  <Button
+                    onClick={handleInstallClick}
+                    disabled={isLoading}
+                    className="bg-white text-purple-600 hover:bg-white/90 font-bold px-4 py-2 rounded-lg text-sm disabled:opacity-50"
+                  >
+                    {isLoading ? 'Installing...' : isInstalled ? 'Installed ✓' : 'Install'}
+                  </Button>
                 </div>
-                <Button
-                  onClick={handleInstallClick}
-                  className="bg-white text-purple-600 hover:bg-white/90 font-bold px-4 py-2 rounded-lg text-sm"
-                >
-                  Install
-                </Button>
               </div>
-            </div>
+            )}
             
             <Link to="/" onClick={() => setMobileMenuOpen(false)}>
               <Button variant="ghost" className="w-full justify-start text-white">
