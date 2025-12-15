@@ -6,7 +6,8 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { User, Mail, Shield, Link as LinkIcon, Loader2 } from "lucide-react";
+import { User, Mail, Shield, Link as LinkIcon, Loader2, CheckCircle2 } from "lucide-react";
+import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { PasswordManagement } from "@/components/account/PasswordManagement";
@@ -316,6 +317,17 @@ const Account = () => {
               <PasswordManagement isGoogleUser={isGoogleUser} />
             </CardContent>
           </Card>
+
+          {/* Terms & Conditions Acceptance */}
+          <div className="flex items-center gap-3 p-4 rounded-lg border border-primary/20 bg-primary/5">
+            <CheckCircle2 className="h-5 w-5 text-primary flex-shrink-0" />
+            <Link 
+              to="/refund-policy" 
+              className="text-sm text-muted-foreground hover:text-primary transition-colors"
+            >
+              I accept the <span className="text-primary font-medium underline underline-offset-2">Terms & Conditions</span> of payment and I agree
+            </Link>
+          </div>
         </div>
       </main>
     </div>
