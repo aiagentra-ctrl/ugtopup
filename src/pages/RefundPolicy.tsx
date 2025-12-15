@@ -1,21 +1,8 @@
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
-import { Button } from "@/components/ui/button";
-import { Check, AlertTriangle } from "lucide-react";
-import { toast } from "sonner";
-import { useNavigate } from "react-router-dom";
+import { AlertTriangle } from "lucide-react";
 
 const RefundPolicy = () => {
-  const navigate = useNavigate();
-
-  const handleAgree = () => {
-    localStorage.setItem('termsAccepted', 'true');
-    toast.success("Thank you for accepting the terms!", {
-      description: "You can now proceed with adding credits or placing orders."
-    });
-    navigate('/');
-  };
-
   const policies = [
     {
       icon: "💳",
@@ -164,36 +151,6 @@ const RefundPolicy = () => {
                 </ul>
               </div>
             ))}
-          </div>
-        </div>
-      </section>
-
-      {/* I Agree Button Section */}
-      <section className="py-12 md:py-16">
-        <div className="container mx-auto px-4">
-          <div className="max-w-3xl mx-auto text-center">
-            <div className="glass-card p-8 md:p-12 rounded-2xl border border-border/50 bg-card/50 backdrop-blur-sm">
-              <div className="mb-6">
-                <div className="inline-flex items-center justify-center h-16 w-16 rounded-full bg-primary/10 mb-4">
-                  <Check className="h-8 w-8 text-primary" />
-                </div>
-                <h3 className="text-xl md:text-2xl font-bold text-foreground mb-2">
-                  Ready to Proceed?
-                </h3>
-                <p className="text-muted-foreground">
-                  By clicking the button below, you confirm that you have read and agreed to all the terms and conditions.
-                </p>
-              </div>
-              
-              <Button
-                onClick={handleAgree}
-                size="lg"
-                className="neon-button px-8 py-6 text-lg font-bold rounded-xl"
-              >
-                <Check className="h-5 w-5 mr-2" />
-                I Agree to Terms & Conditions
-              </Button>
-            </div>
           </div>
         </div>
       </section>

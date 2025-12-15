@@ -28,6 +28,8 @@ const Signup = () => {
     const { error } = await signup(email, password, username);
     
     if (!error) {
+      // Auto-accept terms on account creation
+      localStorage.setItem('termsAccepted', 'true');
       navigate("/dashboard");
     }
     
@@ -36,6 +38,8 @@ const Signup = () => {
 
   const handleGoogleSignup = async () => {
     setGoogleLoading(true);
+    // Auto-accept terms on Google signup
+    localStorage.setItem('termsAccepted', 'true');
     await loginWithGoogle();
     setGoogleLoading(false);
   };
