@@ -12,27 +12,54 @@ import {
 import { useState } from "react";
 
 export const Footer = () => {
-  const { isInstallable, promptInstall, isIOS } = usePWAInstall();
+  const { isInstallable, promptInstall, isIOS, isInstalled, isLoading } = usePWAInstall();
   const [showIOSInstructions, setShowIOSInstructions] = useState(false);
 
   const handleInstallClick = async () => {
+    // Already installed
+    if (isInstalled) {
+      toast.success('App is already installed! Check your home screen 📱', {
+        description: 'UGTOPUPS is ready to use'
+      });
+      return;
+    }
+
+    // iOS devices - show instructions
     if (isIOS) {
       setShowIOSInstructions(true);
       return;
     }
 
-    if (!isInstallable) {
-      toast.success('Your download has started! 🎉');
+    // Android/Desktop with install prompt available
+    if (isInstallable) {
+      toast.loading('Preparing download...', { id: 'pwa-install-footer' });
+      
+      const result = await promptInstall();
+      
+      if (result === 'accepted') {
+        toast.success('Download started! 🎉', {
+          id: 'pwa-install-footer',
+          description: 'Find UGTOPUPS on your home screen'
+        });
+      } else if (result === 'dismissed') {
+        toast.info('Download cancelled', {
+          id: 'pwa-install-footer',
+          description: 'You can install later from browser menu'
+        });
+      } else {
+        toast.error('Download unavailable', {
+          id: 'pwa-install-footer',
+          description: 'Please try again or use browser menu to install'
+        });
+      }
       return;
     }
 
-    const result = await promptInstall();
-    
-    if (result === 'accepted') {
-      toast.success('Thanks for downloading! Find UGTOPUPS on your home screen 🎉');
-    } else if (result === 'dismissed') {
-      toast.success('Thanks for your interest! You can download later from your browser menu');
-    }
+    // Fallback for browsers without PWA support
+    toast.info('Install from browser menu', {
+      description: 'Use your browser\'s "Add to Home Screen" or "Install App" option',
+      duration: 5000
+    });
   };
 
   return (

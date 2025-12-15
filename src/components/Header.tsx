@@ -6,6 +6,13 @@ import { usePWAInstall } from "@/hooks/usePWAInstall";
 import { toast } from "sonner";
 import downloadIcon from "@/assets/download-icon-new.png";
 import { useState, useEffect } from "react";
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { TopUpModal } from "./topup/TopUpModal";
 import {
   DropdownMenu,
@@ -22,29 +29,57 @@ export const Header = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [topUpModalOpen, setTopUpModalOpen] = useState(false);
   const [balance, setBalance] = useState(profile?.balance || 0);
-  const { isInstallable, promptInstall, isIOS } = usePWAInstall();
+  const { isInstallable, promptInstall, isIOS, isInstalled, isLoading } = usePWAInstall();
+  const [showIOSModal, setShowIOSModal] = useState(false);
 
   const handleInstallClick = async () => {
+    // Already installed
+    if (isInstalled) {
+      toast.success('App is already installed! Check your home screen 📱', {
+        description: 'UGTOPUPS is ready to use'
+      });
+      setMobileMenuOpen(false);
+      return;
+    }
+
+    // iOS devices - show instructions
     if (isIOS) {
-      toast.info('To install: Tap Share → Add to Home Screen');
+      setShowIOSModal(true);
       return;
     }
 
-    if (!isInstallable) {
-      toast.success('Thanks for downloading! 🎉');
-      setMobileMenuOpen(false);
+    // Android/Desktop with install prompt available
+    if (isInstallable) {
+      toast.loading('Preparing download...', { id: 'pwa-install' });
+      
+      const result = await promptInstall();
+      
+      if (result === 'accepted') {
+        toast.success('Download started! 🎉', {
+          id: 'pwa-install',
+          description: 'Find UGTOPUPS on your home screen'
+        });
+        setMobileMenuOpen(false);
+      } else if (result === 'dismissed') {
+        toast.info('Download cancelled', {
+          id: 'pwa-install',
+          description: 'You can install later from browser menu'
+        });
+      } else {
+        toast.error('Download unavailable', {
+          id: 'pwa-install',
+          description: 'Please try again or use browser menu to install'
+        });
+      }
       return;
     }
 
-    const result = await promptInstall();
-    
-    if (result === 'accepted') {
-      toast.success('Thanks for downloading! Find UGTOPUPS on your home screen 🎉');
-      setMobileMenuOpen(false);
-    } else if (result === 'dismissed') {
-      toast.success('Thanks for your interest! You can download later from your browser menu');
-      setMobileMenuOpen(false);
-    }
+    // Fallback for browsers without PWA support or prompt not ready
+    toast.info('Install from browser menu', {
+      description: 'Use your browser\'s "Add to Home Screen" or "Install App" option',
+      duration: 5000
+    });
+    setMobileMenuOpen(false);
   };
 
   // Real-time balance updates
@@ -238,6 +273,24 @@ export const Header = () => {
         onOpenChange={setTopUpModalOpen}
         onSuccess={() => setTopUpModalOpen(false)}
       />
+
+      {/* iOS Installation Instructions Modal */}
+      <AlertDialog open={showIOSModal} onOpenChange={setShowIOSModal}>
+        <AlertDialogContent className="bg-slate-900 border-slate-800">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-slate-100 text-xl">Install UGTOPUPS on iOS</AlertDialogTitle>
+            <AlertDialogDescription className="text-slate-300 space-y-3 text-left">
+              <p className="font-semibold">To install this app on your iPhone or iPad:</p>
+              <ol className="list-decimal list-inside space-y-2 ml-2">
+                <li>Tap the <strong>Share</strong> button at the bottom of Safari</li>
+                <li>Scroll down and tap <strong>Add to Home Screen</strong></li>
+                <li>Tap <strong>Add</strong> to confirm</li>
+              </ol>
+              <p className="mt-4 text-sm">The UGTOPUPS icon will appear on your home screen!</p>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+        </AlertDialogContent>
+      </AlertDialog>
     </header>
   );
 };
