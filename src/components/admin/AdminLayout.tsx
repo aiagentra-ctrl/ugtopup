@@ -10,6 +10,7 @@ import {
   Users,
   Database,
   Gamepad2,
+  Bell,
 } from "lucide-react";
 import {
   Sidebar,
@@ -41,6 +42,7 @@ const menuItems = [
   { id: "orders", title: "Order Management", icon: ShoppingCart },
   { id: "products", title: "Products", icon: Package },
   { id: "game-pricing", title: "Products (New)", icon: Gamepad2 },
+  { id: "notifications", title: "Notifications", icon: Bell },
   { id: "users", title: "User Data", icon: Users },
   { id: "activity", title: "Activity Logs", icon: Activity },
   { id: "supabase-limits", title: "Supabase Limits", icon: Database },

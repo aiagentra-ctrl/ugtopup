@@ -107,6 +107,45 @@ export type Database = {
         }
         Relationships: []
       }
+      notifications: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          image_url: string | null
+          is_active: boolean
+          message: string
+          target_emails: string[] | null
+          target_type: Database["public"]["Enums"]["notification_target_type"]
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          image_url?: string | null
+          is_active?: boolean
+          message: string
+          target_emails?: string[] | null
+          target_type?: Database["public"]["Enums"]["notification_target_type"]
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          image_url?: string | null
+          is_active?: boolean
+          message?: string
+          target_emails?: string[] | null
+          target_type?: Database["public"]["Enums"]["notification_target_type"]
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       payment_request_history: {
         Row: {
           changed_at: string | null
@@ -391,6 +430,48 @@ export type Database = {
         }
         Relationships: []
       }
+      user_notifications: {
+        Row: {
+          created_at: string
+          id: string
+          is_read: boolean
+          notification_id: string
+          read_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          notification_id: string
+          read_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          notification_id?: string
+          read_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_notifications_notification_id_fkey"
+            columns: ["notification_id"]
+            isOneToOne: false
+            referencedRelation: "notifications"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_notifications_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           created_at: string | null
@@ -546,6 +627,7 @@ export type Database = {
         | "system_action"
         | "order_created"
       app_role: "admin" | "user" | "super_admin" | "sub_admin"
+      notification_target_type: "all" | "specific"
       order_status:
         | "pending"
         | "confirmed"
@@ -708,6 +790,7 @@ export const Constants = {
         "order_created",
       ],
       app_role: ["admin", "user", "super_admin", "sub_admin"],
+      notification_target_type: ["all", "specific"],
       order_status: [
         "pending",
         "confirmed",

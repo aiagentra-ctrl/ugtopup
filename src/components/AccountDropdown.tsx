@@ -1,6 +1,7 @@
-import { User, LayoutDashboard, LogOut } from "lucide-react";
+import { User, LayoutDashboard, LogOut, Bell } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { useUnreadNotifications } from "@/hooks/useUnreadNotifications";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -9,9 +10,11 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 
 export const AccountDropdown = () => {
   const { user, logout } = useAuth();
+  const { unreadCount } = useUnreadNotifications();
 
   return (
     <DropdownMenu>
@@ -36,6 +39,17 @@ export const AccountDropdown = () => {
           <p className="text-sm text-muted-foreground truncate">{user?.email}</p>
         </div>
         <DropdownMenuSeparator />
+        <DropdownMenuItem asChild>
+          <Link to="/notifications" className="cursor-pointer flex items-center">
+            <Bell className="mr-2 h-4 w-4" />
+            Notifications
+            {unreadCount > 0 && (
+              <Badge className="ml-auto bg-primary text-primary-foreground text-xs px-1.5 py-0.5">
+                {unreadCount > 99 ? '99+' : unreadCount}
+              </Badge>
+            )}
+          </Link>
+        </DropdownMenuItem>
         <DropdownMenuItem asChild>
           <Link to="/account" className="cursor-pointer">
             <User className="mr-2 h-4 w-4" />
