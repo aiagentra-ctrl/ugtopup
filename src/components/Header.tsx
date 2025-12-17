@@ -143,6 +143,11 @@ export const Header = () => {
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-48 bg-black border-white/10">
                     <DropdownMenuItem asChild>
+                      <Link to="/notifications" className="cursor-pointer">
+                        Notifications
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
                       <Link to="/account" className="cursor-pointer">
                         Account
                       </Link>
@@ -167,21 +172,26 @@ export const Header = () => {
                       </span>
                     </button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-48 bg-black border-white/10">
-                    <DropdownMenuItem asChild>
-                      <Link to="/account" className="cursor-pointer">
-                        Account
-                      </Link>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem asChild>
-                      <Link to="/dashboard" className="cursor-pointer">
-                        Dashboard
-                      </Link>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={logout} className="cursor-pointer">
-                      Logout
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
+                   <DropdownMenuContent align="end" className="w-48 bg-black border-white/10">
+                     <DropdownMenuItem asChild>
+                       <Link to="/notifications" className="cursor-pointer">
+                         Notifications
+                       </Link>
+                     </DropdownMenuItem>
+                     <DropdownMenuItem asChild>
+                       <Link to="/account" className="cursor-pointer">
+                         Account
+                       </Link>
+                     </DropdownMenuItem>
+                     <DropdownMenuItem asChild>
+                       <Link to="/dashboard" className="cursor-pointer">
+                         Dashboard
+                       </Link>
+                     </DropdownMenuItem>
+                     <DropdownMenuItem onClick={logout} className="cursor-pointer">
+                       Logout
+                     </DropdownMenuItem>
+                   </DropdownMenuContent>
                 </DropdownMenu>
               </>
             ) : (
