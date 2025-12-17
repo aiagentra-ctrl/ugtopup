@@ -34,6 +34,7 @@ import BannerDesign from "./pages/BannerDesign";
 import ThumbnailDesign from "./pages/ThumbnailDesign";
 import ContactUs from "./pages/ContactUs";
 import RefundPolicy from "./pages/RefundPolicy";
+import UserNotifications from "./pages/UserNotifications";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -81,6 +82,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <Account />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/notifications" 
+              element={
+                <ProtectedRoute>
+                  <UserNotifications />
                 </ProtectedRoute>
               } 
             />
