@@ -1,13 +1,14 @@
 import { useState, useEffect } from 'react';
-import { Bell, Plus, Pencil, Trash2, Users, User, Image, X, Search, RefreshCw, Eye } from 'lucide-react';
+import { Bell, Plus, Pencil, Trash2, Users, User, Image, X, Search, RefreshCw, Eye, Shield, Megaphone } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import {
@@ -38,6 +39,7 @@ const NotificationsManager = () => {
   const [formMessage, setFormMessage] = useState('');
   const [formTargetType, setFormTargetType] = useState<'all' | 'specific'>('all');
   const [formTargetEmails, setFormTargetEmails] = useState('');
+  const [formNotificationType, setFormNotificationType] = useState<'admin' | 'general'>('admin');
   const [formImageFile, setFormImageFile] = useState<File | null>(null);
   const [formImagePreview, setFormImagePreview] = useState<string | null>(null);
   const [existingImageUrl, setExistingImageUrl] = useState<string | null>(null);
@@ -84,6 +86,7 @@ const NotificationsManager = () => {
     setFormMessage('');
     setFormTargetType('all');
     setFormTargetEmails('');
+    setFormNotificationType('admin');
     setFormImageFile(null);
     setFormImagePreview(null);
     setExistingImageUrl(null);
@@ -101,6 +104,7 @@ const NotificationsManager = () => {
     setFormMessage(notification.message);
     setFormTargetType(notification.target_type);
     setFormTargetEmails(notification.target_emails?.join(', ') || '');
+    setFormNotificationType(notification.notification_type || 'admin');
     setExistingImageUrl(notification.image_url);
     setFormImagePreview(notification.image_url);
     setIsDialogOpen(true);
@@ -155,6 +159,7 @@ const NotificationsManager = () => {
           image_url: imageUrl,
           target_type: formTargetType,
           target_emails: targetEmails,
+          notification_type: formNotificationType,
         });
         toast({ title: 'Success', description: 'Notification updated successfully' });
       } else {
@@ -164,6 +169,7 @@ const NotificationsManager = () => {
           image_url: imageUrl,
           target_type: formTargetType,
           target_emails: targetEmails,
+          notification_type: formNotificationType,
         });
         toast({ title: 'Success', description: 'Notification sent successfully' });
       }
@@ -266,20 +272,29 @@ const NotificationsManager = () => {
                     <div className="flex items-start justify-between gap-2">
                       <div>
                         <h3 className="font-semibold flex items-center gap-2">
-                          <Bell className="h-4 w-4 text-primary" />
+                          {notification.notification_type === 'admin' ? (
+                            <Shield className="h-4 w-4 text-primary" />
+                          ) : (
+                            <Megaphone className="h-4 w-4 text-blue-500" />
+                          )}
                           {notification.title}
                         </h3>
                         <p className="text-sm text-muted-foreground line-clamp-2 mt-1">
                           {notification.message}
                         </p>
                       </div>
-                      <Badge variant={notification.target_type === 'all' ? 'default' : 'secondary'}>
-                        {notification.target_type === 'all' ? (
-                          <><Users className="h-3 w-3 mr-1" /> All Users</>
-                        ) : (
-                          <><User className="h-3 w-3 mr-1" /> Specific ({notification.target_emails?.length || 0})</>
-                        )}
-                      </Badge>
+                      <div className="flex flex-col gap-1 items-end">
+                        <Badge variant={notification.notification_type === 'admin' ? 'default' : 'secondary'}>
+                          {notification.notification_type === 'admin' ? 'Admin' : 'General'}
+                        </Badge>
+                        <Badge variant={notification.target_type === 'all' ? 'outline' : 'secondary'}>
+                          {notification.target_type === 'all' ? (
+                            <><Users className="h-3 w-3 mr-1" /> All</>
+                          ) : (
+                            <><User className="h-3 w-3 mr-1" /> {notification.target_emails?.length || 0}</>
+                          )}
+                        </Badge>
+                      </div>
                     </div>
                     <div className="flex flex-wrap items-center gap-4 mt-3 text-sm text-muted-foreground">
                       <span>📅 {format(new Date(notification.created_at), 'MMM d, yyyy')}</span>
@@ -337,6 +352,34 @@ const NotificationsManager = () => {
                 onChange={(e) => setFormMessage(e.target.value)}
                 rows={4}
               />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Notification Type *</Label>
+              <Select value={formNotificationType} onValueChange={(v) => setFormNotificationType(v as 'admin' | 'general')}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="admin">
+                    <div className="flex items-center gap-2">
+                      <Shield className="h-4 w-4" />
+                      Admin Notification
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="general">
+                    <div className="flex items-center gap-2">
+                      <Megaphone className="h-4 w-4" />
+                      General Notification
+                    </div>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                {formNotificationType === 'admin' 
+                  ? 'Admin notifications appear in the "Admin" tab for users'
+                  : 'General notifications appear in the "General" tab for users'}
+              </p>
             </div>
 
             <div className="space-y-2">

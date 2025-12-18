@@ -7,6 +7,7 @@ export interface Notification {
   image_url: string | null;
   target_type: 'all' | 'specific';
   target_emails: string[] | null;
+  notification_type: 'admin' | 'general';
   created_by: string | null;
   is_active: boolean;
   created_at: string;
@@ -46,6 +47,7 @@ export const createNotification = async (
     image_url?: string | null;
     target_type: 'all' | 'specific';
     target_emails?: string[] | null;
+    notification_type?: 'admin' | 'general';
   }
 ): Promise<Notification> => {
   const { data: userData } = await supabase.auth.getUser();
@@ -54,6 +56,7 @@ export const createNotification = async (
     .from('notifications')
     .insert({
       ...notification,
+      notification_type: notification.notification_type || 'admin',
       created_by: userData?.user?.id,
     })
     .select()
@@ -71,6 +74,7 @@ export const updateNotification = async (
     image_url: string | null;
     target_type: 'all' | 'specific';
     target_emails: string[] | null;
+    notification_type: 'admin' | 'general';
     is_active: boolean;
   }>
 ): Promise<Notification> => {
@@ -108,18 +112,33 @@ export const getNotificationStats = async (notificationId: string): Promise<Noti
   return { sent_count, read_count };
 };
 
-// User functions
-export const fetchUserNotifications = async (): Promise<UserNotification[]> => {
-  const { data, error } = await supabase
+// User functions - FIXED: explicitly filter by user_id
+export const fetchUserNotifications = async (notificationType?: 'admin' | 'general'): Promise<UserNotification[]> => {
+  const { data: userData } = await supabase.auth.getUser();
+  if (!userData?.user?.id) return [];
+
+  let query = supabase
     .from('user_notifications')
     .select(`
       *,
       notification:notifications(*)
     `)
+    .eq('user_id', userData.user.id)
     .order('created_at', { ascending: false });
 
+  const { data, error } = await query;
+
   if (error) throw error;
-  return data as UserNotification[];
+  
+  // Filter by notification type if specified
+  let filtered = data as UserNotification[];
+  if (notificationType) {
+    filtered = filtered.filter(un => 
+      un.notification && (un.notification as any).notification_type === notificationType
+    );
+  }
+  
+  return filtered;
 };
 
 export const markNotificationAsRead = async (userNotificationId: string): Promise<void> => {
@@ -131,17 +150,37 @@ export const markNotificationAsRead = async (userNotificationId: string): Promis
   if (error) throw error;
 };
 
-export const markAllNotificationsAsRead = async (): Promise<void> => {
+export const markAllNotificationsAsRead = async (notificationType?: 'admin' | 'general'): Promise<void> => {
   const { data: userData } = await supabase.auth.getUser();
   if (!userData?.user?.id) return;
 
-  const { error } = await supabase
-    .from('user_notifications')
-    .update({ is_read: true, read_at: new Date().toISOString() })
-    .eq('user_id', userData.user.id)
-    .eq('is_read', false);
+  // If filtering by type, we need to get the notification IDs first
+  if (notificationType) {
+    const { data: notifications } = await supabase
+      .from('notifications')
+      .select('id')
+      .eq('notification_type', notificationType);
+    
+    if (notifications && notifications.length > 0) {
+      const notificationIds = notifications.map(n => n.id);
+      const { error } = await supabase
+        .from('user_notifications')
+        .update({ is_read: true, read_at: new Date().toISOString() })
+        .eq('user_id', userData.user.id)
+        .eq('is_read', false)
+        .in('notification_id', notificationIds);
 
-  if (error) throw error;
+      if (error) throw error;
+    }
+  } else {
+    const { error } = await supabase
+      .from('user_notifications')
+      .update({ is_read: true, read_at: new Date().toISOString() })
+      .eq('user_id', userData.user.id)
+      .eq('is_read', false);
+
+    if (error) throw error;
+  }
 };
 
 export const getUnreadCount = async (): Promise<number> => {
