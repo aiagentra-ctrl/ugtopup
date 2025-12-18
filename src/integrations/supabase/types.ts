@@ -115,6 +115,7 @@ export type Database = {
           image_url: string | null
           is_active: boolean
           message: string
+          notification_type: string
           target_emails: string[] | null
           target_type: Database["public"]["Enums"]["notification_target_type"]
           title: string
@@ -127,6 +128,7 @@ export type Database = {
           image_url?: string | null
           is_active?: boolean
           message: string
+          notification_type?: string
           target_emails?: string[] | null
           target_type?: Database["public"]["Enums"]["notification_target_type"]
           title: string
@@ -139,6 +141,7 @@ export type Database = {
           image_url?: string | null
           is_active?: boolean
           message?: string
+          notification_type?: string
           target_emails?: string[] | null
           target_type?: Database["public"]["Enums"]["notification_target_type"]
           title?: string
