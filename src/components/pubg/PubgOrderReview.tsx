@@ -21,6 +21,9 @@ interface PubgOrderReviewProps {
   formData: PubgFormData | null;
   orderId: string;
   isPlacingOrder?: boolean;
+  purchaseQuantity?: number;
+  totalPrice?: number;
+  totalItems?: number;
 }
 
 export const PubgOrderReview = ({
@@ -31,6 +34,9 @@ export const PubgOrderReview = ({
   formData,
   orderId,
   isPlacingOrder = false,
+  purchaseQuantity = 1,
+  totalPrice: propTotalPrice,
+  totalItems: propTotalItems,
 }: PubgOrderReviewProps) => {
   const { balance, fetchNow } = useLiveBalance();
 
@@ -43,7 +49,8 @@ export const PubgOrderReview = ({
   if (!selectedPackage || !formData) return null;
 
   const currentBalance = balance;
-  const totalPrice = selectedPackage.price;
+  const totalPrice = propTotalPrice ?? selectedPackage.price * purchaseQuantity;
+  const totalItems = propTotalItems ?? selectedPackage.quantity * purchaseQuantity;
   const balanceAfter = currentBalance - totalPrice;
   const hasInsufficientBalance = balanceAfter < 0;
 
@@ -71,6 +78,25 @@ export const PubgOrderReview = ({
               <span className="font-semibold text-foreground">{selectedPackage.name}</span>
             </div>
 
+            {purchaseQuantity > 1 && (
+              <div className="p-3 rounded-lg bg-primary/10 border border-primary/20 space-y-2">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-muted-foreground">Quantity</span>
+                  <span className="text-sm font-semibold text-foreground">
+                    {purchaseQuantity} × {selectedPackage.quantity.toLocaleString()} UC
+                  </span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-muted-foreground">Unit Price</span>
+                  <span className="text-sm text-foreground">₹{selectedPackage.price.toLocaleString()} each</span>
+                </div>
+                <div className="flex justify-between items-center pt-2 border-t border-primary/20">
+                  <span className="text-sm font-medium text-foreground">Total Items</span>
+                  <span className="text-sm font-bold text-primary">{totalItems.toLocaleString()} UC</span>
+                </div>
+              </div>
+            )}
+
             <div className="flex justify-between items-center">
               <span className="text-sm text-muted-foreground">PUBG ID</span>
               <span className="font-semibold text-foreground">{formData.pubgId}</span>
@@ -92,16 +118,16 @@ export const PubgOrderReview = ({
           <div className="p-4 rounded-lg bg-primary/10 border-2 border-primary/30">
             <div className="flex justify-between items-center mb-2">
               <span className="text-sm text-muted-foreground">Current Balance</span>
-              <span className="font-bold text-foreground">₹{currentBalance}</span>
+              <span className="font-bold text-foreground">₹{currentBalance.toLocaleString()}</span>
             </div>
             <div className="flex justify-between items-center mb-2">
               <span className="text-sm text-muted-foreground">Total Cost</span>
-              <span className="font-bold text-primary text-lg">₹{totalPrice}</span>
+              <span className="font-bold text-primary text-lg">₹{totalPrice.toLocaleString()}</span>
             </div>
             <div className="flex justify-between items-center">
               <span className="text-sm text-muted-foreground">Balance After</span>
               <span className={`font-bold ${balanceAfter >= 0 ? 'text-dashboard-green-bright' : 'text-destructive'}`}>
-                ₹{balanceAfter}
+                ₹{balanceAfter.toLocaleString()}
               </span>
             </div>
             {hasInsufficientBalance && (

@@ -335,13 +335,25 @@ export const OrderManagement = () => {
                   <p>{selectedOrder.package_name}</p>
                 </div>
                 <div>
-                  <Label className="text-xs text-muted-foreground">Quantity</Label>
-                  <p>{selectedOrder.quantity}</p>
+                  <Label className="text-xs text-muted-foreground">Total Items</Label>
+                  <p>{selectedOrder.quantity?.toLocaleString()}</p>
                 </div>
                 <div>
-                  <Label className="text-xs text-muted-foreground">Price</Label>
-                  <p className="font-semibold">₹{selectedOrder.price}</p>
+                  <Label className="text-xs text-muted-foreground">Total Price</Label>
+                  <p className="font-semibold">₹{selectedOrder.price?.toLocaleString()}</p>
                 </div>
+                {(selectedOrder.product_details as any)?.purchase_quantity > 1 && (
+                  <>
+                    <div>
+                      <Label className="text-xs text-muted-foreground">Purchase Qty</Label>
+                      <p className="text-primary font-semibold">{(selectedOrder.product_details as any)?.purchase_quantity}×</p>
+                    </div>
+                    <div>
+                      <Label className="text-xs text-muted-foreground">Unit Price</Label>
+                      <p>₹{(selectedOrder.product_details as any)?.unit_price?.toLocaleString()}</p>
+                    </div>
+                  </>
+                )}
                 <div>
                   <Label className="text-xs text-muted-foreground">User Name</Label>
                   <p>{selectedOrder.user_name || "N/A"}</p>
