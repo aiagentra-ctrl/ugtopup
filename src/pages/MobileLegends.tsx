@@ -6,6 +6,7 @@ import { MLPackageSelector, type MLPackage } from "@/components/ml/MLPackageSele
 import { MLOrderReview } from "@/components/ml/MLOrderReview";
 import { MLSuccessModal } from "@/components/ml/MLSuccessModal";
 import { Button } from "@/components/ui/button";
+import { QuantitySelector } from "@/components/ui/quantity-selector";
 import { createOrder, generateOrderNumber } from "@/lib/orderApi";
 import { ensureSufficientBalance } from "@/lib/creditApi";
 import { requestDeduplicator } from "@/lib/requestDeduplicator";
@@ -24,15 +25,24 @@ const MobileLegends = () => {
   
   const [errors, setErrors] = useState<{ userId?: string; zoneId?: string }>({});
   const [selectedPackage, setSelectedPackage] = useState<MLPackage | null>(null);
+  const [purchaseQuantity, setPurchaseQuantity] = useState(1);
   const [showReviewModal, setShowReviewModal] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
   const [currentOrderId, setCurrentOrderId] = useState("");
 
+  const totalPrice = selectedPackage ? selectedPackage.price * purchaseQuantity : 0;
+  const totalItems = selectedPackage ? selectedPackage.quantity * purchaseQuantity : 0;
+
   const handleInputChange = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
     setErrors((prev) => ({ ...prev, [field]: undefined }));
+  };
+
+  const handlePackageSelect = (pkg: MLPackage) => {
+    setSelectedPackage(pkg);
+    setPurchaseQuantity(1);
   };
 
   const validateForm = (): boolean => {
@@ -68,9 +78,9 @@ const MobileLegends = () => {
     }
 
     // Check balance from DB before opening review
-    const { ok, balance } = await ensureSufficientBalance(selectedPackage.price);
+    const { ok, balance } = await ensureSufficientBalance(totalPrice);
     if (!ok) {
-      toast.error(`Insufficient credits. You have ₹${balance}, but need ₹${selectedPackage.price}. Please top up.`);
+      toast.error(`Insufficient credits. You have ₹${balance}, but need ₹${totalPrice}. Please top up.`);
       return;
     }
 
@@ -87,20 +97,23 @@ const MobileLegends = () => {
     
     try {
       await requestDeduplicator.dedupe(
-        `place_order:${user.id}:${selectedPackage.name}`,
+        `place_order:${user.id}:${selectedPackage.name}:${purchaseQuantity}`,
         async () => {
           await createOrder({
             order_number: currentOrderId,
             product_category: "mobile_legends",
             product_name: "Mobile Legends Diamond",
             package_name: selectedPackage.name,
-            quantity: selectedPackage.quantity,
-            price: selectedPackage.price,
+            quantity: totalItems,
+            price: totalPrice,
             product_details: {
               userId: formData.userId,
               zoneId: formData.zoneId,
               whatsapp: formData.whatsapp || "",
               packageType: selectedPackage.type,
+              purchase_quantity: purchaseQuantity,
+              unit_price: selectedPackage.price,
+              unit_quantity: selectedPackage.quantity,
             },
           });
         }
@@ -125,6 +138,7 @@ const MobileLegends = () => {
     setFormData({ userId: "", zoneId: "", whatsapp: "" });
     setSelectedPackage(null);
     setCurrentOrderId("");
+    setPurchaseQuantity(1);
   };
 
   const getButtonText = () => {
@@ -140,7 +154,7 @@ const MobileLegends = () => {
     if (!selectedPackage) {
       return "Select Package First";
     }
-    return `Buy Now - ₹ ${selectedPackage.price}`;
+    return `Buy Now - ₹${totalPrice.toLocaleString()}`;
   };
 
   const isFormValid = formData.userId.trim() !== "" && formData.zoneId.trim() !== "" && selectedPackage && !isPlacingOrder;
@@ -159,8 +173,20 @@ const MobileLegends = () => {
           
           <MLPackageSelector
             selectedPackage={selectedPackage}
-            onSelectPackage={setSelectedPackage}
+            onSelectPackage={handlePackageSelect}
           />
+
+          {selectedPackage && (
+            <QuantitySelector
+              value={purchaseQuantity}
+              onChange={setPurchaseQuantity}
+              min={1}
+              max={10}
+              unitPrice={selectedPackage.price}
+              unitQuantity={selectedPackage.quantity}
+              itemLabel="Diamonds"
+            />
+          )}
         </div>
       </div>
 
@@ -198,6 +224,9 @@ const MobileLegends = () => {
             email: user.email!,
           }}
           isPlacingOrder={isPlacingOrder}
+          purchaseQuantity={purchaseQuantity}
+          totalPrice={totalPrice}
+          totalItems={totalItems}
         />
       )}
 

@@ -27,6 +27,9 @@ interface MLOrderReviewProps {
     email: string;
   };
   isPlacingOrder?: boolean;
+  purchaseQuantity?: number;
+  totalPrice?: number;
+  totalItems?: number;
 }
 
 export const MLOrderReview = ({
@@ -35,6 +38,9 @@ export const MLOrderReview = ({
   onConfirm,
   orderData,
   isPlacingOrder = false,
+  purchaseQuantity = 1,
+  totalPrice: propTotalPrice,
+  totalItems: propTotalItems,
 }: MLOrderReviewProps) => {
   const { user } = useAuth();
   const { balance, fetchNow } = useLiveBalance();
@@ -47,7 +53,8 @@ export const MLOrderReview = ({
   }, [isOpen]);
 
   const currentBalance = balance;
-  const totalPrice = pkg.price;
+  const totalPrice = propTotalPrice ?? pkg.price * purchaseQuantity;
+  const totalItems = propTotalItems ?? pkg.quantity * purchaseQuantity;
   const balanceAfter = currentBalance - totalPrice;
   const insufficientBalance = balanceAfter < 0;
 
@@ -75,9 +82,26 @@ export const MLOrderReview = ({
               <span className="text-slate-400">Package:</span>
               <span className="font-semibold text-slate-100">{pkg.name}</span>
             </div>
+            {purchaseQuantity > 1 && (
+              <>
+                <div className="flex justify-between text-sm">
+                  <span className="text-slate-400">Quantity:</span>
+                  <span className="text-slate-100">{purchaseQuantity} × {pkg.quantity.toLocaleString()} Diamonds</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-slate-400">Unit Price:</span>
+                  <span className="text-slate-100">{pkg.currency} {pkg.price.toLocaleString()} each</span>
+                </div>
+                <Separator className="bg-slate-700" />
+                <div className="flex justify-between">
+                  <span className="text-slate-400">Total Items:</span>
+                  <span className="font-semibold text-blue-400">💎 {totalItems.toLocaleString()} Diamonds</span>
+                </div>
+              </>
+            )}
             <div className="flex justify-between">
-              <span className="text-slate-400">Price:</span>
-              <span className="font-bold text-blue-400">{pkg.currency} {pkg.price}</span>
+              <span className="text-slate-400">Total Price:</span>
+              <span className="font-bold text-blue-400">{pkg.currency} {totalPrice.toLocaleString()}</span>
             </div>
           </div>
 
@@ -107,12 +131,12 @@ export const MLOrderReview = ({
           <div className="space-y-2">
             <div className="flex justify-between text-sm">
               <span className="text-slate-400">Current Balance:</span>
-              <span className="text-slate-100">{currentBalance} 💵</span>
+              <span className="text-slate-100">₹{currentBalance.toLocaleString()}</span>
             </div>
             <div className="flex justify-between text-sm font-semibold">
               <span className="text-slate-400">Balance After:</span>
               <span className={insufficientBalance ? "text-red-400" : "text-green-400"}>
-                {balanceAfter} 💵
+                ₹{balanceAfter.toLocaleString()}
               </span>
             </div>
           </div>

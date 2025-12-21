@@ -7,12 +7,13 @@ import { RobloxOrderReview } from "@/components/roblox/RobloxOrderReview";
 import { RobloxSuccessModal } from "@/components/roblox/RobloxSuccessModal";
 import { type RobloxPackage } from "@/data/robloxPackages";
 import { Button } from "@/components/ui/button";
+import { QuantitySelector } from "@/components/ui/quantity-selector";
 import { createOrder, generateOrderNumber } from "@/lib/orderApi";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 
 const RobloxTopUp = () => {
-  const { user, profile } = useAuth();
+  const { user, profile, refreshProfile } = useAuth();
   const navigate = useNavigate();
   
   const [formData, setFormData] = useState({
@@ -23,14 +24,23 @@ const RobloxTopUp = () => {
   
   const [errors, setErrors] = useState<{ username?: string; password?: string }>({});
   const [selectedPackage, setSelectedPackage] = useState<RobloxPackage | null>(null);
+  const [purchaseQuantity, setPurchaseQuantity] = useState(1);
   const [showReviewModal, setShowReviewModal] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [currentOrderId, setCurrentOrderId] = useState("");
 
+  const totalPrice = selectedPackage ? selectedPackage.price * purchaseQuantity : 0;
+  const totalItems = selectedPackage ? selectedPackage.quantity * purchaseQuantity : 0;
+
   const handleInputChange = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
     setErrors((prev) => ({ ...prev, [field]: undefined }));
+  };
+
+  const handlePackageSelect = (pkg: RobloxPackage) => {
+    setSelectedPackage(pkg);
+    setPurchaseQuantity(1);
   };
 
   const validateForm = (): boolean => {
@@ -77,17 +87,22 @@ const RobloxTopUp = () => {
     try {
       await createOrder({
         order_number: currentOrderId,
-        product_category: "other",
+        product_category: "roblox",
         product_name: "Roblox Robux",
         package_name: selectedPackage.name,
-        quantity: selectedPackage.quantity,
-        price: selectedPackage.price,
+        quantity: totalItems,
+        price: totalPrice,
         product_details: {
           username: formData.username,
           password: formData.password,
           whatsapp: formData.whatsapp || "",
+          purchase_quantity: purchaseQuantity,
+          unit_price: selectedPackage.price,
+          unit_quantity: selectedPackage.quantity,
         },
       });
+
+      await refreshProfile();
 
       setShowReviewModal(false);
       setShowSuccessModal(true);
@@ -104,6 +119,7 @@ const RobloxTopUp = () => {
     setFormData({ username: "", password: "", whatsapp: "" });
     setSelectedPackage(null);
     setCurrentOrderId("");
+    setPurchaseQuantity(1);
   };
 
   const getButtonText = () => {
@@ -113,7 +129,7 @@ const RobloxTopUp = () => {
     if (!selectedPackage) {
       return "Select Package to Buy";
     }
-    return `Buy Now - ₹ ${selectedPackage.price}`;
+    return `Buy Now - ₹${totalPrice.toLocaleString()}`;
   };
 
   const isFormValid = formData.username.length >= 3 && formData.password.length >= 6 && selectedPackage;
@@ -132,8 +148,20 @@ const RobloxTopUp = () => {
           
           <RobloxPackageSelector
             selectedPackage={selectedPackage}
-            onSelectPackage={setSelectedPackage}
+            onSelectPackage={handlePackageSelect}
           />
+
+          {selectedPackage && (
+            <QuantitySelector
+              value={purchaseQuantity}
+              onChange={setPurchaseQuantity}
+              min={1}
+              max={10}
+              unitPrice={selectedPackage.price}
+              unitQuantity={selectedPackage.quantity}
+              itemLabel="Robux"
+            />
+          )}
         </div>
       </div>
 
@@ -172,6 +200,9 @@ const RobloxTopUp = () => {
             currentBalance: profile.balance,
           }}
           isSubmitting={isSubmitting}
+          purchaseQuantity={purchaseQuantity}
+          totalPrice={totalPrice}
+          totalItems={totalItems}
         />
       )}
 

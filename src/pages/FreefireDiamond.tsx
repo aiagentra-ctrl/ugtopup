@@ -6,6 +6,7 @@ import { OrderReview } from "@/components/freefire/OrderReview";
 import { SuccessModal } from "@/components/freefire/SuccessModal";
 import { Package } from "@/data/freefirePackages";
 import { Button } from "@/components/ui/button";
+import { QuantitySelector } from "@/components/ui/quantity-selector";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
@@ -16,6 +17,7 @@ import { requestDeduplicator } from "@/lib/requestDeduplicator";
 const FreefireDiamond = () => {
   const [formData, setFormData] = useState<UserFormData | null>(null);
   const [selectedPackage, setSelectedPackage] = useState<Package | null>(null);
+  const [purchaseQuantity, setPurchaseQuantity] = useState(1);
   const [isReviewOpen, setIsReviewOpen] = useState(false);
   const [isSuccessOpen, setIsSuccessOpen] = useState(false);
   const [orderId, setOrderId] = useState("");
@@ -26,13 +28,20 @@ const FreefireDiamond = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
 
+  const totalPrice = selectedPackage ? selectedPackage.price * purchaseQuantity : 0;
+  const totalItems = selectedPackage ? selectedPackage.quantity * purchaseQuantity : 0;
+
   const handleFormDataChange = (data: UserFormData) => {
     setFormData(data);
     setIsFormValid(
       data.uid.length >= 6 && 
       /^\d+$/.test(data.uid)
-      // WhatsApp is now optional, so no check needed
     );
+  };
+
+  const handlePackageSelect = (pkg: Package) => {
+    setSelectedPackage(pkg);
+    setPurchaseQuantity(1); // Reset quantity when package changes
   };
 
   const generateShortOrderId = async () => {
@@ -69,11 +78,11 @@ const FreefireDiamond = () => {
     }
 
     // Check balance from DB before opening review
-    const { ok, balance } = await ensureSufficientBalance(selectedPackage.price);
+    const { ok, balance } = await ensureSufficientBalance(totalPrice);
     if (!ok) {
       toast({
         title: "Insufficient Credits",
-        description: `You have ₹${balance} credits, but need ₹${selectedPackage.price}. Please top up.`,
+        description: `You have ₹${balance} credits, but need ₹${totalPrice}. Please top up.`,
         variant: "destructive",
       });
       return;
@@ -92,19 +101,22 @@ const FreefireDiamond = () => {
     try {
       // Create order with deduplication
       await requestDeduplicator.dedupe(
-        `place_order:${user.id}:${selectedPackage.name}`,
+        `place_order:${user.id}:${selectedPackage.name}:${purchaseQuantity}`,
         async () => {
           await createOrder({
             order_number: orderId,
             product_category: 'freefire',
             product_name: 'Free Fire Diamond',
             package_name: selectedPackage.name,
-            quantity: selectedPackage.quantity,
-            price: selectedPackage.price,
+            quantity: totalItems,
+            price: totalPrice,
             product_details: {
               uid: formData.uid,
               username: formData.username || "Not provided",
               whatsapp: formData.whatsapp || "",
+              purchase_quantity: purchaseQuantity,
+              unit_price: selectedPackage.price,
+              unit_quantity: selectedPackage.quantity,
             }
           });
         }
@@ -143,6 +155,7 @@ const FreefireDiamond = () => {
     setFormData(null);
     setIsFormValid(false);
     setIsSuccessOpen(false);
+    setPurchaseQuantity(1);
   };
 
   const canReviewOrder = isFormValid && selectedPackage !== null;
@@ -164,9 +177,24 @@ const FreefireDiamond = () => {
         <section>
           <PackageSelector
             selectedPackage={selectedPackage}
-            onSelectPackage={setSelectedPackage}
+            onSelectPackage={handlePackageSelect}
           />
         </section>
+
+        {/* Quantity Selector - Only show when package is selected */}
+        {selectedPackage && (
+          <section>
+            <QuantitySelector
+              value={purchaseQuantity}
+              onChange={setPurchaseQuantity}
+              min={1}
+              max={10}
+              unitPrice={selectedPackage.price}
+              unitQuantity={selectedPackage.quantity}
+              itemLabel="Diamonds"
+            />
+          </section>
+        )}
 
         {/* Continue Button - Fixed Bottom */}
         <div className="h-20"></div>
@@ -197,7 +225,7 @@ const FreefireDiamond = () => {
                 ? "Enter Details to Buy"
                 : !selectedPackage
                 ? "Select Package to Buy"
-                : `Buy Now - ₹${selectedPackage.price}`}
+                : `Buy Now - ₹${totalPrice.toLocaleString()}`}
             </span>
           </Button>
         </div>
@@ -212,6 +240,9 @@ const FreefireDiamond = () => {
           formData={formData}
           orderId={orderId}
           isPlacingOrder={isPlacingOrder}
+          purchaseQuantity={purchaseQuantity}
+          totalPrice={totalPrice}
+          totalItems={totalItems}
         />
 
       {/* Success Modal */}

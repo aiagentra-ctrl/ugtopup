@@ -5,7 +5,6 @@ import {
   AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
-  AlertDialogDescription,
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
@@ -22,6 +21,9 @@ interface OrderReviewProps {
   formData: UserFormData | null;
   orderId: string;
   isPlacingOrder?: boolean;
+  purchaseQuantity?: number;
+  totalPrice?: number;
+  totalItems?: number;
 }
 
 export const OrderReview = ({
@@ -32,6 +34,9 @@ export const OrderReview = ({
   formData,
   orderId,
   isPlacingOrder = false,
+  purchaseQuantity = 1,
+  totalPrice: propTotalPrice,
+  totalItems: propTotalItems,
 }: OrderReviewProps) => {
   const { user } = useAuth();
   const { balance, fetchNow } = useLiveBalance();
@@ -46,7 +51,8 @@ export const OrderReview = ({
   if (!selectedPackage || !formData) return null;
 
   const currentBalance = balance;
-  const totalPrice = selectedPackage.price;
+  const totalPrice = propTotalPrice ?? selectedPackage.price * purchaseQuantity;
+  const totalItems = propTotalItems ?? selectedPackage.quantity * purchaseQuantity;
   const balanceAfter = currentBalance - totalPrice;
   const hasInsufficientBalance = balanceAfter < 0;
 
@@ -83,6 +89,28 @@ export const OrderReview = ({
                 </p>
               </div>
             </div>
+
+            {/* Quantity Breakdown - Only show if quantity > 1 */}
+            {purchaseQuantity > 1 && (
+              <div className="p-3 rounded-lg bg-primary/10 border border-primary/20 space-y-2">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm font-medium text-[#B0B0B0]">Quantity</span>
+                  <span className="text-sm font-bold text-white">
+                    {purchaseQuantity} × {selectedPackage.quantity.toLocaleString()} Diamonds
+                  </span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm font-medium text-[#B0B0B0]">Unit Price</span>
+                  <span className="text-sm text-white">₹{selectedPackage.price.toLocaleString()} each</span>
+                </div>
+                <div className="flex justify-between items-center pt-2 border-t border-primary/20">
+                  <span className="text-sm font-medium text-white">Total Items</span>
+                  <span className="text-sm font-bold text-primary">
+                    💎 {totalItems.toLocaleString()} Diamonds
+                  </span>
+                </div>
+              </div>
+            )}
 
             {/* Game Details */}
             <div className="space-y-3 pb-4 border-b border-border/50">
@@ -126,13 +154,13 @@ export const OrderReview = ({
               <div className="flex justify-between items-center">
                 <span className="text-base font-bold text-white">Total Price</span>
                 <span className="text-2xl font-extrabold text-primary">
-                  ₹{totalPrice}
+                  ₹{totalPrice.toLocaleString()}
                 </span>
               </div>
 
               <div className="flex justify-between items-center text-sm bg-background/50 p-3 rounded-lg">
                 <span className="text-[#B0B0B0]">Current Balance</span>
-                <span className="font-bold text-white">₹{currentBalance}</span>
+                <span className="font-bold text-white">₹{currentBalance.toLocaleString()}</span>
               </div>
 
               <div className="flex justify-between items-center text-sm bg-background/50 p-3 rounded-lg">
@@ -142,7 +170,7 @@ export const OrderReview = ({
                     ? "font-bold text-dashboard-green-bright" 
                     : "font-bold text-destructive"
                 }>
-                  ₹{balanceAfter}
+                  ₹{balanceAfter.toLocaleString()}
                 </span>
               </div>
             </div>

@@ -6,6 +6,7 @@ import { PubgOrderReview } from "@/components/pubg/PubgOrderReview";
 import { PubgSuccessModal } from "@/components/pubg/PubgSuccessModal";
 import { PubgPackage } from "@/data/pubgPackages";
 import { Button } from "@/components/ui/button";
+import { QuantitySelector } from "@/components/ui/quantity-selector";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
@@ -16,6 +17,7 @@ import { requestDeduplicator } from "@/lib/requestDeduplicator";
 const PubgMobile = () => {
   const [formData, setFormData] = useState<PubgFormData | null>(null);
   const [selectedPackage, setSelectedPackage] = useState<PubgPackage | null>(null);
+  const [purchaseQuantity, setPurchaseQuantity] = useState(1);
   const [isReviewOpen, setIsReviewOpen] = useState(false);
   const [isSuccessOpen, setIsSuccessOpen] = useState(false);
   const [orderId, setOrderId] = useState("");
@@ -26,12 +28,20 @@ const PubgMobile = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
 
+  const totalPrice = selectedPackage ? selectedPackage.price * purchaseQuantity : 0;
+  const totalItems = selectedPackage ? selectedPackage.quantity * purchaseQuantity : 0;
+
   const handleFormDataChange = (data: PubgFormData) => {
     setFormData(data);
     setIsFormValid(
       data.pubgId.length >= 6 && 
       (data.username.length === 0 || data.username.length >= 3)
     );
+  };
+
+  const handlePackageSelect = (pkg: PubgPackage) => {
+    setSelectedPackage(pkg);
+    setPurchaseQuantity(1);
   };
 
   const handleReviewOrder = async () => {
@@ -64,11 +74,11 @@ const PubgMobile = () => {
     }
 
     // Check balance from DB before opening review
-    const { ok, balance } = await ensureSufficientBalance(selectedPackage.price);
+    const { ok, balance } = await ensureSufficientBalance(totalPrice);
     if (!ok) {
       toast({
         title: "Insufficient Credits",
-        description: `You have ₹${balance} credits, but need ₹${selectedPackage.price}. Please top up.`,
+        description: `You have ₹${balance} credits, but need ₹${totalPrice}. Please top up.`,
         variant: "destructive",
       });
       return;
@@ -86,19 +96,22 @@ const PubgMobile = () => {
 
     try {
       await requestDeduplicator.dedupe(
-        `place_order:${user.id}:${selectedPackage.name}`,
+        `place_order:${user.id}:${selectedPackage.name}:${purchaseQuantity}`,
         async () => {
           await createOrder({
             order_number: orderId,
             product_category: 'pubg',
             product_name: 'PUBG Mobile UC',
             package_name: selectedPackage.name,
-            quantity: selectedPackage.quantity,
-            price: selectedPackage.price,
+            quantity: totalItems,
+            price: totalPrice,
             product_details: {
               pubgId: formData.pubgId,
               username: formData.username,
               whatsapp: formData.whatsapp || "",
+              purchase_quantity: purchaseQuantity,
+              unit_price: selectedPackage.price,
+              unit_quantity: selectedPackage.quantity,
             }
           });
         }
@@ -134,6 +147,7 @@ const PubgMobile = () => {
     setFormData(null);
     setIsFormValid(false);
     setIsSuccessOpen(false);
+    setPurchaseQuantity(1);
   };
 
   const canReviewOrder = isFormValid && selectedPackage !== null && !isPlacingOrder;
@@ -153,9 +167,23 @@ const PubgMobile = () => {
         <section>
           <PubgPackageSelector
             selectedPackage={selectedPackage}
-            onSelectPackage={setSelectedPackage}
+            onSelectPackage={handlePackageSelect}
           />
         </section>
+
+        {selectedPackage && (
+          <section>
+            <QuantitySelector
+              value={purchaseQuantity}
+              onChange={setPurchaseQuantity}
+              min={1}
+              max={10}
+              unitPrice={selectedPackage.price}
+              unitQuantity={selectedPackage.quantity}
+              itemLabel="UC"
+            />
+          </section>
+        )}
 
         <div className="h-20"></div>
       </main>
@@ -183,7 +211,7 @@ const PubgMobile = () => {
                 ? "Enter Details to Buy"
                 : !selectedPackage
                 ? "Select Package to Buy"
-                : `Buy Now - ₹${selectedPackage.price}`}
+                : `Buy Now - ₹${totalPrice.toLocaleString()}`}
             </span>
           </Button>
         </div>
@@ -197,6 +225,9 @@ const PubgMobile = () => {
         formData={formData}
         orderId={orderId}
         isPlacingOrder={isPlacingOrder}
+        purchaseQuantity={purchaseQuantity}
+        totalPrice={totalPrice}
+        totalItems={totalItems}
       />
 
       <PubgSuccessModal
