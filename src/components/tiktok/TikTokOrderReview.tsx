@@ -20,6 +20,9 @@ interface TikTokOrderReviewProps {
   selectedPackage: TikTokPackage | null;
   formData: TikTokFormData | null;
   orderId: string;
+  purchaseQuantity: number;
+  totalPrice: number;
+  totalItems: number;
 }
 
 export const TikTokOrderReview = ({
@@ -29,13 +32,15 @@ export const TikTokOrderReview = ({
   selectedPackage,
   formData,
   orderId,
+  purchaseQuantity,
+  totalPrice,
+  totalItems,
 }: TikTokOrderReviewProps) => {
   const { user, profile } = useAuth();
 
   if (!selectedPackage || !formData) return null;
 
   const currentBalance = profile?.balance || 0;
-  const totalPrice = selectedPackage.price;
   const balanceAfter = currentBalance - totalPrice;
   const hasInsufficientBalance = balanceAfter < 0;
 
@@ -68,8 +73,19 @@ export const TikTokOrderReview = ({
               <span className="text-sm text-muted-foreground">Selected Package</span>
               <span className="font-semibold flex items-center gap-1">
                 {selectedPackage.quantity.toLocaleString()} Coins 🪙
+                {purchaseQuantity > 1 && ` × ${purchaseQuantity}`}
               </span>
             </div>
+
+            {purchaseQuantity > 1 && (
+              <>
+                <Separator />
+                <div className="flex justify-between items-center py-2">
+                  <span className="text-sm text-muted-foreground">Total Coins</span>
+                  <span className="font-bold text-primary">{totalItems.toLocaleString()} Coins 🪙</span>
+                </div>
+              </>
+            )}
 
             <Separator />
 
