@@ -9,6 +9,7 @@ import { UnipinOrderReview } from "@/components/unipin/UnipinOrderReview";
 import { UnipinSuccessModal } from "@/components/unipin/UnipinSuccessModal";
 import { UnipinPackage } from "@/data/unipinPackages";
 import { Button } from "@/components/ui/button";
+import { QuantitySelector } from "@/components/ui/quantity-selector";
 import { createOrder, generateOrderNumber } from "@/lib/orderApi";
 
 const UnipinUC = () => {
@@ -19,6 +20,7 @@ const UnipinUC = () => {
   const [formData, setFormData] = useState<UnipinFormData | null>(null);
   const [isFormValid, setIsFormValid] = useState(false);
   const [selectedPackage, setSelectedPackage] = useState<UnipinPackage | null>(null);
+  const [purchaseQuantity, setPurchaseQuantity] = useState(1);
   const [isReviewOpen, setIsReviewOpen] = useState(false);
   const [isSuccessOpen, setIsSuccessOpen] = useState(false);
   const [orderId, setOrderId] = useState("");
@@ -31,6 +33,9 @@ const UnipinUC = () => {
   const generateShortOrderId = async (): Promise<string> => {
     return await generateOrderNumber();
   };
+
+  const totalPrice = selectedPackage ? selectedPackage.price * purchaseQuantity : 0;
+  const totalItems = selectedPackage ? selectedPackage.quantity * purchaseQuantity : 0;
 
   const handleReviewOrder = async () => {
     if (!user) {
@@ -70,7 +75,6 @@ const UnipinUC = () => {
     if (!selectedPackage || !profile || !formData) return;
 
     const currentBalance = profile.balance || 0;
-    const totalPrice = selectedPackage.price;
 
     if (currentBalance < totalPrice) {
       toast({
@@ -87,11 +91,14 @@ const UnipinUC = () => {
         product_category: 'unipin',
         product_name: 'Unipin UC',
         package_name: selectedPackage.name,
-        quantity: selectedPackage.quantity,
+        quantity: totalItems,
         price: totalPrice,
         product_details: {
           email: formData.email,
           whatsapp: formData.whatsapp || "",
+          purchase_quantity: purchaseQuantity,
+          unit_price: selectedPackage.price,
+          unit_quantity: selectedPackage.quantity,
         }
       });
 
@@ -116,6 +123,7 @@ const UnipinUC = () => {
     setIsSuccessOpen(false);
     setFormData(null);
     setSelectedPackage(null);
+    setPurchaseQuantity(1);
     setIsFormValid(false);
   };
 
@@ -136,6 +144,23 @@ const UnipinUC = () => {
             selectedPackage={selectedPackage}
             onSelectPackage={setSelectedPackage}
           />
+
+          {selectedPackage && (
+            <div className="bg-card/50 backdrop-blur-sm rounded-xl p-4 border border-border/50">
+              <QuantitySelector
+                value={purchaseQuantity}
+                onChange={setPurchaseQuantity}
+                min={1}
+                max={10}
+                label={`${selectedPackage.quantity.toLocaleString()} UC Points (₹${selectedPackage.price.toLocaleString()} each)`}
+              />
+              {purchaseQuantity > 1 && (
+                <p className="text-center text-sm text-muted-foreground mt-2">
+                  Total: {totalItems.toLocaleString()} UC Points = ₹{totalPrice.toLocaleString()}
+                </p>
+              )}
+            </div>
+          )}
         </div>
       </main>
 
@@ -150,7 +175,7 @@ const UnipinUC = () => {
               ? "Enter Your Email"
               : !selectedPackage
               ? "Select a Voucher Package"
-              : `Buy Now - ₹${selectedPackage.price.toLocaleString()}`}
+              : `Buy Now - ₹${totalPrice.toLocaleString()}`}
           </Button>
         </div>
       </div>
@@ -162,6 +187,9 @@ const UnipinUC = () => {
         selectedPackage={selectedPackage}
         formData={formData}
         orderId={orderId}
+        purchaseQuantity={purchaseQuantity}
+        totalPrice={totalPrice}
+        totalItems={totalItems}
       />
 
       <UnipinSuccessModal

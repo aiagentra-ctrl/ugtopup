@@ -20,6 +20,8 @@ interface NetflixOrderReviewProps {
   selectedPackage: NetflixPackage | null;
   formData: NetflixFormData | null;
   orderId: string;
+  purchaseQuantity: number;
+  totalPrice: number;
 }
 
 export const NetflixOrderReview = ({
@@ -29,13 +31,14 @@ export const NetflixOrderReview = ({
   selectedPackage,
   formData,
   orderId,
+  purchaseQuantity,
+  totalPrice,
 }: NetflixOrderReviewProps) => {
   const { user, profile } = useAuth();
 
   if (!selectedPackage || !formData) return null;
 
   const currentBalance = profile?.balance || 0;
-  const totalPrice = selectedPackage.price;
   const balanceAfter = currentBalance - totalPrice;
   const hasInsufficientBalance = balanceAfter < 0;
 
@@ -58,9 +61,19 @@ export const NetflixOrderReview = ({
 
             <div className="pb-3 border-b border-border/20">
               <p className="text-sm text-muted-foreground mb-1">Selected Plan</p>
-              <p className="font-semibold text-base">{selectedPackage.name} 🎬</p>
+              <p className="font-semibold text-base">
+                {selectedPackage.name} 🎬
+                {purchaseQuantity > 1 && ` × ${purchaseQuantity}`}
+              </p>
               <p className="text-sm text-muted-foreground">{selectedPackage.duration}</p>
             </div>
+
+            {purchaseQuantity > 1 && (
+              <div className="pb-3 border-b border-border/20">
+                <p className="text-sm text-muted-foreground mb-1">Unit Price</p>
+                <p className="font-medium text-base">₹{selectedPackage.price.toLocaleString()} each</p>
+              </div>
+            )}
 
             <div className="pb-3 border-b border-border/20">
               <p className="text-sm text-muted-foreground mb-1">WhatsApp Number</p>
