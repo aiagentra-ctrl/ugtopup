@@ -19,6 +19,9 @@ interface SmileCoinOrderReviewProps {
   selectedPackage: SmileCoinPackage | null;
   formData: SmileCoinFormData | null;
   orderId: string;
+  purchaseQuantity: number;
+  totalPrice: number;
+  totalItems: number;
 }
 
 export const SmileCoinOrderReview = ({
@@ -28,13 +31,15 @@ export const SmileCoinOrderReview = ({
   selectedPackage,
   formData,
   orderId,
+  purchaseQuantity,
+  totalPrice,
+  totalItems,
 }: SmileCoinOrderReviewProps) => {
   const { user, profile } = useAuth();
 
   if (!selectedPackage || !formData) return null;
 
   const currentBalance = profile?.balance || 0;
-  const totalPrice = selectedPackage.price;
   const balanceAfter = currentBalance - totalPrice;
   const hasInsufficientBalance = balanceAfter < 0;
 
@@ -62,10 +67,24 @@ export const SmileCoinOrderReview = ({
             <div className="flex justify-between items-start">
               <span className="text-sm font-medium text-muted-foreground">Selected Package</span>
               <div className="text-right">
-                <p className="text-base font-bold text-foreground">{selectedPackage.name}</p>
-                <p className="text-sm text-primary">{selectedPackage.quantity.toLocaleString()} Coins</p>
+                <p className="text-base font-bold text-foreground">
+                  {selectedPackage.name}
+                  {purchaseQuantity > 1 && ` × ${purchaseQuantity}`}
+                </p>
+                <p className="text-sm text-primary">
+                  {purchaseQuantity > 1 
+                    ? `${totalItems.toLocaleString()} Coins` 
+                    : `${selectedPackage.quantity.toLocaleString()} Coins`}
+                </p>
               </div>
             </div>
+
+            {purchaseQuantity > 1 && (
+              <div className="flex justify-between items-center pt-2 border-t border-border/30">
+                <span className="text-sm font-medium text-muted-foreground">Unit Price</span>
+                <span className="text-sm font-semibold text-foreground">₹{selectedPackage.price.toLocaleString()} each</span>
+              </div>
+            )}
 
             <div className="flex justify-between items-center pt-2 border-t border-border/30">
               <span className="text-sm font-medium text-muted-foreground">Email Address</span>

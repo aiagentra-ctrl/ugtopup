@@ -12,6 +12,7 @@ interface QuantitySelectorProps {
   unitQuantity?: number;
   currency?: string;
   itemLabel?: string;
+  label?: string;
 }
 
 export const QuantitySelector = ({

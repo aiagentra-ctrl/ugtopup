@@ -9,6 +9,7 @@ import { SmileCoinOrderReview } from "@/components/smilecoin/SmileCoinOrderRevie
 import { SmileCoinSuccessModal } from "@/components/smilecoin/SmileCoinSuccessModal";
 import { SmileCoinPackage } from "@/data/smileCoinPackages";
 import { Button } from "@/components/ui/button";
+import { QuantitySelector } from "@/components/ui/quantity-selector";
 import { createOrder, generateOrderNumber } from "@/lib/orderApi";
 
 const SmileCoin = () => {
@@ -19,6 +20,7 @@ const SmileCoin = () => {
   const [formData, setFormData] = useState<SmileCoinFormData | null>(null);
   const [isFormValid, setIsFormValid] = useState(false);
   const [selectedPackage, setSelectedPackage] = useState<SmileCoinPackage | null>(null);
+  const [purchaseQuantity, setPurchaseQuantity] = useState(1);
   const [isReviewOpen, setIsReviewOpen] = useState(false);
   const [isSuccessOpen, setIsSuccessOpen] = useState(false);
   const [orderId, setOrderId] = useState("");
@@ -31,6 +33,9 @@ const SmileCoin = () => {
   const generateShortOrderId = async (): Promise<string> => {
     return await generateOrderNumber();
   };
+
+  const totalPrice = selectedPackage ? selectedPackage.price * purchaseQuantity : 0;
+  const totalItems = selectedPackage ? selectedPackage.quantity * purchaseQuantity : 0;
 
   const handleReviewOrder = async () => {
     if (!user) {
@@ -70,7 +75,6 @@ const SmileCoin = () => {
     if (!selectedPackage || !profile || !formData) return;
 
     const currentBalance = profile.balance || 0;
-    const totalPrice = selectedPackage.price;
 
     if (currentBalance < totalPrice) {
       toast({
@@ -87,11 +91,14 @@ const SmileCoin = () => {
         product_category: 'smilecoin',
         product_name: 'Smile Coin',
         package_name: selectedPackage.name,
-        quantity: selectedPackage.quantity,
+        quantity: totalItems,
         price: totalPrice,
         product_details: {
           email: formData.email,
           whatsapp: formData.whatsapp || "",
+          purchase_quantity: purchaseQuantity,
+          unit_price: selectedPackage.price,
+          unit_quantity: selectedPackage.quantity,
         }
       });
 
@@ -116,6 +123,7 @@ const SmileCoin = () => {
     setIsSuccessOpen(false);
     setFormData(null);
     setSelectedPackage(null);
+    setPurchaseQuantity(1);
     setIsFormValid(false);
   };
 
@@ -136,6 +144,23 @@ const SmileCoin = () => {
             selectedPackage={selectedPackage}
             onSelectPackage={setSelectedPackage}
           />
+
+          {selectedPackage && (
+            <div className="bg-card/50 backdrop-blur-sm rounded-xl p-4 border border-border/50">
+              <QuantitySelector
+                value={purchaseQuantity}
+                onChange={setPurchaseQuantity}
+                min={1}
+                max={10}
+                label={`${selectedPackage.quantity.toLocaleString()} Coins (₹${selectedPackage.price.toLocaleString()} each)`}
+              />
+              {purchaseQuantity > 1 && (
+                <p className="text-center text-sm text-muted-foreground mt-2">
+                  Total: {totalItems.toLocaleString()} Coins = ₹{totalPrice.toLocaleString()}
+                </p>
+              )}
+            </div>
+          )}
         </div>
       </main>
 
@@ -150,7 +175,7 @@ const SmileCoin = () => {
               ? "Enter Your Email"
               : !selectedPackage
               ? "Select a Voucher Package"
-              : `Buy Now - ₹${selectedPackage.price.toLocaleString()}`}
+              : `Buy Now - ₹${totalPrice.toLocaleString()}`}
           </Button>
         </div>
       </div>
@@ -162,6 +187,9 @@ const SmileCoin = () => {
         selectedPackage={selectedPackage}
         formData={formData}
         orderId={orderId}
+        purchaseQuantity={purchaseQuantity}
+        totalPrice={totalPrice}
+        totalItems={totalItems}
       />
 
       <SmileCoinSuccessModal

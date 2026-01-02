@@ -6,6 +6,7 @@ import { ChatGPTOrderReview } from "@/components/chatgpt/ChatGPTOrderReview";
 import { ChatGPTSuccessModal } from "@/components/chatgpt/ChatGPTSuccessModal";
 import { ChatGPTPackage } from "@/data/chatgptPackages";
 import { Button } from "@/components/ui/button";
+import { QuantitySelector } from "@/components/ui/quantity-selector";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { createOrder, generateOrderNumber } from "@/lib/orderApi";
@@ -14,6 +15,7 @@ const ChatGPT = () => {
   const [formData, setFormData] = useState<ChatGPTFormData | null>(null);
   const [isFormValid, setIsFormValid] = useState(false);
   const [selectedPackage, setSelectedPackage] = useState<ChatGPTPackage | null>(null);
+  const [purchaseQuantity, setPurchaseQuantity] = useState(1);
   const [showOrderReview, setShowOrderReview] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [orderId, setOrderId] = useState("");
@@ -28,6 +30,8 @@ const ChatGPT = () => {
     return await generateOrderNumber();
   };
 
+  const totalPrice = selectedPackage ? selectedPackage.price * purchaseQuantity : 0;
+
   const handleBuyNow = async () => {
     if (!formData || !selectedPackage) {
       toast.error("Please complete all required fields");
@@ -41,7 +45,7 @@ const ChatGPT = () => {
   const handleConfirmPurchase = async () => {
     if (!selectedPackage || !formData || !profile) return;
 
-    const newBalance = profile.balance - selectedPackage.price;
+    const newBalance = profile.balance - totalPrice;
     
     if (newBalance < 0) {
       toast.error("Insufficient balance");
@@ -54,11 +58,13 @@ const ChatGPT = () => {
         product_category: 'chatgpt',
         product_name: 'ChatGPT Plus',
         package_name: selectedPackage.name,
-        quantity: 1,
-        price: selectedPackage.price,
+        quantity: purchaseQuantity,
+        price: totalPrice,
         product_details: {
           email: formData.email,
           password: formData.password,
+          purchase_quantity: purchaseQuantity,
+          unit_price: selectedPackage.price,
         }
       });
 
@@ -76,6 +82,7 @@ const ChatGPT = () => {
     setShowSuccessModal(false);
     setFormData(null);
     setSelectedPackage(null);
+    setPurchaseQuantity(1);
     setOrderId("");
   };
 
@@ -84,7 +91,7 @@ const ChatGPT = () => {
   const getButtonText = () => {
     if (!formData) return "Enter Details to Subscribe";
     if (!selectedPackage) return "Select Plan to Subscribe";
-    return `Subscribe Now - ₹${selectedPackage.price.toLocaleString()}`;
+    return `Subscribe Now - ₹${totalPrice.toLocaleString()}`;
   };
 
   return (
@@ -97,6 +104,23 @@ const ChatGPT = () => {
           selectedPackage={selectedPackage} 
           onSelectPackage={setSelectedPackage} 
         />
+        
+        {selectedPackage && (
+          <div className="bg-card/50 backdrop-blur-sm rounded-xl p-4 border border-border/50">
+            <QuantitySelector
+              value={purchaseQuantity}
+              onChange={setPurchaseQuantity}
+              min={1}
+              max={10}
+              label={`${selectedPackage.name} (₹${selectedPackage.price.toLocaleString()} each)`}
+            />
+            {purchaseQuantity > 1 && (
+              <p className="text-center text-sm text-muted-foreground mt-2">
+                Total: ₹{totalPrice.toLocaleString()}
+              </p>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="fixed bottom-0 left-0 right-0 bg-background/95 backdrop-blur-xl border-t border-border/50 p-4 shadow-[0_-4px_20px_rgba(0,0,0,0.3)] z-40">
@@ -118,6 +142,8 @@ const ChatGPT = () => {
         selectedPackage={selectedPackage}
         formData={formData}
         orderId={orderId}
+        purchaseQuantity={purchaseQuantity}
+        totalPrice={totalPrice}
       />
 
       <ChatGPTSuccessModal
