@@ -28,8 +28,8 @@ export const TopUpModal = ({ open, onOpenChange, onSuccess }: TopUpModalProps) =
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (file.size > 2 * 1024 * 1024) {
-        toast.error("File size must be less than 2MB");
+      if (file.size > 3 * 1024 * 1024) {
+        toast.error("File size must be less than 3MB");
         return;
       }
       if (!['image/png', 'image/jpeg', 'image/jpg'].includes(file.type)) {
@@ -139,7 +139,7 @@ export const TopUpModal = ({ open, onOpenChange, onSuccess }: TopUpModalProps) =
       <DialogContent className="topup-modal-content max-w-[500px] bg-gradient-to-b from-card to-card/95 border-border">
         <DialogHeader>
           <DialogTitle className="text-xl font-semibold text-foreground">
-            Credit Top-Up Request
+            Credit Balance Request
           </DialogTitle>
         </DialogHeader>
 
@@ -229,7 +229,7 @@ export const TopUpModal = ({ open, onOpenChange, onSuccess }: TopUpModalProps) =
                       Click to upload or drag and drop
                     </p>
                     <p className="text-xs text-muted-foreground">
-                      PNG or JPG (max 2MB)
+                      PNG or JPG (max 3MB)
                     </p>
                   </div>
                 )}

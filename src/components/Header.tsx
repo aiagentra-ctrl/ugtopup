@@ -261,7 +261,7 @@ export const Header = () => {
             </Link>
             <Link to="/refund-policy" onClick={() => setMobileMenuOpen(false)}>
               <Button variant="ghost" className="w-full justify-start text-white">
-                Refund & Payment Policy
+                Terms and Conditions
               </Button>
             </Link>
           </div>
