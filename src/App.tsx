@@ -9,6 +9,7 @@ import { ProtectedRoute } from "./components/ProtectedRoute";
 import { AdminRoute } from "./components/AdminRoute";
 import { ChatWidget } from "./components/chat/ChatWidget";
 import { LoadingScreen } from "./components/LoadingScreen";
+import { NotificationPermissionModal } from "./components/NotificationPermissionModal";
 import Index from "./pages/Index";
 import AdminPanel from "./pages/AdminPanel";
 import AdminLogin from "./pages/AdminLogin";
@@ -107,6 +108,7 @@ const App = () => (
           </Routes>
           </Suspense>
           <ChatWidget />
+          <NotificationPermissionModal />
         </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>
