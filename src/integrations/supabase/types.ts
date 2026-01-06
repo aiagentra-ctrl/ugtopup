@@ -534,6 +534,15 @@ export type Database = {
         Args: { admin_remarks_text?: string; order_id: string }
         Returns: Json
       }
+      create_user_notification: {
+        Args: {
+          p_message: string
+          p_notification_type?: string
+          p_title: string
+          p_user_id: string
+        }
+        Returns: undefined
+      }
       delete_payment_request: { Args: { request_id: string }; Returns: Json }
       get_dashboard_stats: {
         Args: never
