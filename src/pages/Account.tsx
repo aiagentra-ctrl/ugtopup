@@ -6,18 +6,20 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { User, Mail, Shield, Link as LinkIcon, Loader2, CheckCircle2 } from "lucide-react";
+import { User, Mail, Shield, Link as LinkIcon, Loader2, CheckCircle2, Bell, BellOff } from "lucide-react";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { PasswordManagement } from "@/components/account/PasswordManagement";
-
+import { usePushNotifications } from "@/hooks/usePushNotifications";
 const Account = () => {
   const { user, profile, updateProfile } = useAuth();
+  const { permission, isSupported, isEnabled, requestPermission } = usePushNotifications();
   const [fullName, setFullName] = useState(profile?.full_name || "");
   const [username, setUsername] = useState(profile?.username || "");
   const [isLoading, setIsLoading] = useState(false);
   const [isLinking, setIsLinking] = useState(false);
+  const [isRequestingNotif, setIsRequestingNotif] = useState(false);
   const [balance, setBalance] = useState(profile?.balance || 0);
 
   // Real-time balance updates
@@ -120,6 +122,28 @@ const Account = () => {
       });
     }
     setIsLinking(false);
+  };
+
+  const handleEnableNotifications = async () => {
+    setIsRequestingNotif(true);
+    try {
+      const result = await requestPermission();
+      if (result === 'granted') {
+        toast({
+          title: "Notifications enabled",
+          description: "You will now receive push notifications for orders and credits.",
+        });
+      } else if (result === 'denied') {
+        toast({
+          title: "Notifications blocked",
+          description: "Please enable notifications in your browser settings.",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error('Failed to request notification permission:', error);
+    }
+    setIsRequestingNotif(false);
   };
 
   const isGoogleUser = profile?.provider === 'google';
@@ -295,6 +319,70 @@ const Account = () => {
               {isGoogleUser && (
                 <p className="text-xs text-muted-foreground">
                   You cannot disconnect your primary authentication method.
+                </p>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Push Notifications */}
+          <Card className="bg-card border-border">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Bell className="h-5 w-5 text-primary" />
+                Push Notifications
+              </CardTitle>
+              <CardDescription>
+                Receive instant notifications for orders, credits, and updates
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center justify-between p-4 rounded-lg border border-border bg-background/50">
+                <div className="flex items-center gap-3">
+                  {isEnabled ? (
+                    <Bell className="h-6 w-6 text-green-500" />
+                  ) : (
+                    <BellOff className="h-6 w-6 text-muted-foreground" />
+                  )}
+                  <div>
+                    <p className="font-medium text-foreground">
+                      {isEnabled ? "Notifications Enabled" : "Notifications Disabled"}
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      {isEnabled 
+                        ? "You'll receive push notifications" 
+                        : isSupported 
+                          ? "Enable to get instant updates" 
+                          : "Not supported in this browser"}
+                    </p>
+                  </div>
+                </div>
+                {isSupported && !isEnabled && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleEnableNotifications}
+                    disabled={isRequestingNotif || permission === 'denied'}
+                    className="border-primary/50 text-primary hover:bg-primary/10"
+                  >
+                    {isRequestingNotif ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : permission === 'denied' ? (
+                      'Blocked'
+                    ) : (
+                      'Enable'
+                    )}
+                  </Button>
+                )}
+                {isEnabled && (
+                  <span className="text-sm text-green-500 font-medium flex items-center gap-1">
+                    <CheckCircle2 className="h-4 w-4" />
+                    Active
+                  </span>
+                )}
+              </div>
+              {permission === 'denied' && (
+                <p className="text-xs text-muted-foreground">
+                  Notifications are blocked. Please enable them in your browser settings and reload the page.
                 </p>
               )}
             </CardContent>
