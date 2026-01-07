@@ -62,6 +62,42 @@ export type Database = {
         }
         Relationships: []
       }
+      banner_slides: {
+        Row: {
+          created_at: string
+          cta_text: string | null
+          display_order: number
+          id: string
+          image_url: string
+          is_active: boolean
+          subtitle: string | null
+          title: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          cta_text?: string | null
+          display_order?: number
+          id?: string
+          image_url: string
+          is_active?: boolean
+          subtitle?: string | null
+          title?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          cta_text?: string | null
+          display_order?: number
+          id?: string
+          image_url?: string
+          is_active?: boolean
+          subtitle?: string | null
+          title?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       game_product_prices: {
         Row: {
           created_at: string | null
