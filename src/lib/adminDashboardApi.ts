@@ -38,6 +38,20 @@ export interface RecentActivityItem {
   actor: string;
 }
 
+export interface SalesPeriodData {
+  period: string;
+  orders: number;
+  revenue: number;
+  avgOrderValue: number;
+}
+
+export interface SalesComparison {
+  current: SalesPeriodData;
+  previous: SalesPeriodData;
+  orderChange: number;
+  revenueChange: number;
+}
+
 /**
  * Fetch dashboard KPIs with date range filtering
  */
@@ -253,4 +267,173 @@ export const fetchRecentActivity = async (limit: number = 10): Promise<RecentAct
     console.error('Error fetching recent activity:', error);
     return [];
   }
+};
+
+/**
+ * Helper to get date boundaries
+ */
+const getDateBoundaries = () => {
+  const now = new Date();
+  
+  // Today boundaries
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
+  const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
+  
+  // Yesterday boundaries
+  const yesterdayStart = new Date(todayStart);
+  yesterdayStart.setDate(yesterdayStart.getDate() - 1);
+  const yesterdayEnd = new Date(todayEnd);
+  yesterdayEnd.setDate(yesterdayEnd.getDate() - 1);
+  
+  // Last 7 days (including today)
+  const last7DaysStart = new Date(todayStart);
+  last7DaysStart.setDate(last7DaysStart.getDate() - 6);
+  
+  // Previous 7 days (the week before last 7 days)
+  const prev7DaysStart = new Date(last7DaysStart);
+  prev7DaysStart.setDate(prev7DaysStart.getDate() - 7);
+  const prev7DaysEnd = new Date(last7DaysStart);
+  prev7DaysEnd.setTime(prev7DaysEnd.getTime() - 1);
+  
+  // This week (Monday to Sunday)
+  const dayOfWeek = now.getDay();
+  const daysFromMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+  const thisWeekStart = new Date(todayStart);
+  thisWeekStart.setDate(thisWeekStart.getDate() - daysFromMonday);
+  const thisWeekEnd = new Date(thisWeekStart);
+  thisWeekEnd.setDate(thisWeekEnd.getDate() + 6);
+  thisWeekEnd.setHours(23, 59, 59, 999);
+  
+  // Last week
+  const lastWeekStart = new Date(thisWeekStart);
+  lastWeekStart.setDate(lastWeekStart.getDate() - 7);
+  const lastWeekEnd = new Date(thisWeekStart);
+  lastWeekEnd.setTime(lastWeekEnd.getTime() - 1);
+  
+  return {
+    todayStart,
+    todayEnd,
+    yesterdayStart,
+    yesterdayEnd,
+    last7DaysStart,
+    prev7DaysStart,
+    prev7DaysEnd,
+    thisWeekStart,
+    thisWeekEnd,
+    lastWeekStart,
+    lastWeekEnd,
+    now,
+  };
+};
+
+/**
+ * Fetch sales data for a specific time period
+ */
+const fetchSalesForPeriod = async (
+  startDate: Date,
+  endDate: Date,
+  periodName: string
+): Promise<SalesPeriodData> => {
+  try {
+    const { data, error } = await supabase
+      .from('product_orders')
+      .select('price, status')
+      .eq('status', 'confirmed')
+      .gte('created_at', startDate.toISOString())
+      .lte('created_at', endDate.toISOString());
+
+    if (error) throw error;
+
+    const orders = data || [];
+    const revenue = orders.reduce((sum, o) => sum + Number(o.price), 0);
+    const avgOrderValue = orders.length > 0 ? revenue / orders.length : 0;
+
+    return {
+      period: periodName,
+      orders: orders.length,
+      revenue,
+      avgOrderValue,
+    };
+  } catch (error) {
+    console.error(`Error fetching ${periodName} sales:`, error);
+    return { period: periodName, orders: 0, revenue: 0, avgOrderValue: 0 };
+  }
+};
+
+/**
+ * Fetch pending orders value (expected revenue)
+ */
+export const fetchPendingOrdersValue = async (): Promise<SalesPeriodData> => {
+  try {
+    const { data, error } = await supabase
+      .from('product_orders')
+      .select('price')
+      .eq('status', 'pending');
+
+    if (error) throw error;
+
+    const orders = data || [];
+    const revenue = orders.reduce((sum, o) => sum + Number(o.price), 0);
+    const avgOrderValue = orders.length > 0 ? revenue / orders.length : 0;
+
+    return {
+      period: 'Pending',
+      orders: orders.length,
+      revenue,
+      avgOrderValue,
+    };
+  } catch (error) {
+    console.error('Error fetching pending orders:', error);
+    return { period: 'Pending', orders: 0, revenue: 0, avgOrderValue: 0 };
+  }
+};
+
+/**
+ * Fetch all sales period data for dashboard
+ */
+export const fetchAllSalesPeriods = async () => {
+  const dates = getDateBoundaries();
+
+  const [
+    todaySales,
+    yesterdaySales,
+    last7DaysSales,
+    prev7DaysSales,
+    thisWeekSales,
+    lastWeekSales,
+    pendingOrders,
+  ] = await Promise.all([
+    fetchSalesForPeriod(dates.todayStart, dates.now, 'Today'),
+    fetchSalesForPeriod(dates.yesterdayStart, dates.yesterdayEnd, 'Yesterday'),
+    fetchSalesForPeriod(dates.last7DaysStart, dates.now, 'Last 7 Days'),
+    fetchSalesForPeriod(dates.prev7DaysStart, dates.prev7DaysEnd, 'Previous 7 Days'),
+    fetchSalesForPeriod(dates.thisWeekStart, dates.now, 'This Week'),
+    fetchSalesForPeriod(dates.lastWeekStart, dates.lastWeekEnd, 'Last Week'),
+    fetchPendingOrdersValue(),
+  ]);
+
+  // Calculate percentage changes
+  const todayVsYesterdayChange = yesterdaySales.revenue > 0
+    ? ((todaySales.revenue - yesterdaySales.revenue) / yesterdaySales.revenue) * 100
+    : todaySales.revenue > 0 ? 100 : 0;
+
+  const weekVsWeekChange = lastWeekSales.revenue > 0
+    ? ((thisWeekSales.revenue - lastWeekSales.revenue) / lastWeekSales.revenue) * 100
+    : thisWeekSales.revenue > 0 ? 100 : 0;
+
+  const last7VsPrev7Change = prev7DaysSales.revenue > 0
+    ? ((last7DaysSales.revenue - prev7DaysSales.revenue) / prev7DaysSales.revenue) * 100
+    : last7DaysSales.revenue > 0 ? 100 : 0;
+
+  return {
+    todaySales,
+    yesterdaySales,
+    last7DaysSales,
+    thisWeekSales,
+    lastWeekSales,
+    pendingOrders,
+    todayVsYesterdayChange,
+    weekVsWeekChange,
+    last7VsPrev7Change,
+  };
 };

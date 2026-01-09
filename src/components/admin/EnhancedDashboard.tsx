@@ -32,13 +32,42 @@ import {
   fetchOrdersData,
   fetchCategoryDistribution,
   fetchRecentActivity,
+  fetchAllSalesPeriods,
   DashboardKPIs,
+  SalesPeriodData,
 } from "@/lib/adminDashboardApi";
 import { Badge } from "@/components/ui/badge";
 import { DashboardSkeleton } from "./DashboardSkeleton";
+import { SalesSummaryCards } from "./SalesSummaryCards";
+import { SalesComparisonChart } from "./SalesComparisonChart";
+
+interface SalesData {
+  todaySales: SalesPeriodData;
+  yesterdaySales: SalesPeriodData;
+  last7DaysSales: SalesPeriodData;
+  thisWeekSales: SalesPeriodData;
+  lastWeekSales: SalesPeriodData;
+  pendingOrders: SalesPeriodData;
+  todayVsYesterdayChange: number;
+  weekVsWeekChange: number;
+  last7VsPrev7Change: number;
+}
+
+const defaultSalesPeriod: SalesPeriodData = { period: '', orders: 0, revenue: 0, avgOrderValue: 0 };
 
 export function EnhancedDashboard() {
   const [kpis, setKpis] = useState<DashboardKPIs | null>(null);
+  const [salesData, setSalesData] = useState<SalesData>({
+    todaySales: defaultSalesPeriod,
+    yesterdaySales: defaultSalesPeriod,
+    last7DaysSales: defaultSalesPeriod,
+    thisWeekSales: defaultSalesPeriod,
+    lastWeekSales: defaultSalesPeriod,
+    pendingOrders: defaultSalesPeriod,
+    todayVsYesterdayChange: 0,
+    weekVsWeekChange: 0,
+    last7VsPrev7Change: 0,
+  });
   const [revenueData, setRevenueData] = useState<any[]>([]);
   const [ordersData, setOrdersData] = useState<any[]>([]);
   const [categoryData, setCategoryData] = useState<any[]>([]);
@@ -52,8 +81,9 @@ export function EnhancedDashboard() {
   const loadDashboardData = async () => {
     setLoading(true);
     try {
-      const [kpisData, revenue, orders, categories, activity] = await Promise.all([
+      const [kpisData, salesPeriods, revenue, orders, categories, activity] = await Promise.all([
         fetchDashboardKPIs(dateRange.start, dateRange.end),
+        fetchAllSalesPeriods(),
         fetchRevenueData(dateRange.start, dateRange.end),
         fetchOrdersData(dateRange.start, dateRange.end),
         fetchCategoryDistribution(dateRange.start, dateRange.end),
@@ -61,6 +91,7 @@ export function EnhancedDashboard() {
       ]);
 
       setKpis(kpisData);
+      setSalesData(salesPeriods);
       setRevenueData(revenue);
       setOrdersData(orders);
       setCategoryData(categories);
@@ -148,6 +179,38 @@ export function EnhancedDashboard() {
 
   return (
     <div className="space-y-4 lg:space-y-6 animate-fade-in">
+      {/* Sales Overview Section */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-xl font-semibold text-foreground">Sales Overview</h2>
+          <Button size="sm" variant="outline" onClick={loadDashboardData} className="gap-2">
+            <RefreshCw className="h-4 w-4" />
+            Refresh
+          </Button>
+        </div>
+        
+        {/* Sales Summary Cards */}
+        <SalesSummaryCards
+          todaySales={salesData.todaySales}
+          yesterdaySales={salesData.yesterdaySales}
+          last7DaysSales={salesData.last7DaysSales}
+          thisWeekSales={salesData.thisWeekSales}
+          pendingOrders={salesData.pendingOrders}
+          todayVsYesterdayChange={salesData.todayVsYesterdayChange}
+          weekVsWeekChange={salesData.weekVsWeekChange}
+        />
+
+        {/* Sales Comparison Charts */}
+        <SalesComparisonChart
+          todaySales={salesData.todaySales}
+          yesterdaySales={salesData.yesterdaySales}
+          thisWeekSales={salesData.thisWeekSales}
+          lastWeekSales={salesData.lastWeekSales}
+          todayVsYesterdayChange={salesData.todayVsYesterdayChange}
+          weekVsWeekChange={salesData.weekVsWeekChange}
+        />
+      </div>
+
       {/* KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6">
         {kpiCards.map((kpi, index) => (
