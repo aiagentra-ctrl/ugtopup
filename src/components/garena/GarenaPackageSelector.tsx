@@ -1,6 +1,16 @@
+import { useMemo } from "react";
 import { Card } from "@/components/ui/card";
-import { Check } from "lucide-react";
-import { garenaPackages, GarenaPackage } from "@/data/garenaPackages";
+import { Check, Loader2 } from "lucide-react";
+import { useGamePrices } from "@/hooks/useGamePrices";
+
+export interface GarenaPackage {
+  id: string;
+  type: 'shell';
+  name: string;
+  quantity: number;
+  price: number;
+  currency: string;
+}
 
 interface GarenaPackageSelectorProps {
   selectedPackage: GarenaPackage | null;
@@ -8,6 +18,29 @@ interface GarenaPackageSelectorProps {
 }
 
 export const GarenaPackageSelector = ({ selectedPackage, onSelectPackage }: GarenaPackageSelectorProps) => {
+  const { prices, loading } = useGamePrices('garena');
+
+  const packages: GarenaPackage[] = useMemo(() => {
+    return prices.map((p) => ({
+      id: p.package_id,
+      type: 'shell' as const,
+      name: p.package_name,
+      quantity: p.quantity,
+      price: p.price,
+      currency: p.currency,
+    }));
+  }, [prices]);
+
+  if (loading) {
+    return (
+      <Card className="p-6 glass-card border-border/50">
+        <div className="py-12 flex items-center justify-center">
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        </div>
+      </Card>
+    );
+  }
+
   return (
     <Card className="p-6 glass-card border-border/50">
       <h2 className="text-lg font-bold text-foreground mb-4 flex items-center gap-3">
@@ -18,7 +51,7 @@ export const GarenaPackageSelector = ({ selectedPackage, onSelectPackage }: Gare
       </h2>
 
       <div className="grid grid-cols-1 gap-4">
-        {garenaPackages.map((pkg) => (
+        {packages.map((pkg) => (
           <Card
             key={pkg.id}
             onClick={() => onSelectPackage(pkg)}

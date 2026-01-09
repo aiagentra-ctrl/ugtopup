@@ -1,6 +1,16 @@
+import { useMemo } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { netflixPackages, NetflixPackage } from "@/data/netflixPackages";
 import { cn } from "@/lib/utils";
+import { useGamePrices } from "@/hooks/useGamePrices";
+import { Loader2 } from "lucide-react";
+
+export interface NetflixPackage {
+  id: string;
+  name: string;
+  duration: string;
+  price: number;
+  currency: string;
+}
 
 interface NetflixPackageSelectorProps {
   selectedPackage: NetflixPackage | null;
@@ -8,6 +18,28 @@ interface NetflixPackageSelectorProps {
 }
 
 export const NetflixPackageSelector = ({ selectedPackage, onSelectPackage }: NetflixPackageSelectorProps) => {
+  const { prices, loading } = useGamePrices('netflix');
+
+  const packages: NetflixPackage[] = useMemo(() => {
+    return prices.map((p) => ({
+      id: p.package_id,
+      name: p.package_name,
+      duration: p.package_name.replace(' Netflix', ''),
+      price: p.price,
+      currency: p.currency,
+    }));
+  }, [prices]);
+
+  if (loading) {
+    return (
+      <Card className="glass-card border-border/50">
+        <CardContent className="py-12 flex items-center justify-center">
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <Card className="glass-card border-border/50">
       <CardHeader>
@@ -23,7 +55,7 @@ export const NetflixPackageSelector = ({ selectedPackage, onSelectPackage }: Net
       </CardHeader>
       <CardContent>
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-          {netflixPackages.map((pkg) => (
+          {packages.map((pkg) => (
             <button
               key={pkg.id}
               onClick={() => onSelectPackage(pkg)}

@@ -1,6 +1,16 @@
+import { useMemo } from "react";
 import { Card } from "@/components/ui/card";
-import { Check } from "lucide-react";
-import { smileCoinPackages, SmileCoinPackage } from "@/data/smileCoinPackages";
+import { Check, Loader2 } from "lucide-react";
+import { useGamePrices } from "@/hooks/useGamePrices";
+
+export interface SmileCoinPackage {
+  id: string;
+  type: 'coin';
+  name: string;
+  quantity: number;
+  price: number;
+  currency: string;
+}
 
 interface SmileCoinPackageSelectorProps {
   selectedPackage: SmileCoinPackage | null;
@@ -8,6 +18,29 @@ interface SmileCoinPackageSelectorProps {
 }
 
 export const SmileCoinPackageSelector = ({ selectedPackage, onSelectPackage }: SmileCoinPackageSelectorProps) => {
+  const { prices, loading } = useGamePrices('smilecoin');
+
+  const packages: SmileCoinPackage[] = useMemo(() => {
+    return prices.map((p) => ({
+      id: p.package_id,
+      type: 'coin' as const,
+      name: p.package_name,
+      quantity: p.quantity,
+      price: p.price,
+      currency: p.currency,
+    }));
+  }, [prices]);
+
+  if (loading) {
+    return (
+      <Card className="p-6 glass-card border-border/50">
+        <div className="py-12 flex items-center justify-center">
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        </div>
+      </Card>
+    );
+  }
+
   return (
     <Card className="p-6 glass-card border-border/50">
       <h2 className="text-lg font-bold text-foreground mb-4 flex items-center gap-3">
@@ -18,7 +51,7 @@ export const SmileCoinPackageSelector = ({ selectedPackage, onSelectPackage }: S
       </h2>
 
       <div className="grid grid-cols-1 gap-4">
-        {smileCoinPackages.map((pkg) => (
+        {packages.map((pkg) => (
           <Card
             key={pkg.id}
             onClick={() => onSelectPackage(pkg)}
