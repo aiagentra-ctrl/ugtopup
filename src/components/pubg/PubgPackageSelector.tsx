@@ -1,5 +1,16 @@
+import { useMemo } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { pubgPackages, PubgPackage } from "@/data/pubgPackages";
+import { Loader2 } from "lucide-react";
+import { useGamePrices } from "@/hooks/useGamePrices";
+
+export interface PubgPackage {
+  id: string;
+  type: 'uc';
+  name: string;
+  quantity: number;
+  price: number;
+  currency: string;
+}
 
 interface PubgPackageSelectorProps {
   selectedPackage: PubgPackage | null;
@@ -7,6 +18,29 @@ interface PubgPackageSelectorProps {
 }
 
 export const PubgPackageSelector = ({ selectedPackage, onSelectPackage }: PubgPackageSelectorProps) => {
+  const { prices, loading } = useGamePrices('pubg');
+
+  const packages: PubgPackage[] = useMemo(() => {
+    return prices.map((p) => ({
+      id: p.package_id,
+      type: 'uc' as const,
+      name: p.package_name,
+      quantity: p.quantity,
+      price: p.price,
+      currency: p.currency,
+    }));
+  }, [prices]);
+
+  if (loading) {
+    return (
+      <Card className="bg-card/50 backdrop-blur-sm border-border animate-fade-in">
+        <CardContent className="py-12 flex items-center justify-center">
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <Card className="bg-card/50 backdrop-blur-sm border-border animate-fade-in">
       <CardHeader>
@@ -15,7 +49,7 @@ export const PubgPackageSelector = ({ selectedPackage, onSelectPackage }: PubgPa
       </CardHeader>
       <CardContent>
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4">
-          {pubgPackages.map((pkg) => (
+          {packages.map((pkg) => (
             <button
               key={pkg.id}
               onClick={() => onSelectPackage(pkg)}

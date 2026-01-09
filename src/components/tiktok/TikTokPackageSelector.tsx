@@ -1,6 +1,17 @@
+import { useMemo } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { tiktokCoinPackages, TikTokPackage } from "@/data/tiktokPackages";
 import { cn } from "@/lib/utils";
+import { useGamePrices } from "@/hooks/useGamePrices";
+import { Loader2 } from "lucide-react";
+
+export interface TikTokPackage {
+  id: string;
+  type: 'coins';
+  name: string;
+  quantity: number;
+  price: number;
+  currency: string;
+}
 
 interface TikTokPackageSelectorProps {
   selectedPackage: TikTokPackage | null;
@@ -8,6 +19,29 @@ interface TikTokPackageSelectorProps {
 }
 
 export const TikTokPackageSelector = ({ selectedPackage, onSelectPackage }: TikTokPackageSelectorProps) => {
+  const { prices, loading } = useGamePrices('tiktok');
+
+  const packages: TikTokPackage[] = useMemo(() => {
+    return prices.map((p) => ({
+      id: p.package_id,
+      type: 'coins' as const,
+      name: p.package_name,
+      quantity: p.quantity,
+      price: p.price,
+      currency: p.currency,
+    }));
+  }, [prices]);
+
+  if (loading) {
+    return (
+      <Card className="glass-card border-border/50">
+        <CardContent className="py-12 flex items-center justify-center">
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <Card className="glass-card border-border/50">
       <CardHeader>
@@ -23,7 +57,7 @@ export const TikTokPackageSelector = ({ selectedPackage, onSelectPackage }: TikT
       </CardHeader>
       <CardContent>
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-          {tiktokCoinPackages.map((pkg) => (
+          {packages.map((pkg) => (
             <button
               key={pkg.id}
               onClick={() => onSelectPackage(pkg)}

@@ -1,6 +1,16 @@
+import { useMemo } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { robloxPackages, type RobloxPackage } from "@/data/robloxPackages";
-import { Check } from "lucide-react";
+import { Check, Loader2 } from "lucide-react";
+import { useGamePrices } from "@/hooks/useGamePrices";
+
+export interface RobloxPackage {
+  id: string;
+  type: 'robux';
+  name: string;
+  quantity: number;
+  price: number;
+  currency: string;
+}
 
 interface RobloxPackageSelectorProps {
   selectedPackage: RobloxPackage | null;
@@ -8,6 +18,29 @@ interface RobloxPackageSelectorProps {
 }
 
 export const RobloxPackageSelector = ({ selectedPackage, onSelectPackage }: RobloxPackageSelectorProps) => {
+  const { prices, loading } = useGamePrices('roblox');
+
+  const packages: RobloxPackage[] = useMemo(() => {
+    return prices.map((p) => ({
+      id: p.package_id,
+      type: 'robux' as const,
+      name: p.package_name,
+      quantity: p.quantity,
+      price: p.price,
+      currency: p.currency,
+    }));
+  }, [prices]);
+
+  if (loading) {
+    return (
+      <Card className="bg-slate-900/50 backdrop-blur-xl border-slate-800/50">
+        <CardContent className="py-12 flex items-center justify-center">
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <Card className="bg-slate-900/50 backdrop-blur-xl border-slate-800/50">
       <CardHeader>
@@ -18,7 +51,7 @@ export const RobloxPackageSelector = ({ selectedPackage, onSelectPackage }: Robl
       </CardHeader>
       <CardContent>
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
-          {robloxPackages.map((pkg) => (
+          {packages.map((pkg) => (
             <button
               key={pkg.id}
               onClick={() => onSelectPackage(pkg)}
