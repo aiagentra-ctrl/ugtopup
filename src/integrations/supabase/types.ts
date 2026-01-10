@@ -277,6 +277,71 @@ export type Database = {
         }
         Relationships: []
       }
+      payment_transactions: {
+        Row: {
+          amount: number
+          api_response: Json | null
+          api_transaction_id: string | null
+          completed_at: string | null
+          created_at: string | null
+          credits: number
+          currency: string | null
+          id: string
+          identifier: string
+          metadata: Json | null
+          payment_gateway: string | null
+          redirect_url: string | null
+          status: string | null
+          updated_at: string | null
+          user_email: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          api_response?: Json | null
+          api_transaction_id?: string | null
+          completed_at?: string | null
+          created_at?: string | null
+          credits: number
+          currency?: string | null
+          id?: string
+          identifier: string
+          metadata?: Json | null
+          payment_gateway?: string | null
+          redirect_url?: string | null
+          status?: string | null
+          updated_at?: string | null
+          user_email: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          api_response?: Json | null
+          api_transaction_id?: string | null
+          completed_at?: string | null
+          created_at?: string | null
+          credits?: number
+          currency?: string | null
+          id?: string
+          identifier?: string
+          metadata?: Json | null
+          payment_gateway?: string | null
+          redirect_url?: string | null
+          status?: string | null
+          updated_at?: string | null
+          user_email?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_transactions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       product_orders: {
         Row: {
           admin_remarks: string | null
@@ -654,6 +719,19 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      process_payment_completion: {
+        Args: {
+          p_api_response: Json
+          p_gateway: string
+          p_identifier: string
+          p_transaction_id: string
+        }
+        Returns: Json
+      }
+      process_payment_failure: {
+        Args: { p_api_response: Json; p_identifier: string; p_status: string }
+        Returns: Json
       }
       refresh_dashboard_stats: { Args: never; Returns: undefined }
       reject_payment_request: {
