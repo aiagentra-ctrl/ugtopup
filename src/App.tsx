@@ -36,6 +36,8 @@ import ThumbnailDesign from "./pages/ThumbnailDesign";
 import ContactUs from "./pages/ContactUs";
 import RefundPolicy from "./pages/RefundPolicy";
 import UserNotifications from "./pages/UserNotifications";
+import PaymentSuccess from "./pages/PaymentSuccess";
+import PaymentCancel from "./pages/PaymentCancel";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -94,6 +96,9 @@ const App = () => (
                 </ProtectedRoute>
               } 
             />
+            {/* Payment result pages */}
+            <Route path="/payment/success" element={<PaymentSuccess />} />
+            <Route path="/payment/cancel" element={<PaymentCancel />} />
             <Route path="/admin-login" element={<AdminLogin />} />
             <Route 
               path="/admin" 
