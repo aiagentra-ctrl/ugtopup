@@ -180,6 +180,8 @@ Deno.serve(async (req) => {
         })
         .eq('identifier', identifier);
 
+      console.log('Payment initiated successfully:', { identifier, redirect_url: result.redirect_url });
+
       return new Response(
         JSON.stringify({ 
           success: true, 
@@ -189,7 +191,16 @@ Deno.serve(async (req) => {
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     } else {
-      console.error('API Nepal error:', result);
+      // Extract error message
+      const errorMessage = Array.isArray(result.message) 
+        ? result.message[0] 
+        : result.message || 'Payment initiation failed';
+      
+      console.error('API Nepal error:', { 
+        status: result.status, 
+        message: errorMessage,
+        fullResponse: result 
+      });
       
       // Update transaction as failed
       await supabaseAdmin
@@ -202,7 +213,9 @@ Deno.serve(async (req) => {
 
       return new Response(
         JSON.stringify({ 
-          error: result.message?.[0] || 'Payment initiation failed' 
+          success: false,
+          error: errorMessage,
+          errorCode: result.status || 'GATEWAY_ERROR'
         }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
