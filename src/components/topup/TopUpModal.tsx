@@ -4,12 +4,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Download, Upload, Loader2, CreditCard, QrCode, ArrowLeft, AlertTriangle, RefreshCw, MessageCircle } from "lucide-react";
+import { Download, Upload, Loader2, CreditCard, QrCode, ArrowLeft } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import qrCode from "@/assets/ug-gaming-topup-qr.jpg";
 import { submitPaymentRequest } from "@/lib/creditApi";
-import { initiatePayment, PaymentError } from "@/lib/paymentApi";
+import { initiatePayment } from "@/lib/paymentApi";
 import { cn } from "@/lib/utils";
 
 interface TopUpModalProps {
@@ -28,7 +28,6 @@ export const TopUpModal = ({ open, onOpenChange, onSuccess }: TopUpModalProps) =
   const [remarks, setRemarks] = useState("");
   const [loading, setLoading] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [paymentError, setPaymentError] = useState<PaymentError | null>(null);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -75,7 +74,6 @@ export const TopUpModal = ({ open, onOpenChange, onSuccess }: TopUpModalProps) =
     }
 
     setLoading(true);
-    setPaymentError(null);
 
     try {
       const result = await initiatePayment(amountNum);
@@ -85,12 +83,7 @@ export const TopUpModal = ({ open, onOpenChange, onSuccess }: TopUpModalProps) =
         // Redirect to API Nepal checkout
         window.location.href = result.redirect_url;
       } else {
-        // Show detailed error
-        if (result.paymentError) {
-          setPaymentError(result.paymentError);
-        } else {
-          toast.error(result.error || "Failed to initiate payment");
-        }
+        toast.error(result.error || "Failed to initiate payment");
       }
     } catch (error: any) {
       console.error('Online payment error:', error);
@@ -98,15 +91,6 @@ export const TopUpModal = ({ open, onOpenChange, onSuccess }: TopUpModalProps) =
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleRetryPayment = () => {
-    setPaymentError(null);
-  };
-
-  const handleSwitchToManual = () => {
-    setPaymentError(null);
-    setPaymentMethod('manual');
   };
 
   const handleManualSubmit = async (e: React.FormEvent) => {
@@ -166,7 +150,6 @@ export const TopUpModal = ({ open, onOpenChange, onSuccess }: TopUpModalProps) =
     setRemarks("");
     setPreviewUrl(null);
     setPaymentMethod('select');
-    setPaymentError(null);
   };
 
   const handleClose = () => {
@@ -229,143 +212,80 @@ export const TopUpModal = ({ open, onOpenChange, onSuccess }: TopUpModalProps) =
     </div>
   );
 
-  // Payment error display
-  const renderPaymentError = () => {
-    if (!paymentError) return null;
-
-    return (
-      <div className="space-y-4 animate-fade-in">
-        <div className="bg-destructive/10 border border-destructive/30 rounded-xl p-5">
-          <div className="flex items-start gap-3">
-            <div className="w-10 h-10 rounded-full bg-destructive/20 flex items-center justify-center flex-shrink-0">
-              <AlertTriangle className="w-5 h-5 text-destructive" />
-            </div>
-            <div className="flex-1">
-              <h4 className="font-semibold text-foreground">{paymentError.title}</h4>
-              <p className="text-sm text-muted-foreground mt-1">{paymentError.description}</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-2 gap-3">
-          {paymentError.suggestion === 'retry' && (
-            <Button
-              onClick={handleRetryPayment}
-              variant="outline"
-              className="flex-1"
-            >
-              <RefreshCw className="w-4 h-4 mr-2" />
-              Try Again
-            </Button>
-          )}
-          
-          <Button
-            onClick={handleSwitchToManual}
-            className="flex-1 bg-orange-500 hover:bg-orange-600"
-          >
-            <QrCode className="w-4 h-4 mr-2" />
-            Use Manual Payment
-          </Button>
-        </div>
-
-        <div className="text-center">
-          <a 
-            href="https://wa.me/9779800000000" 
-            target="_blank" 
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-primary transition-colors"
-          >
-            <MessageCircle className="w-4 h-4" />
-            Need help? Contact Support
-          </a>
-        </div>
-      </div>
-    );
-  };
-
   // Online payment form
   const renderOnlinePayment = () => (
     <div className="space-y-6">
       <Button
         variant="ghost"
         size="sm"
-        onClick={() => {
-          setPaymentMethod('select');
-          setPaymentError(null);
-        }}
+        onClick={() => setPaymentMethod('select')}
         className="mb-2"
       >
         <ArrowLeft className="w-4 h-4 mr-2" />
         Back
       </Button>
 
-      {paymentError ? (
-        renderPaymentError()
-      ) : (
-        <>
-          <div className="bg-primary/5 border border-primary/20 rounded-lg p-4 text-center">
-            <CreditCard className="w-10 h-10 mx-auto text-primary mb-2" />
-            <p className="text-sm font-medium text-foreground">Online Payment</p>
-            <p className="text-xs text-muted-foreground">
-              Pay securely with eSewa, Khalti, FonePay, and more
+      <div className="bg-primary/5 border border-primary/20 rounded-lg p-4 text-center">
+        <CreditCard className="w-10 h-10 mx-auto text-primary mb-2" />
+        <p className="text-sm font-medium text-foreground">Online Payment</p>
+        <p className="text-xs text-muted-foreground">
+          Pay securely with eSewa, Khalti, FonePay, and more
+        </p>
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="online-amount" className="text-sm font-medium">
+          Credits to Top-Up
+        </Label>
+        <Input
+          id="online-amount"
+          type="number"
+          min="1"
+          max="100000"
+          step="1"
+          placeholder="Enter amount"
+          value={amount}
+          onChange={(e) => setAmount(e.target.value)}
+          className="bg-background/50 border-border focus:border-primary"
+        />
+        <div className="flex items-center justify-between">
+          <p className="text-xs text-muted-foreground">Rs.1 = 1 Credit</p>
+          {amount && parseFloat(amount) > 0 && (
+            <p className="text-sm font-semibold text-primary animate-fade-in">
+              ₹{amount} = {amount} Credits
             </p>
-          </div>
+          )}
+        </div>
+      </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="online-amount" className="text-sm font-medium">
-              Credits to Top-Up
-            </Label>
-            <Input
-              id="online-amount"
-              type="number"
-              min="1"
-              max="100000"
-              step="1"
-              placeholder="Enter amount"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              className="bg-background/50 border-border focus:border-primary"
-            />
-            <div className="flex items-center justify-between">
-              <p className="text-xs text-muted-foreground">Rs.1 = 1 Credit</p>
-              {amount && parseFloat(amount) > 0 && (
-                <p className="text-sm font-semibold text-primary animate-fade-in">
-                  ₹{amount} = {amount} Credits
-                </p>
-              )}
-            </div>
-          </div>
-
-          <div className="flex gap-3 pt-2">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={handleClose}
-              disabled={loading}
-              className="flex-1"
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={handleOnlinePayment}
-              disabled={loading || !amount || parseFloat(amount) < 1}
-              className="flex-1 bg-primary hover:bg-primary/90"
-            >
-              {loading ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Processing...
-                </>
-              ) : (
-                <>
-                  <CreditCard className="w-4 h-4 mr-2" />
-                  Pay Now
-                </>
-              )}
-            </Button>
-          </div>
-        </>
-      )}
+      <div className="flex gap-3 pt-2">
+        <Button
+          type="button"
+          variant="outline"
+          onClick={handleClose}
+          disabled={loading}
+          className="flex-1"
+        >
+          Cancel
+        </Button>
+        <Button
+          onClick={handleOnlinePayment}
+          disabled={loading || !amount || parseFloat(amount) < 1}
+          className="flex-1 bg-primary hover:bg-primary/90"
+        >
+          {loading ? (
+            <>
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              Processing...
+            </>
+          ) : (
+            <>
+              <CreditCard className="w-4 h-4 mr-2" />
+              Pay Now
+            </>
+          )}
+        </Button>
+      </div>
     </div>
   );
 
