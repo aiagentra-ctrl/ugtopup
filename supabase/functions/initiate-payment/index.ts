@@ -98,9 +98,11 @@ Deno.serve(async (req) => {
     }
 
     // Get API Nepal credentials
-    const mode = Deno.env.get('APINEPAL_MODE') || 'test';
-    const publicKey = Deno.env.get('APINEPAL_PUBLIC_KEY');
-    const secretKey = Deno.env.get('APINEPAL_SECRET_KEY');
+    const modeRaw = Deno.env.get('APINEPAL_MODE') || 'test';
+    const mode = modeRaw.trim().toLowerCase();
+
+    const publicKey = (Deno.env.get('APINEPAL_PUBLIC_KEY') || '').trim();
+    const secretKey = (Deno.env.get('APINEPAL_SECRET_KEY') || '').trim();
 
     if (!publicKey || !secretKey) {
       console.error('Missing API Nepal credentials');
@@ -110,10 +112,18 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Determine API endpoint based on mode
-    const apiEndpoint = mode === 'live' 
+    // Determine API endpoint based on mode (accepts: live/Live/production/prod)
+    const isLive = mode === 'live' || mode === 'production' || mode === 'prod';
+    const apiEndpoint = isLive
       ? 'https://apinepal.com/payment/initiate'
       : 'https://apinepal.com/test/payment/initiate';
+
+    console.log('API Nepal config:', {
+      modeRaw,
+      mode,
+      apiEndpoint,
+      publicKeyPrefix: publicKey.slice(0, 12),
+    });
 
     // Build callback URLs
     const baseUrl = siteUrl || 'https://ug-gaming-topup.lovable.app';
