@@ -13,6 +13,7 @@ import { SupabaseLimits } from "@/components/admin/SupabaseLimits";
 import { GameProductPrices } from "@/components/admin/GameProductPrices";
 import NotificationsManager from "@/components/admin/NotificationsManager";
 import { BannerManager } from "@/components/admin/BannerManager";
+import { OnlinePayments } from "@/components/admin/OnlinePayments";
 import { checkAdminAccess } from "@/lib/adminApi";
 import { toast } from "sonner";
 
@@ -57,6 +58,8 @@ const AdminPanel = () => {
     switch (activeSection) {
       case "dashboard":
         return <EnhancedDashboard />;
+      case "online-payments":
+        return <OnlinePayments />;
       case "payments":
         return <CreditRequestsTable />;
       case "orders":

@@ -138,7 +138,7 @@ Deno.serve(async (req) => {
     params.append('cancel_url', cancelUrl);
     params.append('site_name', 'UG Gaming');
     params.append('site_logo', 'https://ug-gaming-topup.lovable.app/logo.jpg');
-    params.append('checkout_theme', 'light');
+    params.append('checkout_theme', 'dark');
     params.append('customer[first_name]', firstName);
     params.append('customer[last_name]', lastName);
     params.append('customer[email]', userEmail);
