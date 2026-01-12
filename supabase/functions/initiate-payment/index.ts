@@ -65,8 +65,9 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Generate unique identifier
-    const identifier = `UG_${userId.slice(0, 8)}_${Date.now()}`;
+    // Generate unique identifier (max 20 chars for API Nepal)
+    // Format: UG + 4 char user + timestamp in base36 = ~15-17 chars
+    const identifier = `UG${userId.slice(0, 4)}${Date.now().toString(36)}`;
 
     // Create admin client for inserting transaction
     const supabaseAdmin = createClient(
@@ -141,7 +142,7 @@ Deno.serve(async (req) => {
     params.append('customer[first_name]', firstName);
     params.append('customer[last_name]', lastName);
     params.append('customer[email]', userEmail);
-    params.append('customer[mobile]', '');
+    params.append('customer[mobile]', '9800000000');
 
     console.log('Initiating payment:', { identifier, amount, mode, ipnUrl });
 
