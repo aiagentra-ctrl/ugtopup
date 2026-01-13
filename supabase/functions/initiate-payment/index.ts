@@ -132,7 +132,9 @@ Deno.serve(async (req) => {
     params.append('identifier', identifier);
     params.append('currency', 'NPR');
     params.append('amount', amount.toString());
-    params.append('details', `UG Gaming Credit Top-Up - ${amount} Credits`);
+    // Include username in payment details for better tracking
+    const username = profile.username || profile.full_name || userEmail.split('@')[0];
+    params.append('details', `UG Gaming - User: ${username} - ${amount} Credits Top-Up`);
     params.append('ipn_url', ipnUrl);
     params.append('success_url', successUrl);
     params.append('cancel_url', cancelUrl);
