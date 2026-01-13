@@ -38,6 +38,7 @@ import RefundPolicy from "./pages/RefundPolicy";
 import UserNotifications from "./pages/UserNotifications";
 import PaymentSuccess from "./pages/PaymentSuccess";
 import PaymentCancel from "./pages/PaymentCancel";
+import LoginRequired from "./pages/LoginRequired";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -99,6 +100,7 @@ const App = () => (
             {/* Payment result pages */}
             <Route path="/payment/success" element={<PaymentSuccess />} />
             <Route path="/payment/cancel" element={<PaymentCancel />} />
+            <Route path="/login-required" element={<LoginRequired />} />
             <Route path="/admin-login" element={<AdminLogin />} />
             <Route 
               path="/admin" 
