@@ -1,7 +1,9 @@
-import { Facebook, Youtube, MessageCircle, Music } from "lucide-react";
+import { Facebook, Youtube, MessageCircle } from "lucide-react";
+import { Link } from "react-router-dom";
 import { usePWAInstall } from "@/hooks/usePWAInstall";
 import { toast } from "sonner";
 import downloadIcon from "@/assets/download-icon-new.png";
+import { TikTokIcon } from "@/components/icons/TikTokIcon";
 import {
   AlertDialog,
   AlertDialogContent,
@@ -112,36 +114,36 @@ export const Footer = () => {
           </h3>
           <ul className="space-y-2">
             <li>
-              <a 
-                href="/dashboard" 
+              <Link 
+                to="/dashboard" 
                 className="text-[hsl(var(--footer-text))] text-base hover:text-[hsl(var(--footer-heading))] transition-colors duration-300"
               >
                 Dashboard
-              </a>
+              </Link>
             </li>
             <li>
-              <a 
-                href="/" 
+              <Link 
+                to="/" 
                 className="text-[hsl(var(--footer-text))] text-base hover:text-[hsl(var(--footer-heading))] transition-colors duration-300"
               >
                 Products
-              </a>
+              </Link>
             </li>
             <li>
-              <a 
-                href="/contact" 
+              <Link 
+                to="/contact" 
                 className="text-[hsl(var(--footer-text))] text-base hover:text-[hsl(var(--footer-heading))] transition-colors duration-300"
               >
                 Contact Us
-              </a>
+              </Link>
             </li>
             <li>
-              <a 
-                href="/refund-policy" 
+              <Link 
+                to="/refund-policy" 
                 className="text-[hsl(var(--footer-text))] text-base hover:text-[hsl(var(--footer-heading))] transition-colors duration-300"
               >
                 Refund & Payment Policy
-              </a>
+              </Link>
             </li>
           </ul>
         </div>
@@ -173,7 +175,7 @@ export const Footer = () => {
             className="w-12 h-12 md:w-14 md:h-14 rounded-full bg-white flex items-center justify-center transition-all duration-300 hover:scale-110"
             aria-label="TikTok"
           >
-            <Music className="h-6 w-6 md:h-7 md:w-7 text-[hsl(var(--footer-bg))]" />
+            <TikTokIcon className="h-6 w-6 md:h-7 md:w-7 text-[hsl(var(--footer-bg))]" />
           </a>
           <a
             href="https://wa.me/9779708562001"
