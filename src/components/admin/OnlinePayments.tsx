@@ -27,6 +27,10 @@ interface PaymentTransaction {
   api_transaction_id: string | null;
   created_at: string;
   completed_at: string | null;
+  profiles?: {
+    username: string | null;
+    full_name: string | null;
+  };
 }
 
 export function OnlinePayments() {
@@ -44,7 +48,10 @@ export function OnlinePayments() {
     try {
       const { data, error } = await supabase
         .from("payment_transactions")
-        .select("*")
+        .select(`
+          *,
+          profiles:user_id (username, full_name)
+        `)
         .eq("status", "completed")
         .order("completed_at", { ascending: false })
         .limit(100);
@@ -216,7 +223,8 @@ export function OnlinePayments() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Transaction ID</TableHead>
-                    <TableHead>User</TableHead>
+                    <TableHead>Username</TableHead>
+                    <TableHead>Email</TableHead>
                     <TableHead>Amount</TableHead>
                     <TableHead>Credits</TableHead>
                     <TableHead>Gateway</TableHead>
@@ -237,8 +245,11 @@ export function OnlinePayments() {
                           )}
                         </div>
                       </TableCell>
+                      <TableCell className="font-medium">
+                        {txn.profiles?.username || txn.profiles?.full_name || "N/A"}
+                      </TableCell>
                       <TableCell>
-                        <div className="max-w-[200px] truncate">
+                        <div className="max-w-[180px] truncate text-muted-foreground">
                           {txn.user_email}
                         </div>
                       </TableCell>
