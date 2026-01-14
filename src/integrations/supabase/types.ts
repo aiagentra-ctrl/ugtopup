@@ -143,6 +143,62 @@ export type Database = {
         }
         Relationships: []
       }
+      liana_orders: {
+        Row: {
+          api_response: Json | null
+          api_transaction_id: string | null
+          created_at: string | null
+          error_message: string | null
+          id: string
+          ign: string | null
+          liana_product_id: number
+          order_id: string
+          retry_count: number | null
+          status: string | null
+          updated_at: string | null
+          user_id: string
+          zone_id: string
+        }
+        Insert: {
+          api_response?: Json | null
+          api_transaction_id?: string | null
+          created_at?: string | null
+          error_message?: string | null
+          id?: string
+          ign?: string | null
+          liana_product_id: number
+          order_id: string
+          retry_count?: number | null
+          status?: string | null
+          updated_at?: string | null
+          user_id: string
+          zone_id: string
+        }
+        Update: {
+          api_response?: Json | null
+          api_transaction_id?: string | null
+          created_at?: string | null
+          error_message?: string | null
+          id?: string
+          ign?: string | null
+          liana_product_id?: number
+          order_id?: string
+          retry_count?: number | null
+          status?: string | null
+          updated_at?: string | null
+          user_id?: string
+          zone_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "liana_orders_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "product_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notifications: {
         Row: {
           created_at: string
@@ -631,6 +687,15 @@ export type Database = {
         Args: { cancellation_reason_text: string; order_id: string }
         Returns: Json
       }
+      complete_ml_order: {
+        Args: {
+          p_api_response: Json
+          p_api_transaction_id?: string
+          p_liana_order_id: string
+          p_order_id: string
+        }
+        Returns: Json
+      }
       confirm_order: {
         Args: { admin_remarks_text?: string; order_id: string }
         Returns: Json
@@ -645,6 +710,15 @@ export type Database = {
         Returns: undefined
       }
       delete_payment_request: { Args: { request_id: string }; Returns: Json }
+      fail_ml_order: {
+        Args: {
+          p_api_response?: Json
+          p_error_message: string
+          p_liana_order_id: string
+          p_order_id: string
+        }
+        Returns: Json
+      }
       get_dashboard_stats: {
         Args: never
         Returns: {
