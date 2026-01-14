@@ -30,7 +30,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { CheckCircle, XCircle, Eye, RefreshCw, Filter } from "lucide-react";
+import { CheckCircle, XCircle, Eye, RefreshCw, Filter, RotateCcw, Zap } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -133,12 +133,43 @@ export const OrderManagement = () => {
     }
   };
 
+  const handleRetryMLOrder = async (order: Order) => {
+    setProcessing(true);
+    try {
+      toast.info("Retrying ML order processing...");
+      
+      const { data, error } = await supabase.functions.invoke('process-ml-order', {
+        body: { order_id: order.id }
+      });
+      
+      if (error) {
+        throw new Error(error.message);
+      }
+      
+      if (data?.success) {
+        toast.success("Order processed successfully!");
+        loadOrders();
+      } else {
+        toast.error(data?.error || "Failed to process order");
+      }
+    } catch (error: any) {
+      console.error("Error retrying ML order:", error);
+      toast.error(error.message || "Failed to retry order");
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  const isAutoProcessedCategory = (category: string) => {
+    return category === 'mobile_legends';
+  };
+
   const getStatusBadge = (status: string) => {
     const variants: Record<string, { variant: "default" | "secondary" | "destructive" | "outline", className: string }> = {
       pending: { variant: "outline", className: "border-yellow-500 text-yellow-600" },
       confirmed: { variant: "default", className: "bg-green-500" },
       canceled: { variant: "destructive", className: "" },
-      processing: { variant: "secondary", className: "bg-blue-500" },
+      processing: { variant: "secondary", className: "bg-blue-500 text-white" },
       completed: { variant: "default", className: "bg-green-600" },
     };
     
@@ -270,7 +301,31 @@ export const OrderManagement = () => {
                           >
                             <Eye className="h-4 w-4" />
                           </Button>
-                          {order.status === "pending" && (
+                          {/* Show Retry button for failed/canceled ML orders */}
+                          {isAutoProcessedCategory(order.product_category) && 
+                           (order.status === "canceled" || order.status === "pending") && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="border-blue-500 text-blue-600 hover:bg-blue-50"
+                              onClick={() => handleRetryMLOrder(order)}
+                              disabled={processing}
+                            >
+                              <RotateCcw className="h-4 w-4 mr-1" />
+                              Retry API
+                            </Button>
+                          )}
+                          
+                          {/* Show auto-process indicator for ML orders */}
+                          {isAutoProcessedCategory(order.product_category) && order.status === "processing" && (
+                            <Badge variant="secondary" className="bg-blue-100 text-blue-700">
+                              <Zap className="h-3 w-3 mr-1" />
+                              Auto-Processing
+                            </Badge>
+                          )}
+                          
+                          {/* Only show confirm/cancel for non-auto-processed orders */}
+                          {order.status === "pending" && !isAutoProcessedCategory(order.product_category) && (
                             <>
                               <Button
                                 size="sm"

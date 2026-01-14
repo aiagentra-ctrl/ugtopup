@@ -10,6 +10,7 @@ import { QuantitySelector } from "@/components/ui/quantity-selector";
 import { createOrder, generateOrderNumber } from "@/lib/orderApi";
 import { ensureSufficientBalance } from "@/lib/creditApi";
 import { requestDeduplicator } from "@/lib/requestDeduplicator";
+import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 
@@ -96,10 +97,11 @@ const MobileLegends = () => {
     setIsSubmitting(true);
     
     try {
-      await requestDeduplicator.dedupe(
+      // Step 1: Create the order (deducts credits)
+      const order = await requestDeduplicator.dedupe(
         `place_order:${user.id}:${selectedPackage.name}:${purchaseQuantity}`,
         async () => {
-          await createOrder({
+          return await createOrder({
             order_number: currentOrderId,
             product_category: "mobile_legends",
             product_name: "Mobile Legends Diamond",
@@ -119,11 +121,27 @@ const MobileLegends = () => {
         }
       );
 
-      await refreshProfile();
+      // Step 2: Automatically process via Liana API (non-blocking)
+      toast.info("Processing your order...");
+      
+      const { data: apiResult, error: apiError } = await supabase.functions.invoke('process-ml-order', {
+        body: { order_id: order.id }
+      });
 
+      await refreshProfile();
       setShowReviewModal(false);
-      setShowSuccessModal(true);
-      toast.success("Order placed successfully!");
+
+      if (apiError) {
+        console.error('Liana API error:', apiError);
+        setShowSuccessModal(true);
+        toast.warning("Order placed but processing encountered an issue. Our team will review it.");
+      } else if (apiResult?.success) {
+        setShowSuccessModal(true);
+        toast.success(`Diamonds delivered successfully!${apiResult.ign ? ` (IGN: ${apiResult.ign})` : ''}`);
+      } else {
+        setShowSuccessModal(true);
+        toast.warning(`Order placed. ${apiResult?.error || 'Processing in progress...'}`);
+      }
     } catch (error: any) {
       await refreshProfile();
       toast.error(error.message || "Failed to place order");
