@@ -14,6 +14,7 @@ import { GameProductPrices } from "@/components/admin/GameProductPrices";
 import NotificationsManager from "@/components/admin/NotificationsManager";
 import { BannerManager } from "@/components/admin/BannerManager";
 import { OnlinePayments } from "@/components/admin/OnlinePayments";
+import { LianaOrdersDashboard } from "@/components/admin/LianaOrdersDashboard";
 import { checkAdminAccess } from "@/lib/adminApi";
 import { toast } from "sonner";
 
@@ -64,6 +65,8 @@ const AdminPanel = () => {
         return <CreditRequestsTable />;
       case "orders":
         return <OrderManagement />;
+      case "liana-orders":
+        return <LianaOrdersDashboard />;
       case "products":
         return <ProductsList />;
       case "game-pricing":

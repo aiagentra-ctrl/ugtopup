@@ -12,6 +12,7 @@ import {
   Gamepad2,
   Bell,
   ImageIcon,
+  Zap,
 } from "lucide-react";
 import {
   Sidebar,
@@ -42,6 +43,7 @@ const menuItems = [
   { id: "online-payments", title: "Online Payments", icon: CreditCard },
   { id: "payments", title: "Credit Requests", icon: CreditCard },
   { id: "orders", title: "Order Management", icon: ShoppingCart },
+  { id: "liana-orders", title: "ML API Orders", icon: Zap },
   { id: "products", title: "Products", icon: Package },
   { id: "game-pricing", title: "Products (New)", icon: Gamepad2 },
   { id: "banners", title: "Banner", icon: ImageIcon },
