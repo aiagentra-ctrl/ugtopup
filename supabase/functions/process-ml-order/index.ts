@@ -2,32 +2,38 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
-// Liana API Configuration
-const LIANA_API_BASE_URL = 'https://api.lfrfrk.xyz';
+// Liana API Configuration - CORRECTED
+const LIANA_API_BASE_URL = 'https://lianastore.in/wp-json/ar2/v1';
 
 interface ProcessMLOrderRequest {
   order_id: string;
 }
 
-interface LianaApiResponse {
-  success: boolean;
+interface LianaVerifyResponse {
+  status: string;
+  verified?: boolean;
+  display?: string; // IGN
+  game?: string;
   message?: string;
-  data?: {
-    order_id?: string;
-    transaction_id?: string;
-    status?: string;
-    ign?: string;
-  };
+  error?: string;
+}
+
+interface LianaOrderResponse {
+  status: string;
+  order_id?: string;
+  transaction_id?: string;
+  balance_after?: number;
+  message?: string;
   error?: string;
 }
 
 Deno.serve(async (req) => {
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return new Response('ok', { headers: corsHeaders });
   }
 
   try {
@@ -81,8 +87,8 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Check if order is already processed
-    if (order.status !== 'pending') {
+    // Check if order is already completed or canceled
+    if (order.status === 'completed' || order.status === 'canceled') {
       return new Response(
         JSON.stringify({ success: false, error: `Order already ${order.status}` }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -93,7 +99,7 @@ Deno.serve(async (req) => {
     const productDetails = order.product_details || {};
     const userId = productDetails.userId || productDetails.user_id;
     const zoneId = productDetails.zoneId || productDetails.zone_id;
-    const quantity = order.quantity;
+    const purchaseQuantity = productDetails.purchase_quantity || 1;
     const packageName = order.package_name;
 
     if (!userId || !zoneId) {
@@ -104,102 +110,189 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Map package name to Liana product ID
-    // This mapping should be adjusted based on actual Liana API product IDs
+    // Map package name to Liana variation_id
+    // These are the ACTUAL Liana Store variation IDs for Mobile Legends
     const productIdMap: Record<string, number> = {
-      '5 Diamonds': 1,
-      '11 Diamonds': 2,
-      '22 Diamonds': 3,
-      '56 Diamonds': 4,
-      '86 Diamonds': 5,
-      '112 Diamonds': 6,
-      '172 Diamonds': 7,
-      '257 Diamonds': 8,
-      '343 Diamonds': 9,
-      '429 Diamonds': 10,
-      '514 Diamonds': 11,
-      '600 Diamonds': 12,
-      '706 Diamonds': 13,
-      '792 Diamonds': 14,
-      '878 Diamonds': 15,
-      '963 Diamonds': 16,
-      '1050 Diamonds': 17,
-      '1135 Diamonds': 18,
-      '1220 Diamonds': 19,
-      '1412 Diamonds': 20,
-      '2195 Diamonds': 21,
-      '2901 Diamonds': 22,
-      '3688 Diamonds': 23,
-      '4394 Diamonds': 24,
-      '5532 Diamonds': 25,
-      '9288 Diamonds': 26,
-      'Weekly Diamond Pass': 100,
-      'Twilight Pass': 101,
+      '5 Diamonds': 3891,
+      '11 Diamonds': 3892,
+      '22 Diamonds': 3893,
+      '56 Diamonds': 3894,
+      '86 Diamonds': 3895,
+      '112 Diamonds': 3896,
+      '172 Diamonds': 3897,
+      '257 Diamonds': 3898,
+      '343 Diamonds': 3899,
+      '429 Diamonds': 3900,
+      '514 Diamonds': 3901,
+      '600 Diamonds': 3902,
+      '706 Diamonds': 3903,
+      '792 Diamonds': 3904,
+      '878 Diamonds': 3905,
+      '963 Diamonds': 3906,
+      '1050 Diamonds': 3907,
+      '1135 Diamonds': 3908,
+      '1220 Diamonds': 3909,
+      '1412 Diamonds': 3910,
+      '2195 Diamonds': 3911,
+      '2901 Diamonds': 3912,
+      '3688 Diamonds': 3913,
+      '4394 Diamonds': 3914,
+      '5532 Diamonds': 3915,
+      '9288 Diamonds': 3916,
+      'Weekly Diamond Pass': 3917,
+      'Twilight Pass': 3918,
     };
 
-    const lianaProductId = productIdMap[packageName] || 1;
-
-    // Create liana_orders record first
-    const { data: lianaOrder, error: lianaOrderError } = await supabaseAdmin
-      .from('liana_orders')
-      .insert({
-        order_id: order_id,
-        liana_product_id: lianaProductId,
-        user_id: userId,
-        zone_id: zoneId,
-        status: 'processing'
-      })
-      .select()
-      .single();
-
-    if (lianaOrderError) {
-      console.error('Failed to create liana_orders record:', lianaOrderError);
+    const lianaProductId = productIdMap[packageName];
+    
+    if (!lianaProductId) {
+      console.error(`Unknown package: ${packageName}`);
       return new Response(
-        JSON.stringify({ success: false, error: 'Failed to create tracking record' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ success: false, error: `Unknown package: ${packageName}` }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    console.log(`Created liana_orders record: ${lianaOrder.id}`);
+    // Check if liana_order already exists for this order
+    const { data: existingLianaOrder } = await supabaseAdmin
+      .from('liana_orders')
+      .select('*')
+      .eq('order_id', order_id)
+      .single();
+
+    let lianaOrderId: string;
+
+    if (existingLianaOrder) {
+      // Update existing record
+      lianaOrderId = existingLianaOrder.id;
+      await supabaseAdmin
+        .from('liana_orders')
+        .update({ 
+          status: 'processing',
+          retry_count: (existingLianaOrder.retry_count || 0) + 1,
+          error_message: null,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', lianaOrderId);
+    } else {
+      // Create new liana_orders record
+      const { data: lianaOrder, error: lianaOrderError } = await supabaseAdmin
+        .from('liana_orders')
+        .insert({
+          order_id: order_id,
+          liana_product_id: lianaProductId,
+          user_id: userId,
+          zone_id: zoneId,
+          status: 'processing',
+          api_request_sent: false
+        })
+        .select()
+        .single();
+
+      if (lianaOrderError) {
+        console.error('Failed to create liana_orders record:', lianaOrderError);
+        return new Response(
+          JSON.stringify({ success: false, error: 'Failed to create tracking record' }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      lianaOrderId = lianaOrder.id;
+    }
+
+    console.log(`Liana order ID: ${lianaOrderId}`);
 
     // Update order status to processing
     await supabaseAdmin
       .from('product_orders')
-      .update({ status: 'processing', updated_at: new Date().toISOString() })
+      .update({ 
+        status: 'processing', 
+        processing_started_at: new Date().toISOString(),
+        updated_at: new Date().toISOString() 
+      })
       .eq('id', order_id);
+
+    // Prepare headers for Liana API - CORRECTED FORMAT
+    const apiHeaders = {
+      'Content-Type': 'application/json',
+      'X-API-KEY': lianaApiKey,
+      'X-API-SECRET': lianaApiSecret,
+      'X-ORIGIN-DOMAIN': 'ugtopups.lovable.app',
+      'Accept': 'application/json',
+      'User-Agent': 'LianaStoreWooCommerce/2.2.2'
+    };
 
     try {
       // Step 1: Verify player ID with Liana API
-      console.log(`Verifying player: userId=${userId}, zoneId=${zoneId}`);
+      console.log(`Verifying player: uid=${userId}, zone_id=${zoneId}, variation_id=${lianaProductId}`);
       
-      const verifyResponse = await fetch(`${LIANA_API_BASE_URL}/api/verify`, {
+      // Update verification_sent_at
+      await supabaseAdmin
+        .from('liana_orders')
+        .update({ verification_sent_at: new Date().toISOString() })
+        .eq('id', lianaOrderId);
+      
+      const verifyPayload = {
+        variation_id: lianaProductId,
+        uid: userId,
+        zone_id: zoneId
+      };
+      
+      console.log('Verify payload:', JSON.stringify(verifyPayload));
+      
+      const verifyResponse = await fetch(`${LIANA_API_BASE_URL}/ign/verify`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-API-Key': lianaApiKey,
-          'X-API-Secret': lianaApiSecret,
-        },
-        body: JSON.stringify({
-          product_id: lianaProductId,
-          user_id: userId,
-          zone_id: zoneId,
-        }),
+        headers: apiHeaders,
+        body: JSON.stringify(verifyPayload),
       });
 
-      const verifyData: LianaApiResponse = await verifyResponse.json();
+      const verifyText = await verifyResponse.text();
+      console.log('Verify raw response:', verifyText);
+      
+      let verifyData: LianaVerifyResponse;
+      try {
+        verifyData = JSON.parse(verifyText);
+      } catch {
+        verifyData = { status: 'error', message: verifyText };
+      }
+      
       console.log('Verify response:', JSON.stringify(verifyData));
 
-      if (!verifyResponse.ok || !verifyData.success) {
-        const errorMessage = verifyData.message || verifyData.error || 'Player verification failed';
+      // Store verification response
+      await supabaseAdmin
+        .from('liana_orders')
+        .update({ 
+          verification_response: verifyData,
+          verification_completed_at: new Date().toISOString()
+        })
+        .eq('id', lianaOrderId);
+
+      // Check verification result - CORRECTED: check status === 'success' AND verified
+      const isVerified = verifyData.status === 'success' && verifyData.verified === true;
+      
+      if (!verifyResponse.ok || !isVerified) {
+        const errorMessage = verifyData.message || verifyData.error || 'Player verification failed - IGN not found';
         console.error('Player verification failed:', errorMessage);
         
-        // Call fail_ml_order function
-        await supabaseAdmin.rpc('fail_ml_order', {
-          p_order_id: order_id,
-          p_liana_order_id: lianaOrder.id,
-          p_error_message: errorMessage,
-          p_api_response: verifyData,
-        });
+        // Update order to failed
+        await supabaseAdmin
+          .from('liana_orders')
+          .update({ 
+            status: 'failed',
+            error_message: errorMessage,
+            api_response: verifyData,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', lianaOrderId);
+
+        await supabaseAdmin
+          .from('product_orders')
+          .update({ 
+            status: 'canceled',
+            failed_at: new Date().toISOString(),
+            failure_reason: errorMessage,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', order_id);
 
         return new Response(
           JSON.stringify({ success: false, error: errorMessage, stage: 'verification' }),
@@ -207,47 +300,88 @@ Deno.serve(async (req) => {
         );
       }
 
-      const ign = verifyData.data?.ign || '';
+      // IGN is in verifyData.display (not verifyData.data.ign)
+      const ign = verifyData.display || '';
       
       // Update liana_orders with IGN
       await supabaseAdmin
         .from('liana_orders')
         .update({ ign })
-        .eq('id', lianaOrder.id);
+        .eq('id', lianaOrderId);
+
+      console.log(`Player verified: IGN = ${ign}`);
 
       // Step 2: Create order with Liana API
-      console.log(`Creating order: productId=${lianaProductId}, qty=${quantity}`);
+      console.log(`Creating order: variation_id=${lianaProductId}, qty=${purchaseQuantity}`);
       
-      const orderResponse = await fetch(`${LIANA_API_BASE_URL}/api/order`, {
+      // Update order_sent_at
+      await supabaseAdmin
+        .from('liana_orders')
+        .update({ order_sent_at: new Date().toISOString() })
+        .eq('id', lianaOrderId);
+      
+      const orderPayload = {
+        variation_id: lianaProductId,
+        qty: purchaseQuantity,
+        uid: userId,
+        zone_id: zoneId,
+        reference_id: order.order_number
+      };
+      
+      console.log('Order payload:', JSON.stringify(orderPayload));
+      
+      const orderResponse = await fetch(`${LIANA_API_BASE_URL}/orders`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-API-Key': lianaApiKey,
-          'X-API-Secret': lianaApiSecret,
-        },
-        body: JSON.stringify({
-          product_id: lianaProductId,
-          user_id: userId,
-          zone_id: zoneId,
-          quantity: quantity,
-          reference_id: order.order_number,
-        }),
+        headers: apiHeaders,
+        body: JSON.stringify(orderPayload),
       });
 
-      const orderData: LianaApiResponse = await orderResponse.json();
+      const orderText = await orderResponse.text();
+      console.log('Order raw response:', orderText);
+      
+      let orderData: LianaOrderResponse;
+      try {
+        orderData = JSON.parse(orderText);
+      } catch {
+        orderData = { status: 'error', message: orderText };
+      }
+      
       console.log('Order response:', JSON.stringify(orderData));
 
-      if (!orderResponse.ok || !orderData.success) {
+      // Store order response
+      await supabaseAdmin
+        .from('liana_orders')
+        .update({ 
+          order_response: orderData,
+          api_request_sent: true
+        })
+        .eq('id', lianaOrderId);
+
+      // Check order result - CORRECTED: check status === 'success'
+      if (!orderResponse.ok || orderData.status !== 'success') {
         const errorMessage = orderData.message || orderData.error || 'Order creation failed';
         console.error('Order creation failed:', errorMessage);
         
-        // Call fail_ml_order function
-        await supabaseAdmin.rpc('fail_ml_order', {
-          p_order_id: order_id,
-          p_liana_order_id: lianaOrder.id,
-          p_error_message: errorMessage,
-          p_api_response: orderData,
-        });
+        // Update order to failed
+        await supabaseAdmin
+          .from('liana_orders')
+          .update({ 
+            status: 'failed',
+            error_message: errorMessage,
+            api_response: orderData,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', lianaOrderId);
+
+        await supabaseAdmin
+          .from('product_orders')
+          .update({ 
+            status: 'canceled',
+            failed_at: new Date().toISOString(),
+            failure_reason: errorMessage,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', order_id);
 
         return new Response(
           JSON.stringify({ success: false, error: errorMessage, stage: 'order' }),
@@ -255,17 +389,33 @@ Deno.serve(async (req) => {
         );
       }
 
-      // Order successful - call complete_ml_order function
-      const transactionId = orderData.data?.transaction_id || orderData.data?.order_id;
+      // Order successful!
+      const transactionId = orderData.order_id || orderData.transaction_id || '';
       
-      await supabaseAdmin.rpc('complete_ml_order', {
-        p_order_id: order_id,
-        p_liana_order_id: lianaOrder.id,
-        p_api_response: orderData,
-        p_api_transaction_id: transactionId,
-      });
+      // Update liana_orders to completed
+      await supabaseAdmin
+        .from('liana_orders')
+        .update({ 
+          status: 'completed',
+          api_response: orderData,
+          api_transaction_id: transactionId,
+          completed_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', lianaOrderId);
 
-      console.log(`Order ${order.order_number} completed successfully`);
+      // Update product_orders to completed
+      await supabaseAdmin
+        .from('product_orders')
+        .update({ 
+          status: 'completed',
+          transaction_id: transactionId,
+          completed_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', order_id);
+
+      console.log(`Order ${order.order_number} completed successfully! Transaction ID: ${transactionId}`);
 
       return new Response(
         JSON.stringify({
@@ -282,13 +432,26 @@ Deno.serve(async (req) => {
       
       const errorMessage = apiError instanceof Error ? apiError.message : 'API connection failed';
       
-      // Call fail_ml_order function
-      await supabaseAdmin.rpc('fail_ml_order', {
-        p_order_id: order_id,
-        p_liana_order_id: lianaOrder.id,
-        p_error_message: errorMessage,
-        p_api_response: { error: errorMessage },
-      });
+      // Update order to failed
+      await supabaseAdmin
+        .from('liana_orders')
+        .update({ 
+          status: 'failed',
+          error_message: errorMessage,
+          api_response: { error: errorMessage },
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', lianaOrderId);
+
+      await supabaseAdmin
+        .from('product_orders')
+        .update({ 
+          status: 'canceled',
+          failed_at: new Date().toISOString(),
+          failure_reason: errorMessage,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', order_id);
 
       return new Response(
         JSON.stringify({ success: false, error: errorMessage, stage: 'api_connection' }),

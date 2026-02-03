@@ -14,6 +14,14 @@ export interface LianaOrder {
   retry_count: number;
   created_at: string;
   updated_at: string;
+  // New tracking columns
+  verification_response: Record<string, unknown> | null;
+  order_response: Record<string, unknown> | null;
+  api_request_sent: boolean;
+  verification_sent_at: string | null;
+  verification_completed_at: string | null;
+  order_sent_at: string | null;
+  completed_at: string | null;
   // Joined from product_orders
   order_number?: string;
   product_name?: string;
@@ -25,6 +33,8 @@ export interface LianaOrder {
   user_name?: string;
   order_created_at?: string;
   order_status?: string;
+  transaction_id?: string;
+  failure_reason?: string;
 }
 
 export interface LianaOrderStats {
@@ -51,7 +61,9 @@ export async function fetchLianaOrders(statusFilter?: string): Promise<LianaOrde
         user_email,
         user_name,
         created_at,
-        status
+        status,
+        transaction_id,
+        failure_reason
       )
     `)
     .order("created_at", { ascending: false });
@@ -82,6 +94,8 @@ export async function fetchLianaOrders(statusFilter?: string): Promise<LianaOrde
       user_name: productOrder?.user_name as string | undefined,
       order_created_at: productOrder?.created_at as string | undefined,
       order_status: productOrder?.status as string | undefined,
+      transaction_id: productOrder?.transaction_id as string | undefined,
+      failure_reason: productOrder?.failure_reason as string | undefined,
     } as LianaOrder;
   });
 }
