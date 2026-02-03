@@ -145,48 +145,69 @@ export type Database = {
       }
       liana_orders: {
         Row: {
+          api_request_sent: boolean | null
           api_response: Json | null
           api_transaction_id: string | null
+          completed_at: string | null
           created_at: string | null
           error_message: string | null
           id: string
           ign: string | null
           liana_product_id: number
           order_id: string
+          order_response: Json | null
+          order_sent_at: string | null
           retry_count: number | null
           status: string | null
           updated_at: string | null
           user_id: string
+          verification_completed_at: string | null
+          verification_response: Json | null
+          verification_sent_at: string | null
           zone_id: string
         }
         Insert: {
+          api_request_sent?: boolean | null
           api_response?: Json | null
           api_transaction_id?: string | null
+          completed_at?: string | null
           created_at?: string | null
           error_message?: string | null
           id?: string
           ign?: string | null
           liana_product_id: number
           order_id: string
+          order_response?: Json | null
+          order_sent_at?: string | null
           retry_count?: number | null
           status?: string | null
           updated_at?: string | null
           user_id: string
+          verification_completed_at?: string | null
+          verification_response?: Json | null
+          verification_sent_at?: string | null
           zone_id: string
         }
         Update: {
+          api_request_sent?: boolean | null
           api_response?: Json | null
           api_transaction_id?: string | null
+          completed_at?: string | null
           created_at?: string | null
           error_message?: string | null
           id?: string
           ign?: string | null
           liana_product_id?: number
           order_id?: string
+          order_response?: Json | null
+          order_sent_at?: string | null
           retry_count?: number | null
           status?: string | null
           updated_at?: string | null
           user_id?: string
+          verification_completed_at?: string | null
+          verification_response?: Json | null
+          verification_sent_at?: string | null
           zone_id?: string
         }
         Relationships: [
@@ -407,18 +428,22 @@ export type Database = {
           confirmed_at: string | null
           created_at: string | null
           credits_deducted: number | null
+          failed_at: string | null
+          failure_reason: string | null
           id: string
           metadata: Json | null
           order_number: string
           package_name: string
           payment_method: string | null
           price: number
+          processing_started_at: string | null
           product_category: Database["public"]["Enums"]["product_category"]
           product_details: Json
           product_name: string
           quantity: number
           reviewed_by: string | null
           status: Database["public"]["Enums"]["order_status"]
+          transaction_id: string | null
           updated_at: string | null
           user_email: string
           user_id: string
@@ -432,18 +457,22 @@ export type Database = {
           confirmed_at?: string | null
           created_at?: string | null
           credits_deducted?: number | null
+          failed_at?: string | null
+          failure_reason?: string | null
           id?: string
           metadata?: Json | null
           order_number: string
           package_name: string
           payment_method?: string | null
           price: number
+          processing_started_at?: string | null
           product_category: Database["public"]["Enums"]["product_category"]
           product_details?: Json
           product_name: string
           quantity: number
           reviewed_by?: string | null
           status?: Database["public"]["Enums"]["order_status"]
+          transaction_id?: string | null
           updated_at?: string | null
           user_email: string
           user_id: string
@@ -457,18 +486,22 @@ export type Database = {
           confirmed_at?: string | null
           created_at?: string | null
           credits_deducted?: number | null
+          failed_at?: string | null
+          failure_reason?: string | null
           id?: string
           metadata?: Json | null
           order_number?: string
           package_name?: string
           payment_method?: string | null
           price?: number
+          processing_started_at?: string | null
           product_category?: Database["public"]["Enums"]["product_category"]
           product_details?: Json
           product_name?: string
           quantity?: number
           reviewed_by?: string | null
           status?: Database["public"]["Enums"]["order_status"]
+          transaction_id?: string | null
           updated_at?: string | null
           user_email?: string
           user_id?: string
@@ -770,18 +803,22 @@ export type Database = {
           confirmed_at: string | null
           created_at: string | null
           credits_deducted: number | null
+          failed_at: string | null
+          failure_reason: string | null
           id: string
           metadata: Json | null
           order_number: string
           package_name: string
           payment_method: string | null
           price: number
+          processing_started_at: string | null
           product_category: Database["public"]["Enums"]["product_category"]
           product_details: Json
           product_name: string
           quantity: number
           reviewed_by: string | null
           status: Database["public"]["Enums"]["order_status"]
+          transaction_id: string | null
           updated_at: string | null
           user_email: string
           user_id: string

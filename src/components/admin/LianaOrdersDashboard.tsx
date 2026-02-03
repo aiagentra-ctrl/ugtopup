@@ -526,6 +526,51 @@ export function LianaOrdersDashboard() {
                   <p className="text-sm text-muted-foreground">Created At</p>
                   <p>{format(new Date(selectedOrder.created_at), "PPpp")}</p>
                 </div>
+                {selectedOrder.api_request_sent !== undefined && (
+                  <div>
+                    <p className="text-sm text-muted-foreground">API Request Sent</p>
+                    <Badge variant={selectedOrder.api_request_sent ? "default" : "secondary"}>
+                      {selectedOrder.api_request_sent ? "Yes" : "No"}
+                    </Badge>
+                  </div>
+                )}
+                {selectedOrder.transaction_id && (
+                  <div>
+                    <p className="text-sm text-muted-foreground">Transaction ID</p>
+                    <p className="font-mono text-sm">{selectedOrder.transaction_id}</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Timestamps Section */}
+              <div className="border-t pt-4">
+                <p className="text-sm font-medium mb-2">API Timeline</p>
+                <div className="grid grid-cols-2 gap-2 text-sm">
+                  {selectedOrder.verification_sent_at && (
+                    <div>
+                      <span className="text-muted-foreground">Verification Sent:</span>
+                      <span className="ml-1">{format(new Date(selectedOrder.verification_sent_at), "HH:mm:ss")}</span>
+                    </div>
+                  )}
+                  {selectedOrder.verification_completed_at && (
+                    <div>
+                      <span className="text-muted-foreground">Verification Done:</span>
+                      <span className="ml-1">{format(new Date(selectedOrder.verification_completed_at), "HH:mm:ss")}</span>
+                    </div>
+                  )}
+                  {selectedOrder.order_sent_at && (
+                    <div>
+                      <span className="text-muted-foreground">Order Sent:</span>
+                      <span className="ml-1">{format(new Date(selectedOrder.order_sent_at), "HH:mm:ss")}</span>
+                    </div>
+                  )}
+                  {selectedOrder.completed_at && (
+                    <div>
+                      <span className="text-muted-foreground">Completed:</span>
+                      <span className="ml-1">{format(new Date(selectedOrder.completed_at), "HH:mm:ss")}</span>
+                    </div>
+                  )}
+                </div>
               </div>
 
               {selectedOrder.error_message && (
@@ -537,7 +582,27 @@ export function LianaOrdersDashboard() {
                 </div>
               )}
 
-              {selectedOrder.api_response && (
+              {/* Verification Response */}
+              {selectedOrder.verification_response && (
+                <div>
+                  <p className="text-sm text-muted-foreground mb-1">Verification Response</p>
+                  <pre className="bg-muted p-3 rounded-lg text-xs overflow-x-auto max-h-32">
+                    {JSON.stringify(selectedOrder.verification_response, null, 2)}
+                  </pre>
+                </div>
+              )}
+
+              {/* Order Response */}
+              {selectedOrder.order_response && (
+                <div>
+                  <p className="text-sm text-muted-foreground mb-1">Order Response</p>
+                  <pre className="bg-muted p-3 rounded-lg text-xs overflow-x-auto max-h-32">
+                    {JSON.stringify(selectedOrder.order_response, null, 2)}
+                  </pre>
+                </div>
+              )}
+
+              {selectedOrder.api_response && !selectedOrder.verification_response && !selectedOrder.order_response && (
                 <div>
                   <p className="text-sm text-muted-foreground mb-1">API Response</p>
                   <pre className="bg-muted p-3 rounded-lg text-xs overflow-x-auto max-h-48">
