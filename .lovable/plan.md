@@ -1,118 +1,224 @@
 
 
-## Mobile Legends API Integration Fix Plan
+## Mobile Legends API Orders - Complete Fix Plan
 
-### Problem Summary
-The Liana API integration is broken due to several critical issues:
-1. **Wrong API URL** - Using `https://api.lfrfrk.xyz` instead of `https://lianastore.in/wp-json/ar2/v1`
-2. **Wrong endpoints** - Using `/api/verify` and `/api/order` instead of `/ign/verify` and `/orders`
-3. **Wrong request/response format** - API expects different headers and returns different response structure
-4. **Orders stuck in "Processing"** - All recent orders have `api_response: null` (API never called successfully)
+### Issues Identified
+
+Based on my investigation:
+
+| Issue | Current State | Root Cause |
+|-------|---------------|------------|
+| **8 Pending orders** | Status: pending, api_request_sent: false | Orders placed before API was fixed - never processed |
+| **8 Failed orders** | Status: failed with legacy error message | Marked as failed during previous API fix |
+| **Retry All Failed button** | Visible globally in header | Can cause duplicate orders if used on manually-completed orders |
+| **API not sending requests** | api_request_sent: false on all orders | The edge function IS correctly configured, but existing orders were created before fix was deployed |
+| **No email notifications** | No email system exists | Need to integrate Resend for Gmail notifications |
 
 ---
 
-### Phase 1: Update Database Schema
+### Phase 1: Cancel All Stuck Orders
 
-Add missing columns to `liana_orders` table for better tracking:
+**Create database migration to:**
+- Set all `pending` liana_orders to `canceled` status
+- Set all `pending` product_orders to `canceled` status  
+- Add cancel reason: "Manually completed - legacy order"
 
 ```sql
-ALTER TABLE liana_orders 
-ADD COLUMN IF NOT EXISTS verification_response JSONB,
-ADD COLUMN IF NOT EXISTS order_response JSONB,
-ADD COLUMN IF NOT EXISTS api_request_sent BOOLEAN DEFAULT false,
-ADD COLUMN IF NOT EXISTS verification_sent_at TIMESTAMP,
-ADD COLUMN IF NOT EXISTS verification_completed_at TIMESTAMP,
-ADD COLUMN IF NOT EXISTS order_sent_at TIMESTAMP,
-ADD COLUMN IF NOT EXISTS completed_at TIMESTAMP;
+-- Cancel all pending liana_orders
+UPDATE liana_orders 
+SET status = 'canceled', 
+    error_message = 'Manually completed - canceled to prevent duplicate processing',
+    updated_at = NOW()
+WHERE status IN ('pending', 'processing');
 
-ALTER TABLE product_orders 
-ADD COLUMN IF NOT EXISTS processing_started_at TIMESTAMP,
-ADD COLUMN IF NOT EXISTS failed_at TIMESTAMP,
-ADD COLUMN IF NOT EXISTS failure_reason TEXT,
-ADD COLUMN IF NOT EXISTS transaction_id VARCHAR(100);
+-- Cancel corresponding product_orders
+UPDATE product_orders 
+SET status = 'canceled',
+    failure_reason = 'Manually completed - canceled to prevent duplicate processing',
+    updated_at = NOW()
+WHERE id IN (
+  SELECT order_id FROM liana_orders WHERE status = 'canceled'
+);
 ```
 
 ---
 
-### Phase 2: Rewrite Edge Function
+### Phase 2: Remove Global "Retry All Failed" Button
 
-**Replace `supabase/functions/process-ml-order/index.ts`** with corrected implementation:
+**Modify:** `src/components/admin/LianaOrdersDashboard.tsx`
 
-**Key Changes:**
-| Current (Broken) | Fixed |
-|-----------------|-------|
-| `https://api.lfrfrk.xyz` | `https://lianastore.in/wp-json/ar2/v1` |
-| `/api/verify` | `/ign/verify` |
-| `/api/order` | `/orders` |
-| `X-API-Key` header | `X-API-KEY` header |
-| `{ success: true }` check | `{ status: 'success' }` check |
-| `product_id` param | `variation_id` param |
-| `user_id` param | `uid` param |
-| No `X-ORIGIN-DOMAIN` | Include `X-ORIGIN-DOMAIN` header |
+**Changes:**
+1. Remove the "Retry All Failed (X)" button from the global header
+2. Keep individual "Retry" button only on each failed order row
+3. Add a new status filter option: "canceled" to distinguish from failed
 
-**Request Headers (Fixed):**
-```javascript
-headers: {
-  'Content-Type': 'application/json',
-  'X-API-KEY': lianaApiKey,
-  'X-API-SECRET': lianaApiSecret,
-  'X-ORIGIN-DOMAIN': originDomain,
-  'Accept': 'application/json',
-  'User-Agent': 'LianaStoreWooCommerce/2.2.2'
-}
+**Before (lines 226-240):**
+```tsx
+{(stats?.failed || 0) > 0 && (
+  <Button
+    variant="destructive"
+    size="sm"
+    onClick={handleRetryAll}
+    disabled={retryingAll}
+  >
+    Retry All Failed ({stats?.failed})
+  </Button>
+)}
 ```
 
-**Verify Endpoint Payload (Fixed):**
-```javascript
-body: {
-  variation_id: lianaProductId,
-  uid: userId,
-  zone_id: zoneId
-}
-```
-
-**Order Endpoint Payload (Fixed):**
-```javascript
-body: {
-  variation_id: lianaProductId,
-  qty: quantity,
-  uid: userId,
-  zone_id: zoneId,
-  reference_id: orderNumber
-}
-```
-
-**Response Handling (Fixed):**
-```javascript
-// Old: if (verifyData.success)
-// New: if (verifyData.status === 'success' && verifyData.verified)
-
-// IGN field: verifyData.display (not verifyData.data?.ign)
+**After:**
+```tsx
+{/* Button removed - individual retry only */}
 ```
 
 ---
 
-### Phase 3: Update Dashboard to Show API Details
+### Phase 3: Add "Cancel Order" Button for Admin
 
-**Update `src/lib/lianaApi.ts`** to include new columns:
-- `verification_response`
-- `order_response`
-- `api_request_sent`
-- `verification_sent_at`
-- `order_sent_at`
-- `completed_at`
+**Modify:** `src/components/admin/LianaOrdersDashboard.tsx`
 
-**Update `src/components/admin/LianaOrdersDashboard.tsx`** to display:
-- Whether API request was actually sent
-- Verification response details
-- Order response details
-- Timestamps for each stage
+Add ability to manually cancel any pending/processing/failed order:
+
+```tsx
+// Add cancel button next to retry button
+{(order.status === "failed" || order.status === "pending" || order.status === "processing") && (
+  <Button
+    variant="ghost"
+    size="icon"
+    onClick={() => handleCancelOrder(order.id)}
+  >
+    <XCircle className="h-4 w-4 text-destructive" />
+  </Button>
+)}
+```
+
+**Add new function in `src/lib/lianaApi.ts`:**
+
+```typescript
+export async function cancelLianaOrder(orderId: string): Promise<void> {
+  // Update liana_orders to canceled
+  await supabase
+    .from("liana_orders")
+    .update({ 
+      status: "canceled", 
+      error_message: "Manually canceled by admin",
+      updated_at: new Date().toISOString() 
+    })
+    .eq("id", orderId);
+  
+  // Also update product_orders
+  const { data: lianaOrder } = await supabase
+    .from("liana_orders")
+    .select("order_id")
+    .eq("id", orderId)
+    .single();
+    
+  if (lianaOrder) {
+    await supabase
+      .from("product_orders")
+      .update({ 
+        status: "canceled",
+        failure_reason: "Manually canceled by admin",
+        updated_at: new Date().toISOString()
+      })
+      .eq("id", lianaOrder.order_id);
+  }
+}
+```
 
 ---
 
-### Phase 4: Remove Manual Database Functions
+### Phase 4: Fix API Error Display
 
-**Update `complete_ml_order` and `fail_ml_order` functions** to use new column names, or switch to direct updates in the edge function (as shown in the uploaded code) for simpler debugging.
+**Modify:** `src/components/admin/LianaOrdersDashboard.tsx`
+
+Enhance the error message display to show:
+1. The exact API error message
+2. Which stage failed (verification or order)
+3. The raw API response for debugging
+
+```tsx
+{/* Enhanced error display */}
+{selectedOrder.error_message && (
+  <div>
+    <p className="text-sm text-muted-foreground mb-1">Error Details</p>
+    <div className="bg-destructive/10 text-destructive p-3 rounded-lg text-sm space-y-2">
+      <p className="font-medium">{selectedOrder.error_message}</p>
+      {selectedOrder.verification_response && (
+        <div className="text-xs mt-2">
+          <p className="text-muted-foreground">Verification Stage:</p>
+          <pre className="bg-background/50 p-2 rounded overflow-x-auto">
+            {JSON.stringify(selectedOrder.verification_response, null, 2)}
+          </pre>
+        </div>
+      )}
+      {selectedOrder.order_response && (
+        <div className="text-xs mt-2">
+          <p className="text-muted-foreground">Order Stage:</p>
+          <pre className="bg-background/50 p-2 rounded overflow-x-auto">
+            {JSON.stringify(selectedOrder.order_response, null, 2)}
+          </pre>
+        </div>
+      )}
+    </div>
+  </div>
+)}
+```
+
+---
+
+### Phase 5: Add "Canceled" Status to Dashboard
+
+**Modify:** `src/components/admin/LianaOrdersDashboard.tsx`
+
+Add canceled status configuration and filter:
+
+```tsx
+const statusConfig = {
+  pending: { label: "Pending", variant: "secondary", icon: Clock },
+  processing: { label: "Processing", variant: "outline", icon: Loader2 },
+  completed: { label: "Completed", variant: "default", icon: CheckCircle2 },
+  failed: { label: "Failed", variant: "destructive", icon: XCircle },
+  canceled: { label: "Canceled", variant: "outline", icon: Ban },  // NEW
+};
+```
+
+Add filter option:
+```tsx
+<SelectItem value="canceled">Canceled</SelectItem>
+```
+
+---
+
+### Phase 6: Email Notification Integration
+
+**For Gmail notifications on new orders, you'll need:**
+
+1. **Sign up at Resend.com** (free tier: 100 emails/day)
+2. **Verify your domain** or use their test domain
+3. **Get an API key**
+
+Once you have the Resend API key, I will:
+
+1. **Create a new edge function:** `supabase/functions/send-order-email/index.ts`
+2. **Add a database trigger** on `product_orders` table to call the function on new orders
+3. **Send email to your Gmail** with order details
+
+**Email Content Example:**
+```
+Subject: New Order Received - #order-number
+
+New Order Details:
+- Order Number: xyz-123
+- Product: Mobile Legends Diamond
+- Package: 86 Diamonds
+- Price: ₹150
+- Customer: customer@email.com
+- Game ID: 123456789 (Zone: 5201)
+- Status: Pending API Processing
+
+View in Admin Panel: [link]
+```
 
 ---
 
@@ -120,74 +226,32 @@ body: {
 
 | File | Action | Description |
 |------|--------|-------------|
-| `supabase/functions/process-ml-order/index.ts` | **REWRITE** | Fix API URL, endpoints, headers, payload format |
-| `src/lib/lianaApi.ts` | **UPDATE** | Add new tracking columns to interface |
-| `src/components/admin/LianaOrdersDashboard.tsx` | **UPDATE** | Show detailed API tracking info |
-| Database migration | **CREATE** | Add new columns to liana_orders and product_orders |
+| `supabase/migrations/...` | **CREATE** | Cancel all pending/processing orders |
+| `src/components/admin/LianaOrdersDashboard.tsx` | **MODIFY** | Remove global retry button, add cancel button, add canceled status |
+| `src/lib/lianaApi.ts` | **MODIFY** | Add cancelLianaOrder function, update stats to include canceled |
+| `supabase/functions/send-order-email/index.ts` | **CREATE** | Email notification edge function |
+| `supabase/config.toml` | **MODIFY** | Add send-order-email function config |
 
 ---
 
-### Technical Implementation Details
+### Summary of Changes
 
-**Corrected API Flow:**
-
-```text
-1. User places order
-       ↓
-2. Edge function called with order_id
-       ↓
-3. Create liana_orders record (status: processing, api_request_sent: false)
-       ↓
-4. Call /ign/verify endpoint
-   - Store response in verification_response
-   - Update verification_sent_at, verification_completed_at
-       ↓
-5. If verified, call /orders endpoint
-   - Store response in order_response
-   - Update order_sent_at, api_request_sent: true
-       ↓
-6. Update final status based on response
-   - Success: status='completed', completed_at=now()
-   - Failed: status='failed', error_message=...
-```
-
-**Fixed Response Parsing:**
-```javascript
-// Verification response
-{
-  status: 'success',
-  verified: true,
-  display: 'PlayerName123',  // This is the IGN
-  game: 'Mobile Legends'
-}
-
-// Order response
-{
-  status: 'success',
-  order_id: '12345',
-  balance_after: 50.00
-}
-```
+1. **Cancel 8 pending orders** - Via database migration (they were manually completed)
+2. **Remove "Retry All Failed" button** - Prevent duplicate order processing
+3. **Add individual Cancel button** - Allow admin to manually cancel orders
+4. **Add "Canceled" status** - Distinguish from failed orders in dashboard
+5. **Enhance error display** - Show exact API error message and response
+6. **Email notifications** - Requires Resend API key to proceed
 
 ---
 
-### Expected Outcome
+### Next Step for Email
 
-After implementation:
-- Orders will correctly call the Liana API at `https://lianastore.in/wp-json/ar2/v1`
-- Status will update to **completed** or **failed** based on actual API response
-- Admin dashboard will show complete API request/response details
-- No more orders stuck in "Processing" state
+Before I can implement email notifications, I need you to:
 
----
+1. Go to https://resend.com and create an account
+2. Create an API key at https://resend.com/api-keys  
+3. Provide the **RESEND_API_KEY** and your **Gmail address** for notifications
 
-### Immediate Actions After Approval
-
-1. Deploy the corrected edge function
-2. Run database migration for new columns
-3. Test with a real order to verify API connectivity
-4. Order ID 16 is stuck in Processing.
-Please cancel/stop the processing status.
-We do not need this order to be processed through the system because it has already been completed manually.
-Kindly update the status properly.
+Would you like me to proceed with the implementation?
 
