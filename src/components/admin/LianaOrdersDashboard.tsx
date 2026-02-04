@@ -36,6 +36,7 @@ import {
   ChevronDown,
   ChevronUp,
   Eye,
+  Ban,
 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -43,7 +44,7 @@ import {
   fetchLianaOrders,
   getLianaOrderStats,
   retryLianaOrder,
-  retryAllFailedOrders,
+  cancelLianaOrder,
   type LianaOrder,
   type LianaOrderStats,
 } from "@/lib/lianaApi";
@@ -54,6 +55,7 @@ const statusConfig: Record<string, { label: string; variant: "default" | "second
   processing: { label: "Processing", variant: "outline", icon: Loader2 },
   completed: { label: "Completed", variant: "default", icon: CheckCircle2 },
   failed: { label: "Failed", variant: "destructive", icon: XCircle },
+  canceled: { label: "Canceled", variant: "outline", icon: Ban },
 };
 
 export function LianaOrdersDashboard() {
@@ -63,7 +65,7 @@ export function LianaOrdersDashboard() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [retryingId, setRetryingId] = useState<string | null>(null);
-  const [retryingAll, setRetryingAll] = useState(false);
+  const [cancelingId, setCancelingId] = useState<string | null>(null);
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
   const [selectedOrder, setSelectedOrder] = useState<LianaOrder | null>(null);
 
@@ -120,17 +122,17 @@ export function LianaOrdersDashboard() {
     }
   };
 
-  const handleRetryAll = async () => {
-    setRetryingAll(true);
+  const handleCancel = async (orderId: string) => {
+    setCancelingId(orderId);
     try {
-      const count = await retryAllFailedOrders();
-      toast.success(`Retried ${count} failed orders`);
+      await cancelLianaOrder(orderId);
+      toast.success("Order canceled successfully");
       await loadData();
     } catch (error) {
-      console.error("Retry all error:", error);
-      toast.error("Failed to retry orders");
+      console.error("Cancel error:", error);
+      toast.error("Failed to cancel order");
     } finally {
-      setRetryingAll(false);
+      setCancelingId(null);
     }
   };
 
@@ -223,21 +225,6 @@ export function LianaOrdersDashboard() {
                 <RefreshCw className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`} />
                 Refresh
               </Button>
-              {(stats?.failed || 0) > 0 && (
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  onClick={handleRetryAll}
-                  disabled={retryingAll}
-                >
-                  {retryingAll ? (
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  ) : (
-                    <RotateCcw className="h-4 w-4 mr-2" />
-                  )}
-                  Retry All Failed ({stats?.failed})
-                </Button>
-              )}
             </div>
           </div>
         </CardHeader>
@@ -262,6 +249,7 @@ export function LianaOrdersDashboard() {
                 <SelectItem value="processing">Processing</SelectItem>
                 <SelectItem value="completed">Completed</SelectItem>
                 <SelectItem value="failed">Failed</SelectItem>
+                <SelectItem value="canceled">Canceled</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -331,11 +319,27 @@ export function LianaOrdersDashboard() {
                                 size="icon"
                                 onClick={() => handleRetry(order.id)}
                                 disabled={retryingId === order.id}
+                                title="Retry order"
                               >
                                 {retryingId === order.id ? (
                                   <Loader2 className="h-4 w-4 animate-spin" />
                                 ) : (
                                   <RotateCcw className="h-4 w-4" />
+                                )}
+                              </Button>
+                            )}
+                            {(order.status === "failed" || order.status === "pending" || order.status === "processing") && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleCancel(order.id)}
+                                disabled={cancelingId === order.id}
+                                title="Cancel order"
+                              >
+                                {cancelingId === order.id ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  <XCircle className="h-4 w-4 text-destructive" />
                                 )}
                               </Button>
                             )}
@@ -438,11 +442,27 @@ export function LianaOrdersDashboard() {
                             size="sm"
                             onClick={() => handleRetry(order.id)}
                             disabled={retryingId === order.id}
+                            title="Retry order"
                           >
                             {retryingId === order.id ? (
                               <Loader2 className="h-4 w-4 animate-spin" />
                             ) : (
                               <RotateCcw className="h-4 w-4" />
+                            )}
+                          </Button>
+                        )}
+                        {(order.status === "failed" || order.status === "pending" || order.status === "processing") && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleCancel(order.id)}
+                            disabled={cancelingId === order.id}
+                            title="Cancel order"
+                          >
+                            {cancelingId === order.id ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <XCircle className="h-4 w-4 text-destructive" />
                             )}
                           </Button>
                         )}
@@ -575,9 +595,25 @@ export function LianaOrdersDashboard() {
 
               {selectedOrder.error_message && (
                 <div>
-                  <p className="text-sm text-muted-foreground mb-1">Error Message</p>
-                  <div className="bg-destructive/10 text-destructive p-3 rounded-lg text-sm">
-                    {selectedOrder.error_message}
+                  <p className="text-sm text-muted-foreground mb-1">Error Details</p>
+                  <div className="bg-destructive/10 text-destructive p-3 rounded-lg text-sm space-y-2">
+                    <p className="font-medium">{selectedOrder.error_message}</p>
+                    {selectedOrder.verification_response && (
+                      <div className="text-xs mt-2">
+                        <p className="text-muted-foreground">Verification Stage:</p>
+                        <pre className="bg-background/50 p-2 rounded overflow-x-auto">
+                          {JSON.stringify(selectedOrder.verification_response, null, 2)}
+                        </pre>
+                      </div>
+                    )}
+                    {selectedOrder.order_response && (
+                      <div className="text-xs mt-2">
+                        <p className="text-muted-foreground">Order Stage:</p>
+                        <pre className="bg-background/50 p-2 rounded overflow-x-auto">
+                          {JSON.stringify(selectedOrder.order_response, null, 2)}
+                        </pre>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
@@ -620,21 +656,39 @@ export function LianaOrdersDashboard() {
                 </div>
               )}
 
-              {selectedOrder.status === "failed" && (
-                <div className="flex justify-end">
+              {(selectedOrder.status === "failed" || selectedOrder.status === "pending" || selectedOrder.status === "processing") && (
+                <div className="flex justify-end gap-2">
+                  {selectedOrder.status === "failed" && (
+                    <Button
+                      variant="default"
+                      onClick={() => {
+                        handleRetry(selectedOrder.id);
+                        setSelectedOrder(null);
+                      }}
+                      disabled={retryingId === selectedOrder.id}
+                    >
+                      {retryingId === selectedOrder.id ? (
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      ) : (
+                        <RotateCcw className="h-4 w-4 mr-2" />
+                      )}
+                      Retry Order
+                    </Button>
+                  )}
                   <Button
+                    variant="destructive"
                     onClick={() => {
-                      handleRetry(selectedOrder.id);
+                      handleCancel(selectedOrder.id);
                       setSelectedOrder(null);
                     }}
-                    disabled={retryingId === selectedOrder.id}
+                    disabled={cancelingId === selectedOrder.id}
                   >
-                    {retryingId === selectedOrder.id ? (
+                    {cancelingId === selectedOrder.id ? (
                       <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                     ) : (
-                      <RotateCcw className="h-4 w-4 mr-2" />
+                      <Ban className="h-4 w-4 mr-2" />
                     )}
-                    Retry Order
+                    Cancel Order
                   </Button>
                 </div>
               )}
