@@ -43,6 +43,7 @@ export interface LianaOrderStats {
   processing: number;
   completed: number;
   failed: number;
+  canceled: number;
   successRate: number;
 }
 
@@ -116,10 +117,55 @@ export async function getLianaOrderStats(): Promise<LianaOrderStats> {
   const processing = orders.filter((o) => o.status === "processing").length;
   const completed = orders.filter((o) => o.status === "completed").length;
   const failed = orders.filter((o) => o.status === "failed").length;
+  const canceled = orders.filter((o) => o.status === "canceled").length;
 
   const successRate = total > 0 ? Math.round((completed / total) * 100) : 0;
 
-  return { total, pending, processing, completed, failed, successRate };
+  return { total, pending, processing, completed, failed, canceled, successRate };
+}
+
+export async function cancelLianaOrder(orderId: string): Promise<void> {
+  // Update liana_orders to canceled
+  const { error: updateError } = await supabase
+    .from("liana_orders")
+    .update({ 
+      status: "canceled", 
+      error_message: "Manually canceled by admin",
+      updated_at: new Date().toISOString() 
+    })
+    .eq("id", orderId);
+
+  if (updateError) {
+    console.error("Error canceling liana order:", updateError);
+    throw updateError;
+  }
+
+  // Get the order_id from liana_orders to update product_orders
+  const { data: lianaOrder, error: fetchError } = await supabase
+    .from("liana_orders")
+    .select("order_id")
+    .eq("id", orderId)
+    .single();
+
+  if (fetchError || !lianaOrder) {
+    throw new Error("Could not find liana order");
+  }
+
+  // Also update product_orders
+  const { error: productError } = await supabase
+    .from("product_orders")
+    .update({ 
+      status: "canceled",
+      failure_reason: "Manually canceled by admin",
+      canceled_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    })
+    .eq("id", lianaOrder.order_id);
+
+  if (productError) {
+    console.error("Error updating product order:", productError);
+    throw productError;
+  }
 }
 
 export async function retryLianaOrder(orderId: string): Promise<void> {
