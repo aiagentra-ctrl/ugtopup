@@ -168,7 +168,7 @@ Deno.serve(async (req) => {
       await supabaseAdmin
         .from('liana_orders')
         .update({ 
-          status: 'processing',
+          status: 'pending',
           retry_count: (existingLianaOrder.retry_count || 0) + 1,
           error_message: null,
           updated_at: new Date().toISOString()
@@ -183,7 +183,7 @@ Deno.serve(async (req) => {
           liana_product_id: lianaProductId,
           user_id: userId,
           zone_id: zoneId,
-          status: 'processing',
+          status: 'pending',
           api_request_sent: false
         })
         .select()
@@ -205,7 +205,6 @@ Deno.serve(async (req) => {
     await supabaseAdmin
       .from('product_orders')
       .update({ 
-        status: 'processing', 
         processing_started_at: new Date().toISOString(),
         updated_at: new Date().toISOString() 
       })
