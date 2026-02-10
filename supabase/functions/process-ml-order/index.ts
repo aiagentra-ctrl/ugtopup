@@ -5,7 +5,6 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
-// Liana API Configuration - CORRECTED
 const LIANA_API_BASE_URL = 'https://lianastore.in/wp-json/ar2/v1';
 
 interface ProcessMLOrderRequest {
@@ -15,7 +14,7 @@ interface ProcessMLOrderRequest {
 interface LianaVerifyResponse {
   status: string;
   verified?: boolean;
-  display?: string; // IGN
+  display?: string;
   game?: string;
   message?: string;
   error?: string;
@@ -30,8 +29,46 @@ interface LianaOrderResponse {
   error?: string;
 }
 
+// Map frontend package names to Liana variation_ids
+// Frontend names come from mlPackages.ts (e.g. "55 Diamonds", "86 Diamonds", "Weekly")
+const productIdMap: Record<string, number> = {
+  // Diamond packages - matching frontend mlDiamondPackages names
+  '55 Diamonds': 3894,
+  '86 Diamonds': 3895,
+  '110 Diamonds': 3896,
+  '165 Diamonds': 3897,
+  '172 Diamonds': 3897,
+  '257 Diamonds': 3898,
+  '344 Diamonds': 3899,
+  '343 Diamonds': 3899,
+  '430 Diamonds': 3900,
+  '429 Diamonds': 3900,
+  '514 Diamonds': 3901,
+  '565 Diamonds': 3902,
+  '600 Diamonds': 3902,
+  '706 Diamonds': 3903,
+  '792 Diamonds': 3904,
+  '878 Diamonds': 3905,
+  '963 Diamonds': 3906,
+  '1050 Diamonds': 3907,
+  '1135 Diamonds': 3908,
+  '1220 Diamonds': 3909,
+  '1412 Diamonds': 3910,
+  '2195 Diamonds': 3911,
+  '2215 Diamonds': 3911,
+  '2901 Diamonds': 3912,
+  '3688 Diamonds': 3913,
+  '4394 Diamonds': 3914,
+  '5532 Diamonds': 3915,
+  '9288 Diamonds': 3916,
+  // Special packages - matching frontend mlSpecialDeals names
+  'Weekly': 3917,
+  'Weekly Diamond Pass': 3917,
+  'Twilight': 3918,
+  'Twilight Pass': 3918,
+};
+
 Deno.serve(async (req) => {
-  // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
@@ -50,9 +87,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Create admin client for database operations
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
-
     const { order_id }: ProcessMLOrderRequest = await req.json();
 
     if (!order_id) {
@@ -64,7 +99,7 @@ Deno.serve(async (req) => {
 
     console.log(`Processing ML order: ${order_id}`);
 
-    // Fetch the order details
+    // Fetch order
     const { data: order, error: orderError } = await supabaseAdmin
       .from('product_orders')
       .select('*')
@@ -79,7 +114,6 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Verify this is a Mobile Legends order
     if (order.product_category !== 'mobile_legends') {
       return new Response(
         JSON.stringify({ success: false, error: 'Not a Mobile Legends order' }),
@@ -87,7 +121,6 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Check if order is already completed or canceled
     if (order.status === 'completed' || order.status === 'canceled') {
       return new Response(
         JSON.stringify({ success: false, error: `Order already ${order.status}` }),
@@ -95,7 +128,6 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Extract user details from product_details
     const productDetails = order.product_details || {};
     const userId = productDetails.userId || productDetails.user_id;
     const zoneId = productDetails.zoneId || productDetails.zone_id;
@@ -110,50 +142,17 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Map package name to Liana variation_id
-    // These are the ACTUAL Liana Store variation IDs for Mobile Legends
-    const productIdMap: Record<string, number> = {
-      '5 Diamonds': 3891,
-      '11 Diamonds': 3892,
-      '22 Diamonds': 3893,
-      '56 Diamonds': 3894,
-      '86 Diamonds': 3895,
-      '112 Diamonds': 3896,
-      '172 Diamonds': 3897,
-      '257 Diamonds': 3898,
-      '343 Diamonds': 3899,
-      '429 Diamonds': 3900,
-      '514 Diamonds': 3901,
-      '600 Diamonds': 3902,
-      '706 Diamonds': 3903,
-      '792 Diamonds': 3904,
-      '878 Diamonds': 3905,
-      '963 Diamonds': 3906,
-      '1050 Diamonds': 3907,
-      '1135 Diamonds': 3908,
-      '1220 Diamonds': 3909,
-      '1412 Diamonds': 3910,
-      '2195 Diamonds': 3911,
-      '2901 Diamonds': 3912,
-      '3688 Diamonds': 3913,
-      '4394 Diamonds': 3914,
-      '5532 Diamonds': 3915,
-      '9288 Diamonds': 3916,
-      'Weekly Diamond Pass': 3917,
-      'Twilight Pass': 3918,
-    };
-
     const lianaProductId = productIdMap[packageName];
-    
+
     if (!lianaProductId) {
-      console.error(`Unknown package: ${packageName}`);
+      console.error(`Unknown package: ${packageName}. Available: ${Object.keys(productIdMap).join(', ')}`);
       return new Response(
         JSON.stringify({ success: false, error: `Unknown package: ${packageName}` }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // Check if liana_order already exists for this order
+    // Create or update liana_orders tracking record
     const { data: existingLianaOrder } = await supabaseAdmin
       .from('liana_orders')
       .select('*')
@@ -163,11 +162,10 @@ Deno.serve(async (req) => {
     let lianaOrderId: string;
 
     if (existingLianaOrder) {
-      // Update existing record
       lianaOrderId = existingLianaOrder.id;
       await supabaseAdmin
         .from('liana_orders')
-        .update({ 
+        .update({
           status: 'processing',
           retry_count: (existingLianaOrder.retry_count || 0) + 1,
           error_message: null,
@@ -175,7 +173,6 @@ Deno.serve(async (req) => {
         })
         .eq('id', lianaOrderId);
     } else {
-      // Create new liana_orders record
       const { data: lianaOrder, error: lianaOrderError } = await supabaseAdmin
         .from('liana_orders')
         .insert({
@@ -199,19 +196,16 @@ Deno.serve(async (req) => {
       lianaOrderId = lianaOrder.id;
     }
 
-    console.log(`Liana order ID: ${lianaOrderId}`);
-
     // Update order status to processing
     await supabaseAdmin
       .from('product_orders')
-      .update({ 
-        status: 'processing', 
+      .update({
+        status: 'processing',
         processing_started_at: new Date().toISOString(),
-        updated_at: new Date().toISOString() 
+        updated_at: new Date().toISOString()
       })
       .eq('id', order_id);
 
-    // Prepare headers for Liana API - CORRECTED FORMAT
     const apiHeaders = {
       'Content-Type': 'application/json',
       'X-API-KEY': lianaApiKey,
@@ -222,23 +216,22 @@ Deno.serve(async (req) => {
     };
 
     try {
-      // Step 1: Verify player ID with Liana API
+      // Step 1: Verify player ID
       console.log(`Verifying player: uid=${userId}, zone_id=${zoneId}, variation_id=${lianaProductId}`);
-      
-      // Update verification_sent_at
+
       await supabaseAdmin
         .from('liana_orders')
         .update({ verification_sent_at: new Date().toISOString() })
         .eq('id', lianaOrderId);
-      
+
       const verifyPayload = {
         variation_id: lianaProductId,
         uid: userId,
         zone_id: zoneId
       };
-      
+
       console.log('Verify payload:', JSON.stringify(verifyPayload));
-      
+
       const verifyResponse = await fetch(`${LIANA_API_BASE_URL}/ign/verify`, {
         method: 'POST',
         headers: apiHeaders,
@@ -247,38 +240,33 @@ Deno.serve(async (req) => {
 
       const verifyText = await verifyResponse.text();
       console.log('Verify raw response:', verifyText);
-      
+
       let verifyData: LianaVerifyResponse;
       try {
         verifyData = JSON.parse(verifyText);
       } catch {
         verifyData = { status: 'error', message: verifyText };
       }
-      
-      console.log('Verify response:', JSON.stringify(verifyData));
 
-      // Store verification response
       await supabaseAdmin
         .from('liana_orders')
-        .update({ 
+        .update({
           verification_response: verifyData,
           verification_completed_at: new Date().toISOString()
         })
         .eq('id', lianaOrderId);
 
-      // Check verification result - CORRECTED: check status === 'success' AND verified
       const isVerified = verifyData.status === 'success' && verifyData.verified === true;
-      
+
       if (!verifyResponse.ok || !isVerified) {
         const errorMessage = verifyData.message || verifyData.error || 'Player verification failed - IGN not found';
         console.error('Player verification failed:', errorMessage);
-        
-        // Update order to failed
+
         await supabaseAdmin
           .from('liana_orders')
-          .update({ 
+          .update({
             status: 'failed',
-            error_message: errorMessage,
+            error_message: `Verification failed: ${errorMessage}`,
             api_response: verifyData,
             updated_at: new Date().toISOString()
           })
@@ -286,10 +274,10 @@ Deno.serve(async (req) => {
 
         await supabaseAdmin
           .from('product_orders')
-          .update({ 
+          .update({
             status: 'canceled',
             failed_at: new Date().toISOString(),
-            failure_reason: errorMessage,
+            failure_reason: `Verification failed: ${errorMessage}`,
             updated_at: new Date().toISOString()
           })
           .eq('id', order_id);
@@ -300,10 +288,9 @@ Deno.serve(async (req) => {
         );
       }
 
-      // IGN is in verifyData.display (not verifyData.data.ign)
-      const ign = verifyData.display || '';
-      
-      // Update liana_orders with IGN
+      // IGN from verification
+      const ign = verifyData.display || userId;
+
       await supabaseAdmin
         .from('liana_orders')
         .update({ ign })
@@ -311,15 +298,14 @@ Deno.serve(async (req) => {
 
       console.log(`Player verified: IGN = ${ign}`);
 
-      // Step 2: Create order with Liana API
+      // Step 2: Create order
       console.log(`Creating order: variation_id=${lianaProductId}, qty=${purchaseQuantity}`);
-      
-      // Update order_sent_at
+
       await supabaseAdmin
         .from('liana_orders')
-        .update({ order_sent_at: new Date().toISOString() })
+        .update({ order_sent_at: new Date().toISOString(), api_request_sent: true })
         .eq('id', lianaOrderId);
-      
+
       const orderPayload = {
         variation_id: lianaProductId,
         qty: purchaseQuantity,
@@ -327,9 +313,9 @@ Deno.serve(async (req) => {
         zone_id: zoneId,
         reference_id: order.order_number
       };
-      
+
       console.log('Order payload:', JSON.stringify(orderPayload));
-      
+
       const orderResponse = await fetch(`${LIANA_API_BASE_URL}/orders`, {
         method: 'POST',
         headers: apiHeaders,
@@ -338,36 +324,30 @@ Deno.serve(async (req) => {
 
       const orderText = await orderResponse.text();
       console.log('Order raw response:', orderText);
-      
+
       let orderData: LianaOrderResponse;
       try {
         orderData = JSON.parse(orderText);
       } catch {
         orderData = { status: 'error', message: orderText };
       }
-      
-      console.log('Order response:', JSON.stringify(orderData));
 
-      // Store order response
       await supabaseAdmin
         .from('liana_orders')
-        .update({ 
+        .update({
           order_response: orderData,
-          api_request_sent: true
         })
         .eq('id', lianaOrderId);
 
-      // Check order result - CORRECTED: check status === 'success'
       if (!orderResponse.ok || orderData.status !== 'success') {
         const errorMessage = orderData.message || orderData.error || 'Order creation failed';
         console.error('Order creation failed:', errorMessage);
-        
-        // Update order to failed
+
         await supabaseAdmin
           .from('liana_orders')
-          .update({ 
+          .update({
             status: 'failed',
-            error_message: errorMessage,
+            error_message: `Order failed: ${errorMessage}`,
             api_response: orderData,
             updated_at: new Date().toISOString()
           })
@@ -375,10 +355,10 @@ Deno.serve(async (req) => {
 
         await supabaseAdmin
           .from('product_orders')
-          .update({ 
+          .update({
             status: 'canceled',
             failed_at: new Date().toISOString(),
-            failure_reason: errorMessage,
+            failure_reason: `Order failed: ${errorMessage}`,
             updated_at: new Date().toISOString()
           })
           .eq('id', order_id);
@@ -389,13 +369,12 @@ Deno.serve(async (req) => {
         );
       }
 
-      // Order successful!
+      // Success!
       const transactionId = orderData.order_id || orderData.transaction_id || '';
-      
-      // Update liana_orders to completed
+
       await supabaseAdmin
         .from('liana_orders')
-        .update({ 
+        .update({
           status: 'completed',
           api_response: orderData,
           api_transaction_id: transactionId,
@@ -404,10 +383,9 @@ Deno.serve(async (req) => {
         })
         .eq('id', lianaOrderId);
 
-      // Update product_orders to completed
       await supabaseAdmin
         .from('product_orders')
-        .update({ 
+        .update({
           status: 'completed',
           transaction_id: transactionId,
           completed_at: new Date().toISOString(),
@@ -415,7 +393,7 @@ Deno.serve(async (req) => {
         })
         .eq('id', order_id);
 
-      console.log(`Order ${order.order_number} completed successfully! Transaction ID: ${transactionId}`);
+      console.log(`Order ${order.order_number} completed! Transaction: ${transactionId}`);
 
       return new Response(
         JSON.stringify({
@@ -429,15 +407,13 @@ Deno.serve(async (req) => {
 
     } catch (apiError) {
       console.error('Liana API error:', apiError);
-      
       const errorMessage = apiError instanceof Error ? apiError.message : 'API connection failed';
-      
-      // Update order to failed
+
       await supabaseAdmin
         .from('liana_orders')
-        .update({ 
+        .update({
           status: 'failed',
-          error_message: errorMessage,
+          error_message: `Connection error: ${errorMessage}`,
           api_response: { error: errorMessage },
           updated_at: new Date().toISOString()
         })
@@ -445,10 +421,10 @@ Deno.serve(async (req) => {
 
       await supabaseAdmin
         .from('product_orders')
-        .update({ 
+        .update({
           status: 'canceled',
           failed_at: new Date().toISOString(),
-          failure_reason: errorMessage,
+          failure_reason: `Connection error: ${errorMessage}`,
           updated_at: new Date().toISOString()
         })
         .eq('id', order_id);
