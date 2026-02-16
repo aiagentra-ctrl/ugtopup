@@ -30,42 +30,16 @@ interface LianaOrderResponse {
 }
 
 // Map frontend package names to Liana variation_ids
-// Frontend names come from mlPackages.ts (e.g. "55 Diamonds", "86 Diamonds", "Weekly")
+// Updated with current Liana product catalog (Feb 2026)
 const productIdMap: Record<string, number> = {
-  // Diamond packages - matching frontend mlDiamondPackages names
-  '55 Diamonds': 3894,
-  '86 Diamonds': 3895,
-  '110 Diamonds': 3896,
-  '165 Diamonds': 3897,
-  '172 Diamonds': 3897,
-  '257 Diamonds': 3898,
-  '344 Diamonds': 3899,
-  '343 Diamonds': 3899,
-  '430 Diamonds': 3900,
-  '429 Diamonds': 3900,
-  '514 Diamonds': 3901,
-  '565 Diamonds': 3902,
-  '600 Diamonds': 3902,
-  '706 Diamonds': 3903,
-  '792 Diamonds': 3904,
-  '878 Diamonds': 3905,
-  '963 Diamonds': 3906,
-  '1050 Diamonds': 3907,
-  '1135 Diamonds': 3908,
-  '1220 Diamonds': 3909,
-  '1412 Diamonds': 3910,
-  '2195 Diamonds': 3911,
-  '2215 Diamonds': 3911,
-  '2901 Diamonds': 3912,
-  '3688 Diamonds': 3913,
-  '4394 Diamonds': 3914,
-  '5532 Diamonds': 3915,
-  '9288 Diamonds': 3916,
-  // Special packages - matching frontend mlSpecialDeals names
-  'Weekly': 3917,
-  'Weekly Diamond Pass': 3917,
-  'Twilight': 3918,
-  'Twilight Pass': 3918,
+  // Diamond package - only 878 Diamonds available via Liana API currently
+  '878 Diamonds': 6936,
+  // Special packages / passes
+  'Weekly': 7991,
+  'Weekly Diamond Pass': 7991,
+  'Super Value Pass': 7236,
+  'Twilight': 7993,
+  'Twilight Pass': 7993,
 };
 
 Deno.serve(async (req) => {
