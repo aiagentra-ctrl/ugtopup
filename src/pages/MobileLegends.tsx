@@ -3,6 +3,9 @@ import { useAuth } from "@/contexts/AuthContext";
 import { MLProductHeader } from "@/components/ml/MLProductHeader";
 import { MLUserInputForm } from "@/components/ml/MLUserInputForm";
 import { MLPackageSelector, type MLPackage } from "@/components/ml/MLPackageSelector";
+
+// Non-API packages that go through normal order management (no Liana API)
+const NON_API_PACKAGES = new Set(['55 Diamonds', '110 Diamonds', '165 Diamonds', '275 Diamonds', '565 Diamonds']);
 import { MLOrderReview } from "@/components/ml/MLOrderReview";
 import { MLSuccessModal } from "@/components/ml/MLSuccessModal";
 import { Button } from "@/components/ui/button";
@@ -121,26 +124,37 @@ const MobileLegends = () => {
         }
       );
 
-      // Step 2: Automatically process via Liana API (non-blocking)
-      toast.info("Processing your order...");
-      
-      const { data: apiResult, error: apiError } = await supabase.functions.invoke('process-ml-order', {
-        body: { order_id: order.id }
-      });
+      // Step 2: Check if this is an API package or non-API package
+      const isApiPackage = !NON_API_PACKAGES.has(selectedPackage.name);
 
-      await refreshProfile();
-      setShowReviewModal(false);
+      if (isApiPackage) {
+        // Automatically process via Liana API
+        toast.info("Processing your order...");
+        
+        const { data: apiResult, error: apiError } = await supabase.functions.invoke('process-ml-order', {
+          body: { order_id: order.id }
+        });
 
-      if (apiError) {
-        console.error('Liana API error:', apiError);
-        setShowSuccessModal(true);
-        toast.warning("Order placed but processing encountered an issue. Our team will review it.");
-      } else if (apiResult?.success) {
-        setShowSuccessModal(true);
-        toast.success(`Diamonds delivered successfully!${apiResult.ign ? ` (IGN: ${apiResult.ign})` : ''}`);
+        await refreshProfile();
+        setShowReviewModal(false);
+
+        if (apiError) {
+          console.error('Liana API error:', apiError);
+          setShowSuccessModal(true);
+          toast.warning("Order placed but processing encountered an issue. Our team will review it.");
+        } else if (apiResult?.success) {
+          setShowSuccessModal(true);
+          toast.success(`Diamonds delivered successfully!${apiResult.ign ? ` (IGN: ${apiResult.ign})` : ''}`);
+        } else {
+          setShowSuccessModal(true);
+          toast.warning(`Order placed. ${apiResult?.error || 'Processing in progress...'}`);
+        }
       } else {
+        // Non-API package - goes through normal order management
+        await refreshProfile();
+        setShowReviewModal(false);
         setShowSuccessModal(true);
-        toast.warning(`Order placed. ${apiResult?.error || 'Processing in progress...'}`);
+        toast.success("Order placed successfully! Our team will process it shortly.");
       }
     } catch (error: any) {
       await refreshProfile();

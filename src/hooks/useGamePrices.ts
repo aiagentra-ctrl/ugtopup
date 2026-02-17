@@ -12,6 +12,7 @@ export interface GamePrice {
   currency: string;
   is_active: boolean;
   display_order: number;
+  is_api_product?: boolean;
 }
 
 export const useGamePrices = (game: string) => {

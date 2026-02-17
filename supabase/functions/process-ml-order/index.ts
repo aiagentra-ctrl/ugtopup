@@ -29,18 +29,76 @@ interface LianaOrderResponse {
   error?: string;
 }
 
-// Map frontend package names to Liana variation_ids
-// Updated with current Liana product catalog (Feb 2026)
+// Complete mapping of ML Indian diamond packages to Liana variation_ids
+// Updated with full Liana product catalog (Feb 2026)
 const productIdMap: Record<string, number> = {
-  // Diamond package - only 878 Diamonds available via Liana API currently
+  // Diamond packages (by name)
+  '86 Diamonds': 5743,
+  '172 Diamonds': 5857,
+  '257 Diamonds': 5859,
+  '343 Diamonds': 5860,
+  '429 Diamonds': 5861,
+  '514 Diamonds': 5862,
+  '600 Diamonds': 5863,
+  '706 Diamonds': 5864,
   '878 Diamonds': 6936,
+  '1049 Diamonds': 5865,
+  '1050 Diamonds': 5865, // alias
+  '1135 Diamonds': 6978,
+  '1412 Diamonds': 5866,
+  '2195 Diamonds': 5867,
+  '3688 Diamonds': 5868,
+  '5532 Diamonds': 5869,
+  '9288 Diamonds': 5870,
   // Special packages / passes
-  'Weekly': 7991,
-  'Weekly Diamond Pass': 7991,
+  'Weekly': 5570,
+  'Weekly Diamond Pass': 5570,
+  'Twilight': 6111,
+  'Twilight Pass': 6111,
   'Super Value Pass': 7236,
-  'Twilight': 7993,
-  'Twilight Pass': 7993,
 };
+
+// Quantity-based fallback mapping for fuzzy matching
+const quantityMap: Record<number, number> = {
+  86: 5743,
+  172: 5857,
+  257: 5859,
+  343: 5860,
+  429: 5861,
+  514: 5862,
+  600: 5863,
+  706: 5864,
+  878: 6936,
+  1049: 5865,
+  1050: 5865,
+  1135: 6978,
+  1412: 5866,
+  2195: 5867,
+  3688: 5868,
+  5532: 5869,
+  9288: 5870,
+};
+
+// Non-API packages that should go through normal order management
+const nonApiPackages = new Set(['55 Diamonds', '110 Diamonds', '165 Diamonds', '275 Diamonds', '565 Diamonds']);
+
+function resolveVariationId(packageName: string, quantity?: number): number | null {
+  // Direct name match
+  const trimmed = packageName.trim();
+  if (productIdMap[trimmed]) return productIdMap[trimmed];
+
+  // Try extracting number from "X Diamonds" pattern
+  const match = trimmed.match(/^(\d+)\s*Diamonds?$/i);
+  if (match) {
+    const qty = parseInt(match[1], 10);
+    if (quantityMap[qty]) return quantityMap[qty];
+  }
+
+  // Quantity-based fallback
+  if (quantity && quantityMap[quantity]) return quantityMap[quantity];
+
+  return null;
+}
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -116,10 +174,19 @@ Deno.serve(async (req) => {
       );
     }
 
-    const lianaProductId = productIdMap[packageName];
+    // Check if this is a non-API package (should go through normal order management)
+    if (nonApiPackages.has(packageName)) {
+      console.log(`Non-API package: ${packageName}. Skipping API processing, leaving for manual fulfillment.`);
+      return new Response(
+        JSON.stringify({ success: false, error: 'non_api_package', message: 'This package is processed manually, not via API.' }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const lianaProductId = resolveVariationId(packageName, order.quantity);
 
     if (!lianaProductId) {
-      console.error(`Unknown package: ${packageName}. Available: ${Object.keys(productIdMap).join(', ')}`);
+      console.error(`Unknown package: ${packageName}. Could not resolve variation ID.`);
       return new Response(
         JSON.stringify({ success: false, error: `Unknown package: ${packageName}` }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
