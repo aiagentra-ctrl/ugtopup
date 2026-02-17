@@ -106,6 +106,7 @@ export type Database = {
           game: string
           id: string
           is_active: boolean | null
+          is_api_product: boolean | null
           package_id: string
           package_name: string
           package_type: string
@@ -120,6 +121,7 @@ export type Database = {
           game: string
           id?: string
           is_active?: boolean | null
+          is_api_product?: boolean | null
           package_id: string
           package_name: string
           package_type: string
@@ -134,6 +136,7 @@ export type Database = {
           game?: string
           id?: string
           is_active?: boolean | null
+          is_api_product?: boolean | null
           package_id?: string
           package_name?: string
           package_type?: string
