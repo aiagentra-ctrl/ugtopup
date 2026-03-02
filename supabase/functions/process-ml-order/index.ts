@@ -273,7 +273,7 @@ Deno.serve(async (req) => {
       'Content-Type': 'application/json',
       'X-API-KEY': lianaApiKey,
       'X-API-SECRET': lianaApiSecret,
-      'X-ORIGIN-DOMAIN': 'ugtopups.lovable.app',
+      'X-ORIGIN-DOMAIN': 'www.ugtopups.com',
       'Accept': 'application/json',
       'User-Agent': 'LianaStoreWooCommerce/2.2.2'
     };
