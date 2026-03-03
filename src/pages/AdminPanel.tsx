@@ -15,6 +15,9 @@ import NotificationsManager from "@/components/admin/NotificationsManager";
 import { BannerManager } from "@/components/admin/BannerManager";
 import { OnlinePayments } from "@/components/admin/OnlinePayments";
 import { LianaOrdersDashboard } from "@/components/admin/LianaOrdersDashboard";
+import { DynamicProductManager } from "@/components/admin/DynamicProductManager";
+import { CategoryManager } from "@/components/admin/CategoryManager";
+import { OfferManager } from "@/components/admin/OfferManager";
 import { checkAdminAccess } from "@/lib/adminApi";
 import { toast } from "sonner";
 
@@ -85,6 +88,12 @@ const AdminPanel = () => {
         return <ActivityLogs />;
       case "supabase-limits":
         return <SupabaseLimits />;
+      case "product-update":
+        return <DynamicProductManager />;
+      case "categories":
+        return <CategoryManager />;
+      case "offers":
+        return <OfferManager />;
       default:
         return <EnhancedDashboard />;
     }

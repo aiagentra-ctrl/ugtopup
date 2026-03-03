@@ -13,6 +13,9 @@ import {
   Bell,
   ImageIcon,
   Zap,
+  RefreshCw,
+  FolderOpen,
+  Gift,
 } from "lucide-react";
 import {
   Sidebar,
@@ -51,6 +54,9 @@ const menuItems = [
   { id: "users", title: "User Data", icon: Users },
   { id: "activity", title: "Activity Logs", icon: Activity },
   { id: "supabase-limits", title: "Supabase Limits", icon: Database },
+  { id: "product-update", title: "Product Update", icon: RefreshCw },
+  { id: "categories", title: "Categories", icon: FolderOpen },
+  { id: "offers", title: "Offers", icon: Gift },
 ];
 
 function AdminSidebar({ 

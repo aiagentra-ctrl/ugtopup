@@ -98,6 +98,68 @@ export type Database = {
         }
         Relationships: []
       }
+      dynamic_products: {
+        Row: {
+          category_id: string | null
+          created_at: string
+          description: string | null
+          discount_price: number | null
+          display_order: number
+          features: Json | null
+          id: string
+          image_url: string | null
+          is_active: boolean
+          link: string | null
+          plans: Json | null
+          price: number | null
+          tags: string[] | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          category_id?: string | null
+          created_at?: string
+          description?: string | null
+          discount_price?: number | null
+          display_order?: number
+          features?: Json | null
+          id?: string
+          image_url?: string | null
+          is_active?: boolean
+          link?: string | null
+          plans?: Json | null
+          price?: number | null
+          tags?: string[] | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          category_id?: string | null
+          created_at?: string
+          description?: string | null
+          discount_price?: number | null
+          display_order?: number
+          features?: Json | null
+          id?: string
+          image_url?: string | null
+          is_active?: boolean
+          link?: string | null
+          plans?: Json | null
+          price?: number | null
+          tags?: string[] | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dynamic_products_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "product_categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       game_product_prices: {
         Row: {
           created_at: string | null
@@ -265,6 +327,66 @@ export type Database = {
         }
         Relationships: []
       }
+      offers: {
+        Row: {
+          created_at: string
+          custom_icon_url: string | null
+          description: string | null
+          display_order: number
+          id: string
+          image_url: string | null
+          is_active: boolean
+          offer_type: string
+          product_link: string | null
+          show_on_homepage: boolean
+          show_on_product_page: boolean
+          subtitle: string | null
+          timer_enabled: boolean
+          timer_end_date: string | null
+          timer_type: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          custom_icon_url?: string | null
+          description?: string | null
+          display_order?: number
+          id?: string
+          image_url?: string | null
+          is_active?: boolean
+          offer_type?: string
+          product_link?: string | null
+          show_on_homepage?: boolean
+          show_on_product_page?: boolean
+          subtitle?: string | null
+          timer_enabled?: boolean
+          timer_end_date?: string | null
+          timer_type?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          custom_icon_url?: string | null
+          description?: string | null
+          display_order?: number
+          id?: string
+          image_url?: string | null
+          is_active?: boolean
+          offer_type?: string
+          product_link?: string | null
+          show_on_homepage?: boolean
+          show_on_product_page?: boolean
+          subtitle?: string | null
+          timer_enabled?: boolean
+          timer_end_date?: string | null
+          timer_type?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       payment_request_history: {
         Row: {
           changed_at: string | null
@@ -421,6 +543,36 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      product_categories: {
+        Row: {
+          created_at: string
+          display_order: number
+          id: string
+          is_active: boolean
+          name: string
+          slug: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          display_order?: number
+          id?: string
+          is_active?: boolean
+          name: string
+          slug: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          display_order?: number
+          id?: string
+          is_active?: boolean
+          name?: string
+          slug?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       product_orders: {
         Row: {
