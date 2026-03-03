@@ -1,93 +1,96 @@
-## Mobile Legends Full API Integration Update
 
-### Problem Summary
+# Dynamic Website with Advanced Admin Panel
 
-The edge function `process-ml-order` only maps 4 packages to Liana variation IDs (878 Diamonds, Weekly, Super Value Pass, Twilight). All other diamond packages (86, 172, 257, 343, etc.) fail with "Unknown package" errors. The complete Liana API product catalog has now been provided.
+## Overview
+Make the entire website content dynamic and admin-controlled by creating two new admin sections and supporting database tables. The existing "Products (New)" page (GameProductPrices) will remain completely untouched.
 
-### What Will Change
+## What Changes
 
-#### 1. Update Edge Function Product Mapping
+### Phase 1: Database Setup
 
-Update `supabase/functions/process-ml-order/index.ts` with the complete mapping of all ML Indian diamond packages and special passes to their correct Liana `wc_variation_id`:
+**New table: `dynamic_products`** - stores products displayed on the homepage
+- `id`, `title`, `description`, `image_url`, `link`, `category` (topup/voucher/subscription/design), `price`, `discount_price`, `features` (jsonb array), `tags` (text array), `plans` (jsonb array), `display_order`, `is_active`, `created_at`, `updated_at`
 
+**New table: `product_categories`** - dynamic categories
+- `id`, `name`, `slug`, `display_order`, `is_active`, `created_at`, `updated_at`
 
-| Frontend Package Name        | Liana Variation ID |
-| ---------------------------- | ------------------ |
-| 86 Diamonds                  | 5743               |
-| 172 Diamonds                 | 5857               |
-| 257 Diamonds                 | 5859               |
-| 343 Diamonds                 | 5860               |
-| 429 Diamonds                 | 5861               |
-| 514 Diamonds                 | 5862               |
-| 706 Diamonds                 | 5864               |
-| 878 Diamonds                 | 6936               |
-| 1050 Diamonds (maps to 1049) | 5865               |
-| 1135 Diamonds                | 6978               |
-| 1412 Diamonds                | 5866               |
-| 2195 Diamonds                | 5867               |
-| 3688 Diamonds                | 5868               |
-| 5532 Diamonds                | 5869               |
-| 9288 Diamonds                | 5870               |
-| Weekly                       | 5570               |
-| Twilight                     | 6111               |
-| Super Value Pass             | 7236               |
+**New table: `offers`** - dynamic offer/deal sections
+- `id`, `title`, `subtitle`, `description`, `image_url`, `offer_type` (flash_sale/limited_time/daily_deal/discount_bundle), `timer_enabled`, `timer_type` (hours/days/both/none), `timer_end_date`, `product_link`, `custom_icon_url`, `display_order`, `is_active`, `show_on_homepage`, `show_on_product_page`, `created_at`, `updated_at`
 
+RLS: Public SELECT for active items, admin ALL for management.
 
-Note: Some frontend packages (55, 110, 165, 275, 565) do not have a direct Liana Indian variation ID. These will be handled by either:
+**Seed `dynamic_products`** with current hardcoded data from ProductTabs so nothing changes visually on day one.
 
-- Mapping to the closest available product, OR
-- Disabling them in the database so users cannot order unavailable items
+### Phase 2: Admin Panel - Product Update Page (new section)
 
-#### 2. Update Database Product List
+Add a new sidebar menu item **"Product Update"** in AdminLayout.
 
-Update `game_product_prices` to match the actual Liana API catalog:
+New component: `src/components/admin/DynamicProductManager.tsx`
+- Full CRUD table listing all dynamic products
+- Inline editing with image upload (to `product-images` storage bucket)
+- Fields: title, description, image, link, category, price, discount price, features (add/remove chips), tags (add/remove), plans (JSON editor)
+- Product preview panel showing how it looks on the frontend
+- Search, filter by category, drag-to-reorder
 
-- **Remove** packages not available via Liana API (55, 110, 165, 275, 565 Diamonds)
-- **Add** missing packages that ARE available (343, 600, 1135 Diamonds)
-- **Update quantities** to match Liana's exact diamond counts (e.g., 1050 to 1049, 2215 to 2195)
+New component: `src/components/admin/CategoryManager.tsx`
+- Add/rename/delete categories
+- Reorder categories via drag or arrows
+- Auto-updates category options across the product form
 
-#### 3. Add Fuzzy Package Name Matching
+### Phase 3: Admin Panel - Offer Management Page (new section)
 
-Add fallback logic in the edge function to handle minor name variations (e.g., "1050 Diamonds" matching variation ID for 1049 Diamonds) to prevent failures from small quantity mismatches.
+Add a new sidebar menu item **"Offers"** in AdminLayout.
 
-#### 4. Redeploy Edge Function
+New component: `src/components/admin/OfferManager.tsx`
+- List all offers with enable/disable toggle
+- Add new offer with form: title, subtitle, description, image upload, offer type selector, timer controls (enable/disable, type, end date), product link picker
+- Edit existing offers inline
+- Reorder offers
+- Toggle homepage/product page visibility
 
-Deploy the updated `process-ml-order` function with the complete mapping.
+### Phase 4: Frontend - Make ProductTabs Dynamic
 
-### Technical Details
+Update `src/components/ProductTabs.tsx`:
+- Fetch products from `dynamic_products` table instead of hardcoded `productData`
+- Fetch categories from `product_categories` table for tab names
+- Keep the exact same visual layout, just swap data source
+- Real-time subscription so admin changes appear instantly
 
-**Files to modify:**
+### Phase 5: Frontend - Make BestDeals/Offers Dynamic
 
-- `supabase/functions/process-ml-order/index.ts` -- Complete productIdMap with all ML Indian variation IDs
-- SQL migration -- Update `game_product_prices` rows for `mobile_legends` to match available Liana products
+Update `src/components/BestDeals.tsx`:
+- Fetch active homepage offers from `offers` table
+- Render offer blocks dynamically with optional countdown timers
+- Keep existing visual style, just make content admin-controlled
 
-**Database changes (via migration):**
+### What Will NOT Change
+- **"Products (New)" page** (`GameProductPrices` component) -- zero modifications
+- **Existing `ProductsList`** component -- untouched
+- **Game pricing system** (`game_product_prices` table) -- untouched
+- **Overall website design/layout** -- only data sources change
 
-- Delete rows for packages not in Liana catalog (55, 110, 165, 275, 565 Diamonds)
-- Insert missing packages (343, 600, 1135 Diamonds)
-- Update existing quantities/names to match Liana exactly
-- Reorder display_order for clean sequencing
+## Technical Details
 
-**Edge function changes:**
+### New Files
+- `src/components/admin/DynamicProductManager.tsx` - Product Update admin page
+- `src/components/admin/CategoryManager.tsx` - Category management
+- `src/components/admin/OfferManager.tsx` - Offer management admin page
+- `src/lib/dynamicProductApi.ts` - API functions for dynamic products/categories
+- `src/lib/offerApi.ts` - API functions for offers
+- `src/hooks/useDynamicProducts.ts` - Frontend hook with real-time subscriptions
+- `src/hooks/useOffers.ts` - Frontend hook for offers
 
-- Expand `productIdMap` from 5 entries to ~20+ entries
-- Add name normalization (trim, handle "X Diamonds" pattern) for robust matching
-- Map quantity-based lookups as fallback (e.g., quantity 1050 maps to variation 5865)
+### Modified Files
+- `src/components/admin/AdminLayout.tsx` - Add 3 new sidebar items (Product Update, Categories, Offers)
+- `src/pages/AdminPanel.tsx` - Add new section cases in switch
+- `src/components/ProductTabs.tsx` - Replace hardcoded data with database fetch
+- `src/components/BestDeals.tsx` - Replace hardcoded deals with database fetch
 
-> Do not remove these packages: **Packages not available via Liana API (55, 110, 165, 275, 565 Diamonds).**
->
-> These packages should still be available and processed through the **normal order management system**, not through the API.
->
-> Also, in the **Admin Panel (when changing prices)**, create two separate sections:
->
-> 1. **API Packages** – Products connected and processed via Liana API
-> 2. **Non-API Packages** – Products not available via API (processed manually / normal order system)
->
-> Make sure:
->
-> - API packages are validated and processed automatically
-> - Non-API packages go directly to normal order management
-> - Admin can change prices separately for both sections
-> - No package is removed or mixed between API and Non-API sections
->
-> Ensure proper backend logic and clear separation between API and Non-API products.
+### New Storage Bucket
+- `product-images` (public) for product image uploads
+
+### Database Migration
+- Create `dynamic_products`, `product_categories`, `offers` tables
+- Create `product-images` storage bucket
+- RLS policies for all new tables
+- Seed initial data from current hardcoded products
