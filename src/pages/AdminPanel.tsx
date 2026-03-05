@@ -95,6 +95,8 @@ const AdminPanel = () => {
         return <CategoryManager />;
       case "offers":
         return <OfferManager />;
+      case "chatbot":
+        return <ChatbotSettings />;
       default:
         return <EnhancedDashboard />;
     }
