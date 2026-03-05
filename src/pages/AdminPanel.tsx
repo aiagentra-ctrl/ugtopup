@@ -18,6 +18,7 @@ import { LianaOrdersDashboard } from "@/components/admin/LianaOrdersDashboard";
 import { DynamicProductManager } from "@/components/admin/DynamicProductManager";
 import { CategoryManager } from "@/components/admin/CategoryManager";
 import { OfferManager } from "@/components/admin/OfferManager";
+import { ChatbotSettings } from "@/components/admin/ChatbotSettings";
 import { checkAdminAccess } from "@/lib/adminApi";
 import { toast } from "sonner";
 
@@ -94,6 +95,8 @@ const AdminPanel = () => {
         return <CategoryManager />;
       case "offers":
         return <OfferManager />;
+      case "chatbot":
+        return <ChatbotSettings />;
       default:
         return <EnhancedDashboard />;
     }

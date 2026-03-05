@@ -16,6 +16,7 @@ import {
   RefreshCw,
   FolderOpen,
   Gift,
+  Bot,
 } from "lucide-react";
 import {
   Sidebar,
@@ -57,6 +58,7 @@ const menuItems = [
   { id: "product-update", title: "Product Update", icon: RefreshCw },
   { id: "categories", title: "Categories", icon: FolderOpen },
   { id: "offers", title: "Offers", icon: Gift },
+  { id: "chatbot", title: "AI Chatbot", icon: Bot },
 ];
 
 function AdminSidebar({ 

@@ -98,6 +98,63 @@ export type Database = {
         }
         Relationships: []
       }
+      chatbot_settings: {
+        Row: {
+          button1_enabled: boolean | null
+          button1_label: string | null
+          button2_enabled: boolean | null
+          button2_label: string | null
+          button3_enabled: boolean | null
+          button3_label: string | null
+          created_at: string
+          gmail_fallback_email: string | null
+          gmail_fallback_enabled: boolean | null
+          id: string
+          is_enabled: boolean
+          order_track_prompt: string | null
+          payment_help_message: string | null
+          updated_at: string
+          webhook_url: string | null
+          welcome_message: string | null
+        }
+        Insert: {
+          button1_enabled?: boolean | null
+          button1_label?: string | null
+          button2_enabled?: boolean | null
+          button2_label?: string | null
+          button3_enabled?: boolean | null
+          button3_label?: string | null
+          created_at?: string
+          gmail_fallback_email?: string | null
+          gmail_fallback_enabled?: boolean | null
+          id?: string
+          is_enabled?: boolean
+          order_track_prompt?: string | null
+          payment_help_message?: string | null
+          updated_at?: string
+          webhook_url?: string | null
+          welcome_message?: string | null
+        }
+        Update: {
+          button1_enabled?: boolean | null
+          button1_label?: string | null
+          button2_enabled?: boolean | null
+          button2_label?: string | null
+          button3_enabled?: boolean | null
+          button3_label?: string | null
+          created_at?: string
+          gmail_fallback_email?: string | null
+          gmail_fallback_enabled?: boolean | null
+          id?: string
+          is_enabled?: boolean
+          order_track_prompt?: string | null
+          payment_help_message?: string | null
+          updated_at?: string
+          webhook_url?: string | null
+          welcome_message?: string | null
+        }
+        Relationships: []
+      }
       dynamic_products: {
         Row: {
           category_id: string | null

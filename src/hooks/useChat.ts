@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { sendMessageToWebhook } from '@/utils/chatApi';
+import { ChatbotSettings } from '@/hooks/useChatbotSettings';
 
 export interface Message {
   id: string;
@@ -8,25 +9,22 @@ export interface Message {
   timestamp: Date;
 }
 
+export type ChatMode = 'welcome' | 'faq' | 'order' | 'payment';
+
 const MESSAGE_HISTORY_KEY = 'uiq-chat-history';
 const MAX_STORED_MESSAGES = 50;
 
-const WELCOME_MESSAGE: Message = {
-  id: 'welcome',
-  text: '👋 Hi! I\'m UIQ, your AI assistant at UGC-Topup.\n\nI can help you with:\n• Product information\n• Order tracking\n• Account questions\n• General support\n\nWhat would you like to know?',
-  sender: 'bot',
-  timestamp: new Date()
-};
-
-export const useChat = () => {
+export const useChat = (settings: ChatbotSettings | null) => {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [chatMode, setChatMode] = useState<ChatMode>('welcome');
+  const [showQuickReplies, setShowQuickReplies] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Load message history from localStorage
+  // Load message history
   useEffect(() => {
     const history = localStorage.getItem(MESSAGE_HISTORY_KEY);
     if (history) {
@@ -43,25 +41,61 @@ export const useChat = () => {
     }
   }, []);
 
-  // Show welcome message on first open if no history
+  // Show welcome message on first open
   useEffect(() => {
-    if (isOpen && messages.length === 0) {
-      setMessages([WELCOME_MESSAGE]);
+    if (isOpen && messages.length === 0 && settings) {
+      const welcomeMsg: Message = {
+        id: 'welcome',
+        text: settings.welcome_message,
+        sender: 'bot',
+        timestamp: new Date()
+      };
+      setMessages([welcomeMsg]);
+      setShowQuickReplies(true);
+      setChatMode('welcome');
     }
-  }, [isOpen, messages.length]);
+  }, [isOpen, messages.length, settings]);
 
-  // Auto-scroll to bottom when new messages arrive
+  // Auto-scroll
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+  }, [messages, showQuickReplies]);
 
-  // Persist messages to localStorage (limit to MAX_STORED_MESSAGES)
+  // Persist messages
   useEffect(() => {
     if (messages.length > 0) {
       const toStore = messages.slice(-MAX_STORED_MESSAGES);
       localStorage.setItem(MESSAGE_HISTORY_KEY, JSON.stringify(toStore));
     }
   }, [messages]);
+
+  const addBotMessage = (text: string) => {
+    const botMsg: Message = {
+      id: `bot-${Date.now()}`,
+      text,
+      sender: 'bot',
+      timestamp: new Date()
+    };
+    setMessages(prev => [...prev, botMsg]);
+  };
+
+  const selectMode = (mode: ChatMode) => {
+    setChatMode(mode);
+    setShowQuickReplies(false);
+
+    if (mode === 'faq') {
+      addBotMessage('💬 Ask me anything! Type your question below and I\'ll help you out.');
+    } else if (mode === 'order') {
+      // Order tracker widget will be shown by ChatWidget
+    } else if (mode === 'payment') {
+      if (settings) {
+        addBotMessage(settings.payment_help_message);
+      }
+      // Show quick replies again after payment info
+      setTimeout(() => setShowQuickReplies(true), 100);
+      setChatMode('welcome');
+    }
+  };
 
   const sendMessage = async (text: string) => {
     if (!text.trim() || isTyping) return;
@@ -79,8 +113,9 @@ export const useChat = () => {
     setError(null);
 
     try {
-      const response = await sendMessageToWebhook(text);
-      
+      const webhookUrl = settings?.webhook_url || 'https://n8n.aiagentra.com/webhook/chatbot';
+      const response = await sendMessageToWebhook(text, webhookUrl);
+
       const botMsg: Message = {
         id: `bot-${Date.now()}`,
         text: response.reply,
@@ -104,13 +139,14 @@ export const useChat = () => {
     }
   };
 
-  const toggleChat = () => {
-    setIsOpen(!isOpen);
+  const handleOrderResult = (text: string) => {
+    addBotMessage(text);
+    setChatMode('welcome');
+    setTimeout(() => setShowQuickReplies(true), 100);
   };
 
-  const closeChat = () => {
-    setIsOpen(false);
-  };
+  const toggleChat = () => setIsOpen(!isOpen);
+  const closeChat = () => setIsOpen(false);
 
   return {
     isOpen,
@@ -123,6 +159,10 @@ export const useChat = () => {
     isTyping,
     error,
     sendMessage,
-    messagesEndRef
+    messagesEndRef,
+    chatMode,
+    showQuickReplies,
+    selectMode,
+    handleOrderResult,
   };
 };
