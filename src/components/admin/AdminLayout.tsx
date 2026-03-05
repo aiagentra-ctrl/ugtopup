@@ -16,6 +16,7 @@ import {
   RefreshCw,
   FolderOpen,
   Gift,
+  Bot,
 } from "lucide-react";
 import {
   Sidebar,
