@@ -11,11 +11,9 @@ export interface WebhookResponse {
   error?: string;
 }
 
-const WEBHOOK_URL = 'https://n8n.aiagentra.com/webhook/chatbot';
 const SESSION_KEY = 'uiq-chat-session';
-const REQUEST_TIMEOUT = 30000; // 30 seconds
+const REQUEST_TIMEOUT = 30000;
 
-// Generate or retrieve session ID
 function getSessionId(): string {
   let session = localStorage.getItem(SESSION_KEY);
   if (!session) {
@@ -26,13 +24,14 @@ function getSessionId(): string {
 }
 
 export const sendMessageToWebhook = async (
-  message: string
+  message: string,
+  webhookUrl: string
 ): Promise<WebhookResponse> => {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT);
 
   try {
-    const response = await fetch(WEBHOOK_URL, {
+    const response = await fetch(webhookUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -61,7 +60,6 @@ export const sendMessageToWebhook = async (
         timestamp: data.timestamp ?? new Date().toISOString()
       };
     } catch {
-      // Fallback when webhook returns plain text (not JSON)
       return {
         reply: raw?.trim() || 'No response received',
         timestamp: new Date().toISOString()

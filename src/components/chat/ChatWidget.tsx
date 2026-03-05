@@ -1,12 +1,16 @@
 import { useChat } from '@/hooks/useChat';
+import { useChatbotSettings } from '@/hooks/useChatbotSettings';
 import { FloatingButton } from './FloatingButton';
 import { ChatHeader } from './ChatHeader';
 import { MessageBubble } from './MessageBubble';
 import { ChatInput } from './ChatInput';
 import { TypingIndicator } from './TypingIndicator';
+import { QuickReplyButtons } from './QuickReplyButtons';
+import { OrderTracker } from './OrderTracker';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
 export const ChatWidget = () => {
+  const { settings, loading } = useChatbotSettings();
   const {
     isOpen,
     toggleChat,
@@ -16,8 +20,15 @@ export const ChatWidget = () => {
     setInputValue,
     isTyping,
     sendMessage,
-    messagesEndRef
-  } = useChat();
+    messagesEndRef,
+    chatMode,
+    showQuickReplies,
+    selectMode,
+    handleOrderResult,
+  } = useChat(settings);
+
+  // Don't render if chatbot is disabled or still loading
+  if (loading || !settings?.is_enabled) return null;
 
   return (
     <>
@@ -49,6 +60,27 @@ export const ChatWidget = () => {
               {messages.map((message) => (
                 <MessageBubble key={message.id} message={message} />
               ))}
+
+              {/* Quick Reply Buttons */}
+              {showQuickReplies && settings && (
+                <QuickReplyButtons
+                  button1Label={settings.button1_label}
+                  button1Enabled={settings.button1_enabled}
+                  button2Label={settings.button2_label}
+                  button2Enabled={settings.button2_enabled}
+                  button3Label={settings.button3_label}
+                  button3Enabled={settings.button3_enabled}
+                  onSelect={selectMode}
+                />
+              )}
+
+              {/* Order Tracker */}
+              {chatMode === 'order' && settings && (
+                <OrderTracker
+                  prompt={settings.order_track_prompt}
+                  onResult={handleOrderResult}
+                />
+              )}
               
               {isTyping && <TypingIndicator />}
               
