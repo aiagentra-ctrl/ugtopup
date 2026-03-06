@@ -1,12 +1,15 @@
 import { useState, useEffect, useRef } from 'react';
-import { sendMessageToWebhook } from '@/utils/chatApi';
+import { sendChatMessage } from '@/utils/chatApi';
 import { ChatbotSettings } from '@/hooks/useChatbotSettings';
+import { ProductCardData } from '@/components/chat/ProductCardBubble';
 
 export interface Message {
   id: string;
   text: string;
   sender: 'user' | 'bot';
   timestamp: Date;
+  product?: ProductCardData;
+  products?: ProductCardData[];
 }
 
 export type ChatMode = 'welcome' | 'faq' | 'order' | 'payment';
@@ -69,12 +72,14 @@ export const useChat = (settings: ChatbotSettings | null) => {
     }
   }, [messages]);
 
-  const addBotMessage = (text: string) => {
+  const addBotMessage = (text: string, product?: ProductCardData, products?: ProductCardData[]) => {
     const botMsg: Message = {
       id: `bot-${Date.now()}`,
       text,
       sender: 'bot',
-      timestamp: new Date()
+      timestamp: new Date(),
+      product,
+      products,
     };
     setMessages(prev => [...prev, botMsg]);
   };
@@ -91,7 +96,6 @@ export const useChat = (settings: ChatbotSettings | null) => {
       if (settings) {
         addBotMessage(settings.payment_help_message);
       }
-      // Show quick replies again after payment info
       setTimeout(() => setShowQuickReplies(true), 100);
       setChatMode('welcome');
     }
@@ -113,14 +117,15 @@ export const useChat = (settings: ChatbotSettings | null) => {
     setError(null);
 
     try {
-      const webhookUrl = settings?.webhook_url || 'https://n8n.aiagentra.com/webhook/chatbot';
-      const response = await sendMessageToWebhook(text, webhookUrl);
+      const response = await sendChatMessage(text);
 
       const botMsg: Message = {
         id: `bot-${Date.now()}`,
         text: response.reply,
         sender: 'bot',
-        timestamp: new Date(response.timestamp)
+        timestamp: new Date(response.timestamp),
+        product: response.product,
+        products: response.products,
       };
 
       setMessages(prev => [...prev, botMsg]);

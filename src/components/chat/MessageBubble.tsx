@@ -1,4 +1,5 @@
 import { Message } from '@/hooks/useChat';
+import { ProductCardBubble } from './ProductCardBubble';
 import { format } from 'date-fns';
 
 interface MessageBubbleProps {
@@ -19,6 +20,21 @@ export const MessageBubble = ({ message }: MessageBubbleProps) => {
       >
         <p className="text-sm whitespace-pre-wrap">{message.text}</p>
       </div>
+
+      {/* Product card(s) */}
+      {!isUser && message.product && (
+        <div className="mt-2">
+          <ProductCardBubble product={message.product} />
+        </div>
+      )}
+      {!isUser && message.products && message.products.length > 1 && (
+        <div className="mt-2 flex gap-2 overflow-x-auto max-w-full pb-1">
+          {message.products.slice(1, 3).map((p, i) => (
+            <ProductCardBubble key={i} product={p} />
+          ))}
+        </div>
+      )}
+
       <span className="text-xs text-muted-foreground mt-1 px-2">
         {format(message.timestamp, 'h:mm a')}
       </span>
