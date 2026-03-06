@@ -1,118 +1,96 @@
 
-
-# Chatbot API Backend + Product Cards in Chat
+# Dynamic Website with Advanced Admin Panel
 
 ## Overview
+Make the entire website content dynamic and admin-controlled by creating two new admin sections and supporting database tables. The existing "Products (New)" page (GameProductPrices) will remain completely untouched.
 
-Create a Supabase Edge Function `chatbot-api` that serves as the centralized backend for all chatbot communication. The frontend will call this API instead of directly hitting the n8n webhook or querying Supabase tables. The API detects product-related queries, enriches responses with product data (image, price, link), handles order tracking, and forwards general questions to the n8n webhook. The Message model gets extended to support rich product card data.
+## What Changes
 
-## Architecture
+### Phase 1: Database Setup
 
-```text
-User message → ChatWidget → Edge Function (chatbot-api)
-                                ├── Product query? → Search dynamic_products + game_product_prices → return product card
-                                ├── Order query? → Query product_orders → return order status
-                                └── General question? → Forward to n8n webhook → return AI reply
-```
+**New table: `dynamic_products`** - stores products displayed on the homepage
+- `id`, `title`, `description`, `image_url`, `link`, `category` (topup/voucher/subscription/design), `price`, `discount_price`, `features` (jsonb array), `tags` (text array), `plans` (jsonb array), `display_order`, `is_active`, `created_at`, `updated_at`
 
-## Phase 1: Edge Function — `chatbot-api`
+**New table: `product_categories`** - dynamic categories
+- `id`, `name`, `slug`, `display_order`, `is_active`, `created_at`, `updated_at`
 
-**New file**: `supabase/functions/chatbot-api/index.ts`
+**New table: `offers`** - dynamic offer/deal sections
+- `id`, `title`, `subtitle`, `description`, `image_url`, `offer_type` (flash_sale/limited_time/daily_deal/discount_bundle), `timer_enabled`, `timer_type` (hours/days/both/none), `timer_end_date`, `product_link`, `custom_icon_url`, `display_order`, `is_active`, `show_on_homepage`, `show_on_product_page`, `created_at`, `updated_at`
 
-Three endpoints via request body `action` field:
+RLS: Public SELECT for active items, admin ALL for management.
 
-### `action: "message"`
-- Receives `{ action: "message", session_id, message }`
-- Keyword-searches `dynamic_products` and `game_product_prices` tables for product matches
-- If product found: returns `{ reply, product: { name, price, image_url, link, delivery_time } }`
-- If no product match: forwards message to n8n webhook URL from `chatbot_settings`, returns `{ reply }`
-- If webhook fails and Gmail fallback enabled: sends email notification
+**Seed `dynamic_products`** with current hardcoded data from ProductTabs so nothing changes visually on day one.
 
-### `action: "order-status"`
-- Receives `{ action: "order-status", order_id }`
-- Queries `product_orders` by `order_number` or `user_email`
-- Returns `{ status, product, delivery_time, created_at }`
+### Phase 2: Admin Panel - Product Update Page (new section)
 
-### `action: "order"` (future-ready)
-- Receives `{ action: "order", product_id, email, plan }`
-- Placeholder for creating orders through the chatbot
+Add a new sidebar menu item **"Product Update"** in AdminLayout.
 
-**Config**: Add `[functions.chatbot-api] verify_jwt = false` to `supabase/config.toml`
+New component: `src/components/admin/DynamicProductManager.tsx`
+- Full CRUD table listing all dynamic products
+- Inline editing with image upload (to `product-images` storage bucket)
+- Fields: title, description, image, link, category, price, discount price, features (add/remove chips), tags (add/remove), plans (JSON editor)
+- Product preview panel showing how it looks on the frontend
+- Search, filter by category, drag-to-reorder
 
-## Phase 2: Extend Message Model
+New component: `src/components/admin/CategoryManager.tsx`
+- Add/rename/delete categories
+- Reorder categories via drag or arrows
+- Auto-updates category options across the product form
 
-Update `src/hooks/useChat.ts` — extend the `Message` interface:
+### Phase 3: Admin Panel - Offer Management Page (new section)
 
-```typescript
-export interface ProductCard {
-  name: string;
-  price: string;
-  image_url: string | null;
-  link: string | null;
-  delivery_time?: string;
-}
+Add a new sidebar menu item **"Offers"** in AdminLayout.
 
-export interface Message {
-  id: string;
-  text: string;
-  sender: 'user' | 'bot';
-  timestamp: Date;
-  product?: ProductCard; // optional product card data
-}
-```
+New component: `src/components/admin/OfferManager.tsx`
+- List all offers with enable/disable toggle
+- Add new offer with form: title, subtitle, description, image upload, offer type selector, timer controls (enable/disable, type, end date), product link picker
+- Edit existing offers inline
+- Reorder offers
+- Toggle homepage/product page visibility
 
-## Phase 3: Product Card Component
+### Phase 4: Frontend - Make ProductTabs Dynamic
 
-**New file**: `src/components/chat/ProductCardBubble.tsx`
+Update `src/components/ProductTabs.tsx`:
+- Fetch products from `dynamic_products` table instead of hardcoded `productData`
+- Fetch categories from `product_categories` table for tab names
+- Keep the exact same visual layout, just swap data source
+- Real-time subscription so admin changes appear instantly
 
-A card rendered inside the chat when `message.product` exists:
-- Product image (rounded, max-height)
-- Product name + price
-- "Buy Now" button linking to product page
-- Mobile-friendly, matches chat theme
+### Phase 5: Frontend - Make BestDeals/Offers Dynamic
 
-## Phase 4: Update MessageBubble
+Update `src/components/BestDeals.tsx`:
+- Fetch active homepage offers from `offers` table
+- Render offer blocks dynamically with optional countdown timers
+- Keep existing visual style, just make content admin-controlled
 
-Update `src/components/chat/MessageBubble.tsx`:
-- After the text bubble, if `message.product` exists, render `<ProductCardBubble>`
+### What Will NOT Change
+- **"Products (New)" page** (`GameProductPrices` component) -- zero modifications
+- **Existing `ProductsList`** component -- untouched
+- **Game pricing system** (`game_product_prices` table) -- untouched
+- **Overall website design/layout** -- only data sources change
 
-## Phase 5: Update Chat API Layer
-
-Replace `src/utils/chatApi.ts` `sendMessageToWebhook` to call the edge function instead:
-- `sendChatMessage(message, sessionId)` → calls `chatbot-api` edge function with `action: "message"`
-- Returns `{ reply, product?, timestamp }`
-
-Update `useChat.ts` `sendMessage`:
-- Use new API function
-- If response includes `product`, attach it to the bot message
-
-Update `OrderTracker.tsx`:
-- Call edge function with `action: "order-status"` instead of direct Supabase query
-
-## Phase 6: Product Search Logic in Edge Function
-
-The edge function product detection:
-1. Tokenize message, look for product name matches in `dynamic_products.title` and `game_product_prices.package_name`
-2. Use case-insensitive `ilike` search
-3. Return the best match with image, price, and link
-4. If multiple matches, return top 3 as separate product cards
-
-## Files Summary
+## Technical Details
 
 ### New Files
-- `supabase/functions/chatbot-api/index.ts` — Backend API for all chatbot operations
-
-- `src/components/chat/ProductCardBubble.tsx` — Product card UI in chat
+- `src/components/admin/DynamicProductManager.tsx` - Product Update admin page
+- `src/components/admin/CategoryManager.tsx` - Category management
+- `src/components/admin/OfferManager.tsx` - Offer management admin page
+- `src/lib/dynamicProductApi.ts` - API functions for dynamic products/categories
+- `src/lib/offerApi.ts` - API functions for offers
+- `src/hooks/useDynamicProducts.ts` - Frontend hook with real-time subscriptions
+- `src/hooks/useOffers.ts` - Frontend hook for offers
 
 ### Modified Files
-- `supabase/config.toml` — Add chatbot-api function config
-- `src/hooks/useChat.ts` — Extend Message interface with ProductCard, use new API
-- `src/components/chat/MessageBubble.tsx` — Render ProductCardBubble when product data present
-- `src/utils/chatApi.ts` — Replace webhook call with edge function call
-- `src/components/chat/OrderTracker.tsx` — Use edge function for order tracking
+- `src/components/admin/AdminLayout.tsx` - Add 3 new sidebar items (Product Update, Categories, Offers)
+- `src/pages/AdminPanel.tsx` - Add new section cases in switch
+- `src/components/ProductTabs.tsx` - Replace hardcoded data with database fetch
+- `src/components/BestDeals.tsx` - Replace hardcoded deals with database fetch
 
-### No Changes
-- `src/components/admin/ChatbotSettings.tsx` — Existing settings work as-is (webhook URL used by edge function)
-- `src/hooks/useChatbotSettings.ts` — No changes needed
-- Game product pages — Untouched
+### New Storage Bucket
+- `product-images` (public) for product image uploads
 
+### Database Migration
+- Create `dynamic_products`, `product_categories`, `offers` tables
+- Create `product-images` storage bucket
+- RLS policies for all new tables
+- Seed initial data from current hardcoded products

@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { Search, Package, Clock, CheckCircle, XCircle, Loader2 } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
+import { Search, Loader2 } from 'lucide-react';
+import { getOrderStatus } from '@/utils/chatApi';
 import { format } from 'date-fns';
 
 interface OrderTrackerProps {
@@ -17,34 +17,22 @@ export const OrderTracker = ({ prompt, onResult }: OrderTrackerProps) => {
     setLoading(true);
 
     try {
-      // Try by order_number first, then by user_email
-      let { data, error } = await supabase
-        .from('product_orders')
-        .select('order_number, product_name, package_name, status, price, created_at, confirmed_at, completed_at, canceled_at, cancellation_reason')
-        .or(`order_number.eq.${query.trim()},user_email.eq.${query.trim()}`)
-        .order('created_at', { ascending: false })
-        .limit(5);
+      const res = await getOrderStatus(query);
 
-      if (error) throw error;
-
-      if (!data || data.length === 0) {
+      if (!res.orders || res.orders.length === 0) {
         onResult(`❌ No orders found for "${query.trim()}". Please check your Order ID or email and try again.`);
         return;
       }
 
-      const results = data.map((order) => {
-        const statusIcon = {
-          pending: '⏳',
-          confirmed: '✅',
-          completed: '🎉',
-          canceled: '❌',
-          processing: '⚙️',
-        }[order.status] || '📦';
+      const results = res.orders.map((order) => {
+        const statusIcon: Record<string, string> = {
+          pending: '⏳', confirmed: '✅', completed: '🎉', canceled: '❌', processing: '⚙️',
+        };
 
-        let result = `${statusIcon} **Order: ${order.order_number}**\n`;
-        result += `📦 Product: ${order.product_name} - ${order.package_name}\n`;
+        let result = `${statusIcon[order.status] || '📦'} **Order: ${order.order_number}**\n`;
+        result += `📦 Product: ${order.product} - ${order.package}\n`;
         result += `💰 Price: Rs.${order.price}\n`;
-        result += `📅 Date: ${format(new Date(order.created_at!), 'MMM dd, yyyy h:mm a')}\n`;
+        result += `📅 Date: ${format(new Date(order.created_at), 'MMM dd, yyyy h:mm a')}\n`;
         result += `📊 Status: **${order.status.toUpperCase()}**`;
 
         if (order.confirmed_at) result += `\n✅ Confirmed: ${format(new Date(order.confirmed_at), 'MMM dd, h:mm a')}`;

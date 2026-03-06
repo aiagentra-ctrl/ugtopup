@@ -8,3 +8,6 @@ verify_jwt = false
 
 [functions.process-ml-order]
 verify_jwt = false
+
+[functions.chatbot-api]
+verify_jwt = false
