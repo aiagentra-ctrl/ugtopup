@@ -100,6 +100,9 @@ export type Database = {
       }
       chatbot_settings: {
         Row: {
+          ai_model: string
+          ai_provider: string
+          ai_system_prompt: string | null
           button1_enabled: boolean | null
           button1_label: string | null
           button2_enabled: boolean | null
@@ -118,6 +121,9 @@ export type Database = {
           welcome_message: string | null
         }
         Insert: {
+          ai_model?: string
+          ai_provider?: string
+          ai_system_prompt?: string | null
           button1_enabled?: boolean | null
           button1_label?: string | null
           button2_enabled?: boolean | null
@@ -136,6 +142,9 @@ export type Database = {
           welcome_message?: string | null
         }
         Update: {
+          ai_model?: string
+          ai_provider?: string
+          ai_system_prompt?: string | null
           button1_enabled?: boolean | null
           button1_label?: string | null
           button2_enabled?: boolean | null

@@ -1,0 +1,4 @@
+ALTER TABLE public.chatbot_settings
+  ADD COLUMN IF NOT EXISTS ai_provider text NOT NULL DEFAULT 'lovable_ai',
+  ADD COLUMN IF NOT EXISTS ai_model text NOT NULL DEFAULT 'google/gemini-3-flash-preview',
+  ADD COLUMN IF NOT EXISTS ai_system_prompt text DEFAULT 'You are UIQ, a helpful AI sales assistant for UGC-Topup gaming store. You help users with product information, pricing, orders, and account questions. Be friendly, concise, and helpful. When users ask about products, suggest they check our product pages. For order issues, ask for their order ID. For credit/wallet questions, guide them to login and use the top-up feature.';
