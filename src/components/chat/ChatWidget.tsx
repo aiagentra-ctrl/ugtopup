@@ -1,5 +1,6 @@
 import { useChat } from '@/hooks/useChat';
 import { useChatbotSettings } from '@/hooks/useChatbotSettings';
+import { useAuth } from '@/contexts/AuthContext';
 import { FloatingButton } from './FloatingButton';
 import { ChatHeader } from './ChatHeader';
 import { MessageBubble } from './MessageBubble';
@@ -7,10 +8,12 @@ import { ChatInput } from './ChatInput';
 import { TypingIndicator } from './TypingIndicator';
 import { QuickReplyButtons } from './QuickReplyButtons';
 import { OrderTracker } from './OrderTracker';
+import { AddCreditFlow } from './AddCreditFlow';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
 export const ChatWidget = () => {
   const { settings, loading } = useChatbotSettings();
+  const { user } = useAuth();
   const {
     isOpen,
     toggleChat,
@@ -25,6 +28,7 @@ export const ChatWidget = () => {
     showQuickReplies,
     selectMode,
     handleOrderResult,
+    handleCreditResult,
   } = useChat(settings);
 
   // Don't render if chatbot is disabled or still loading
@@ -71,6 +75,7 @@ export const ChatWidget = () => {
                   button3Label={settings.button3_label}
                   button3Enabled={settings.button3_enabled}
                   onSelect={selectMode}
+                  isLoggedIn={!!user}
                 />
               )}
 
@@ -80,6 +85,11 @@ export const ChatWidget = () => {
                   prompt={settings.order_track_prompt}
                   onResult={handleOrderResult}
                 />
+              )}
+
+              {/* Add Credit Flow */}
+              {chatMode === 'credit' && (
+                <AddCreditFlow onResult={handleCreditResult} />
               )}
               
               {isTyping && <TypingIndicator />}

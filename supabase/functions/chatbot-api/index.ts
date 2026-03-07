@@ -110,7 +110,17 @@ function buildProductContext(products: any[]): string {
   ).join("\n");
 }
 
-async function callAI(message: string, settings: any, productContext?: string): Promise<string> {
+interface ConversationMessage {
+  role: "user" | "assistant";
+  content: string;
+}
+
+async function callAI(
+  message: string,
+  settings: any,
+  productContext?: string,
+  conversationHistory?: ConversationMessage[]
+): Promise<string> {
   const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
   if (!LOVABLE_API_KEY) {
     throw new Error("AI is not configured. LOVABLE_API_KEY missing.");
@@ -124,19 +134,29 @@ async function callAI(message: string, settings: any, productContext?: string): 
     ? `${systemPrompt}\n\nRelevant product data from our database:\n${productContext}\n\nUse this data to answer the user's question accurately. Include the price and delivery time in your response.`
     : systemPrompt;
 
+  // Build messages array with conversation history
+  const messages: { role: string; content: string }[] = [
+    { role: "system", content: fullSystemPrompt },
+  ];
+
+  // Add conversation history (last 10 messages for context)
+  if (conversationHistory && conversationHistory.length > 0) {
+    const recentHistory = conversationHistory.slice(-10);
+    for (const msg of recentHistory) {
+      messages.push({ role: msg.role, content: msg.content });
+    }
+  }
+
+  // Add current user message
+  messages.push({ role: "user", content: message });
+
   const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
     method: "POST",
     headers: {
       Authorization: `Bearer ${LOVABLE_API_KEY}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({
-      model,
-      messages: [
-        { role: "system", content: fullSystemPrompt },
-        { role: "user", content: message },
-      ],
-    }),
+    body: JSON.stringify({ model, messages }),
   });
 
   if (!response.ok) {
@@ -152,7 +172,7 @@ async function callAI(message: string, settings: any, productContext?: string): 
 }
 
 async function handleMessage(body: any) {
-  const { message, session_id } = body;
+  const { message, session_id, history } = body;
   if (!message) {
     return new Response(
       JSON.stringify({ error: "message is required" }),
@@ -174,9 +194,10 @@ async function handleMessage(body: any) {
   const products = await searchProducts(message);
 
   try {
-    // 2. Call AI with product context if available
+    // 2. Call AI with product context and conversation history
     const productContext = products ? buildProductContext(products) : undefined;
-    const aiReply = await callAI(message, settings, productContext);
+    const conversationHistory = Array.isArray(history) ? history as ConversationMessage[] : undefined;
+    const aiReply = await callAI(message, settings, productContext, conversationHistory);
 
     const responseBody: any = {
       reply: aiReply,
@@ -277,6 +298,67 @@ async function handleOrder(body: any) {
   );
 }
 
+async function handleCreditRequest(body: any) {
+  const { name, email, whatsapp, amount, screenshot_url } = body;
+  
+  if (!name || !email || !amount) {
+    return new Response(
+      JSON.stringify({ error: "name, email, and amount are required" }),
+      { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
+
+  const sb = supabaseAdmin();
+
+  // Find user by email
+  const { data: profile } = await sb
+    .from("profiles")
+    .select("id")
+    .eq("email", email)
+    .single();
+
+  if (!profile) {
+    return new Response(
+      JSON.stringify({ error: "No account found with this email. Please register first." }),
+      { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
+
+  // Create payment request
+  const { data: request, error } = await sb
+    .from("payment_requests")
+    .insert({
+      user_id: profile.id,
+      user_email: email,
+      user_name: name,
+      amount: parseFloat(amount),
+      credits: parseFloat(amount),
+      remarks: whatsapp ? `WhatsApp: ${whatsapp}` : null,
+      screenshot_url: screenshot_url || null,
+      status: "pending",
+    })
+    .select()
+    .single();
+
+  if (error) {
+    console.error("Credit request error:", error);
+    return new Response(
+      JSON.stringify({ error: "Failed to create credit request. " + error.message }),
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
+
+  return new Response(
+    JSON.stringify({
+      success: true,
+      message: `Credit request of NPR ${amount} submitted successfully! Request ID: ${request.id.slice(0, 8)}. Our team will review it shortly.`,
+      request_id: request.id,
+      timestamp: new Date().toISOString(),
+    }),
+    { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+  );
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -293,6 +375,8 @@ Deno.serve(async (req) => {
         return await handleOrderStatus(body);
       case "order":
         return await handleOrder(body);
+      case "credit-request":
+        return await handleCreditRequest(body);
       default:
         return new Response(
           JSON.stringify({ error: `Unknown action: ${action}` }),

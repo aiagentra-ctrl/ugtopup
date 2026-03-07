@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { sendChatMessage } from '@/utils/chatApi';
+import { sendChatMessage, ConversationMessage } from '@/utils/chatApi';
 import { ChatbotSettings } from '@/hooks/useChatbotSettings';
 import { ProductCardData } from '@/components/chat/ProductCardBubble';
 
@@ -12,7 +12,7 @@ export interface Message {
   products?: ProductCardData[];
 }
 
-export type ChatMode = 'welcome' | 'faq' | 'order' | 'payment';
+export type ChatMode = 'welcome' | 'faq' | 'order' | 'payment' | 'credit';
 
 const MESSAGE_HISTORY_KEY = 'uiq-chat-history';
 const MAX_STORED_MESSAGES = 50;
@@ -72,6 +72,17 @@ export const useChat = (settings: ChatbotSettings | null) => {
     }
   }, [messages]);
 
+  // Build conversation history for AI context
+  const buildHistory = (): ConversationMessage[] => {
+    return messages
+      .filter(m => m.id !== 'welcome')
+      .slice(-10)
+      .map(m => ({
+        role: m.sender === 'user' ? 'user' as const : 'assistant' as const,
+        content: m.text,
+      }));
+  };
+
   const addBotMessage = (text: string, product?: ProductCardData, products?: ProductCardData[]) => {
     const botMsg: Message = {
       id: `bot-${Date.now()}`,
@@ -98,6 +109,9 @@ export const useChat = (settings: ChatbotSettings | null) => {
       }
       setTimeout(() => setShowQuickReplies(true), 100);
       setChatMode('welcome');
+    } else if (mode === 'credit') {
+      // Credit flow widget will be shown by ChatWidget
+      addBotMessage('💳 Let\'s add credit to your wallet! Please fill in the details below.');
     }
   };
 
@@ -117,7 +131,9 @@ export const useChat = (settings: ChatbotSettings | null) => {
     setError(null);
 
     try {
-      const response = await sendChatMessage(text);
+      // Send conversation history for context
+      const history = buildHistory();
+      const response = await sendChatMessage(text, history);
 
       const botMsg: Message = {
         id: `bot-${Date.now()}`,
@@ -150,6 +166,12 @@ export const useChat = (settings: ChatbotSettings | null) => {
     setTimeout(() => setShowQuickReplies(true), 100);
   };
 
+  const handleCreditResult = (text: string) => {
+    addBotMessage(text);
+    setChatMode('welcome');
+    setTimeout(() => setShowQuickReplies(true), 100);
+  };
+
   const toggleChat = () => setIsOpen(!isOpen);
   const closeChat = () => setIsOpen(false);
 
@@ -169,5 +191,6 @@ export const useChat = (settings: ChatbotSettings | null) => {
     showQuickReplies,
     selectMode,
     handleOrderResult,
+    handleCreditResult,
   };
 };
