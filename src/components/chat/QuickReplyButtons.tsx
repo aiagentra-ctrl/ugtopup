@@ -1,4 +1,4 @@
-import { MessageCircle, Package, CreditCard } from 'lucide-react';
+import { MessageCircle, Package, CreditCard, Wallet } from 'lucide-react';
 
 interface QuickReplyButtonsProps {
   button1Label: string;
@@ -7,7 +7,8 @@ interface QuickReplyButtonsProps {
   button2Enabled: boolean;
   button3Label: string;
   button3Enabled: boolean;
-  onSelect: (mode: 'faq' | 'order' | 'payment') => void;
+  onSelect: (mode: 'faq' | 'order' | 'payment' | 'credit') => void;
+  isLoggedIn?: boolean;
 }
 
 export const QuickReplyButtons = ({
@@ -15,11 +16,13 @@ export const QuickReplyButtons = ({
   button2Label, button2Enabled,
   button3Label, button3Enabled,
   onSelect,
+  isLoggedIn,
 }: QuickReplyButtonsProps) => {
   const buttons = [
     { label: button1Label, enabled: button1Enabled, mode: 'faq' as const, icon: MessageCircle },
     { label: button2Label, enabled: button2Enabled, mode: 'order' as const, icon: Package },
     { label: button3Label, enabled: button3Enabled, mode: 'payment' as const, icon: CreditCard },
+    { label: 'Add Credit', enabled: !!isLoggedIn, mode: 'credit' as const, icon: Wallet },
   ];
 
   const activeButtons = buttons.filter(b => b.enabled);

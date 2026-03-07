@@ -25,9 +25,23 @@ export interface OrderStatusResponse {
   timestamp?: string;
 }
 
+export interface CreditRequestResponse {
+  success?: boolean;
+  message: string;
+  request_id?: string;
+  error?: string;
+  timestamp?: string;
+}
+
+export interface ConversationMessage {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
 const EDGE_FUNCTION_URL = `https://iwcqutzgtpbdowghalnl.supabase.co/functions/v1/chatbot-api`;
 const REQUEST_TIMEOUT = 30000;
 const SESSION_KEY = 'uiq-chat-session';
+const API_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml3Y3F1dHpndHBiZG93Z2hhbG5sIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjEwMDkxNDYsImV4cCI6MjA3NjU4NTE0Nn0.f_NA471WGd5doUunIq39i3kh1NXYA70g1vVwTJU70P4';
 
 function getSessionId(): string {
   let session = localStorage.getItem(SESSION_KEY);
@@ -38,7 +52,10 @@ function getSessionId(): string {
   return session;
 }
 
-export const sendChatMessage = async (message: string): Promise<ChatApiResponse> => {
+export const sendChatMessage = async (
+  message: string,
+  history?: ConversationMessage[]
+): Promise<ChatApiResponse> => {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT);
 
@@ -47,12 +64,13 @@ export const sendChatMessage = async (message: string): Promise<ChatApiResponse>
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml3Y3F1dHpndHBiZG93Z2hhbG5sIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjEwMDkxNDYsImV4cCI6MjA3NjU4NTE0Nn0.f_NA471WGd5doUunIq39i3kh1NXYA70g1vVwTJU70P4',
+        'apikey': API_KEY,
       },
       body: JSON.stringify({
         action: 'message',
         message: message.trim(),
         session_id: getSessionId(),
+        history: history || [],
       }),
       signal: controller.signal,
     });
@@ -78,7 +96,7 @@ export const getOrderStatus = async (orderId: string): Promise<OrderStatusRespon
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml3Y3F1dHpndHBiZG93Z2hhbG5sIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjEwMDkxNDYsImV4cCI6MjA3NjU4NTE0Nn0.f_NA471WGd5doUunIq39i3kh1NXYA70g1vVwTJU70P4',
+      'apikey': API_KEY,
     },
     body: JSON.stringify({
       action: 'order-status',
@@ -89,6 +107,28 @@ export const getOrderStatus = async (orderId: string): Promise<OrderStatusRespon
   if (!response.ok) {
     throw new Error(`API error: ${response.status}`);
   }
+
+  return await response.json();
+};
+
+export const submitCreditRequest = async (data: {
+  name: string;
+  email: string;
+  whatsapp: string;
+  amount: string;
+  screenshot_url?: string;
+}): Promise<CreditRequestResponse> => {
+  const response = await fetch(EDGE_FUNCTION_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'apikey': API_KEY,
+    },
+    body: JSON.stringify({
+      action: 'credit-request',
+      ...data,
+    }),
+  });
 
   return await response.json();
 };
