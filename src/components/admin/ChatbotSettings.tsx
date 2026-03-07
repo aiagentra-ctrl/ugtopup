@@ -6,9 +6,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { Separator } from '@/components/ui/separator';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { Bot, Save, Eye, Webhook, MessageCircle, Package, CreditCard, Mail, Loader2 } from 'lucide-react';
+import { Bot, Save, Eye, Brain, MessageCircle, Package, CreditCard, Mail, Loader2 } from 'lucide-react';
 
 interface Settings {
   id: string;
@@ -25,7 +25,20 @@ interface Settings {
   order_track_prompt: string;
   gmail_fallback_enabled: boolean;
   gmail_fallback_email: string | null;
+  ai_provider: string;
+  ai_model: string;
+  ai_system_prompt: string;
 }
+
+const AI_MODELS = [
+  { value: 'google/gemini-3-flash-preview', label: 'Gemini 3 Flash (Fast, Recommended)' },
+  { value: 'google/gemini-2.5-flash', label: 'Gemini 2.5 Flash (Balanced)' },
+  { value: 'google/gemini-2.5-pro', label: 'Gemini 2.5 Pro (Best Quality)' },
+  { value: 'google/gemini-3-pro-preview', label: 'Gemini 3 Pro (Next-Gen)' },
+  { value: 'openai/gpt-5-nano', label: 'GPT-5 Nano (Fast & Cheap)' },
+  { value: 'openai/gpt-5-mini', label: 'GPT-5 Mini (Balanced)' },
+  { value: 'openai/gpt-5', label: 'GPT-5 (Best Quality)' },
+];
 
 export const ChatbotSettings = () => {
   const [settings, setSettings] = useState<Settings | null>(null);
@@ -74,6 +87,9 @@ export const ChatbotSettings = () => {
           order_track_prompt: settings.order_track_prompt,
           gmail_fallback_enabled: settings.gmail_fallback_enabled,
           gmail_fallback_email: settings.gmail_fallback_email,
+          ai_provider: settings.ai_provider,
+          ai_model: settings.ai_model,
+          ai_system_prompt: settings.ai_system_prompt,
         } as any)
         .eq('id', settings.id);
       if (error) throw error;
@@ -107,7 +123,7 @@ export const ChatbotSettings = () => {
           <h2 className="text-2xl font-bold text-foreground flex items-center gap-2">
             <Bot className="h-6 w-6 text-primary" /> AI Chatbot Settings
           </h2>
-          <p className="text-sm text-muted-foreground mt-1">Configure your website chatbot without any code changes</p>
+          <p className="text-sm text-muted-foreground mt-1">Configure your AI chatbot — no external tools needed</p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" onClick={() => setShowPreview(!showPreview)}>
@@ -141,23 +157,53 @@ export const ChatbotSettings = () => {
             </CardContent>
           </Card>
 
-          {/* Webhook */}
+          {/* AI Configuration */}
           <Card>
             <CardHeader>
               <CardTitle className="text-base flex items-center gap-2">
-                <Webhook className="h-4 w-4" /> Webhook (n8n)
+                <Brain className="h-4 w-4" /> AI Engine
               </CardTitle>
-              <CardDescription>Primary AI response system</CardDescription>
+              <CardDescription>Direct AI integration — no n8n or webhooks needed</CardDescription>
             </CardHeader>
-            <CardContent>
-              <Label htmlFor="webhook-url">Webhook URL</Label>
-              <Input
-                id="webhook-url"
-                value={settings.webhook_url}
-                onChange={(e) => update('webhook_url', e.target.value)}
-                placeholder="https://n8n.example.com/webhook/chatbot"
-                className="mt-1"
-              />
+            <CardContent className="space-y-4">
+              <div>
+                <Label>AI Provider</Label>
+                <Select value={settings.ai_provider} onValueChange={(v) => update('ai_provider', v)}>
+                  <SelectTrigger className="mt-1">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="lovable_ai">Lovable AI (Built-in, Recommended)</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground mt-1">Powered by OpenAI & Google Gemini — no API key needed</p>
+              </div>
+
+              <div>
+                <Label>AI Model</Label>
+                <Select value={settings.ai_model} onValueChange={(v) => update('ai_model', v)}>
+                  <SelectTrigger className="mt-1">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {AI_MODELS.map(m => (
+                      <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <Label>AI System Prompt</Label>
+                <Textarea
+                  value={settings.ai_system_prompt}
+                  onChange={(e) => update('ai_system_prompt', e.target.value)}
+                  rows={5}
+                  className="mt-1"
+                  placeholder="Define the AI personality and instructions..."
+                />
+                <p className="text-xs text-muted-foreground mt-1">This prompt defines how the AI behaves and responds</p>
+              </div>
             </CardContent>
           </Card>
 
@@ -167,7 +213,7 @@ export const ChatbotSettings = () => {
               <CardTitle className="text-base flex items-center gap-2">
                 <Mail className="h-4 w-4" /> Gmail Fallback
               </CardTitle>
-              <CardDescription>Backup when webhook fails</CardDescription>
+              <CardDescription>Backup when AI fails</CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
               <div className="flex items-center justify-between">
@@ -208,7 +254,7 @@ export const ChatbotSettings = () => {
             </CardContent>
           </Card>
 
-          {/* Buttons */}
+          {/* Quick Reply Buttons */}
           <Card>
             <CardHeader>
               <CardTitle className="text-base">Quick Reply Buttons</CardTitle>
@@ -316,6 +362,13 @@ export const ChatbotSettings = () => {
                       Type your message...
                     </div>
                   </div>
+                </div>
+
+                {/* AI Model info */}
+                <div className="mt-3 p-2 bg-muted rounded-lg">
+                  <p className="text-[10px] text-muted-foreground text-center">
+                    Powered by <span className="font-medium">{AI_MODELS.find(m => m.value === settings.ai_model)?.label || settings.ai_model}</span>
+                  </p>
                 </div>
               </CardContent>
             </Card>

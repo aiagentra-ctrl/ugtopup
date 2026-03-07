@@ -38,11 +38,20 @@ const PRODUCT_ROUTES: Record<string, string> = {
   unipin: "/unipin-uc",
 };
 
+async function getSettings() {
+  const sb = supabaseAdmin();
+  const { data } = await sb
+    .from("chatbot_settings")
+    .select("*")
+    .limit(1)
+    .single();
+  return data;
+}
+
 async function searchProducts(message: string) {
   const sb = supabaseAdmin();
   const lowerMsg = message.toLowerCase();
 
-  // Check if the message mentions any known product
   const matchedKeyword = PRODUCT_KEYWORDS.find((kw) => lowerMsg.includes(kw));
   if (!matchedKeyword) return null;
 
@@ -74,7 +83,6 @@ async function searchProducts(message: string) {
     .limit(3);
 
   if (gamePrices && gamePrices.length > 0) {
-    // Also try to get the product image from products table
     const { data: productInfo } = await sb
       .from("products")
       .select("image_url, name")
@@ -96,6 +104,53 @@ async function searchProducts(message: string) {
   return null;
 }
 
+function buildProductContext(products: any[]): string {
+  return products.map((p: any) =>
+    `Product: ${p.name} | Price: ${p.price} | Delivery: ${p.delivery_time || "5-10 minutes"} | Link: ${p.link || "N/A"}`
+  ).join("\n");
+}
+
+async function callAI(message: string, settings: any, productContext?: string): Promise<string> {
+  const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+  if (!LOVABLE_API_KEY) {
+    throw new Error("AI is not configured. LOVABLE_API_KEY missing.");
+  }
+
+  const model = settings?.ai_model || "google/gemini-3-flash-preview";
+  const systemPrompt = settings?.ai_system_prompt ||
+    "You are UIQ, a helpful AI sales assistant for UGC-Topup. Help users with products, pricing, orders, and account questions.";
+
+  const fullSystemPrompt = productContext
+    ? `${systemPrompt}\n\nRelevant product data from our database:\n${productContext}\n\nUse this data to answer the user's question accurately. Include the price and delivery time in your response.`
+    : systemPrompt;
+
+  const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${LOVABLE_API_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model,
+      messages: [
+        { role: "system", content: fullSystemPrompt },
+        { role: "user", content: message },
+      ],
+    }),
+  });
+
+  if (!response.ok) {
+    const errText = await response.text();
+    console.error("AI gateway error:", response.status, errText);
+    if (response.status === 429) throw new Error("AI is busy. Please try again in a moment.");
+    if (response.status === 402) throw new Error("AI service quota reached. Please try later.");
+    throw new Error("Failed to get AI response");
+  }
+
+  const data = await response.json();
+  return data.choices?.[0]?.message?.content || "I couldn't generate a response. Please try again.";
+}
+
 async function handleMessage(body: any) {
   const { message, session_id } = body;
   if (!message) {
@@ -105,76 +160,58 @@ async function handleMessage(body: any) {
     );
   }
 
-  // 1. Check for product matches
-  const products = await searchProducts(message);
-  if (products && products.length > 0) {
-    const firstProduct = products[0];
-    const reply = `${firstProduct.name} costs ${firstProduct.price} and delivery usually takes ${firstProduct.delivery_time || "5–10 minutes"}.`;
+  const settings = await getSettings();
 
+  // Check if chatbot is enabled
+  if (settings && !settings.is_enabled) {
     return new Response(
-      JSON.stringify({
-        reply,
-        products,
-        product: firstProduct, // primary product card
-        timestamp: new Date().toISOString(),
-      }),
+      JSON.stringify({ reply: "Chatbot is currently offline. Please try again later.", timestamp: new Date().toISOString() }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
 
-  // 2. Forward to n8n webhook
-  const sb = supabaseAdmin();
-  const { data: settings } = await sb
-    .from("chatbot_settings")
-    .select("webhook_url, gmail_fallback_enabled, gmail_fallback_email")
-    .limit(1)
-    .single();
-
-  const webhookUrl = settings?.webhook_url || "https://n8n.aiagentra.com/webhook/chatbot";
+  // 1. Check for product matches
+  const products = await searchProducts(message);
 
   try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 25000);
+    // 2. Call AI with product context if available
+    const productContext = products ? buildProductContext(products) : undefined;
+    const aiReply = await callAI(message, settings, productContext);
 
-    const webhookRes = await fetch(webhookUrl, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        message: message.trim(),
-        timestamp: new Date().toISOString(),
-        sessionId: session_id || "anonymous",
-        source: "UGC-Topup Website",
-      }),
-      signal: controller.signal,
-    });
+    const responseBody: any = {
+      reply: aiReply,
+      timestamp: new Date().toISOString(),
+    };
 
-    clearTimeout(timeoutId);
-
-    const raw = await webhookRes.text();
-    let reply = "No response received";
-    try {
-      const parsed = JSON.parse(raw);
-      reply = parsed.reply ?? parsed.message ?? parsed.answer ?? raw;
-    } catch {
-      reply = raw?.trim() || "No response received";
+    // Include product cards if found
+    if (products && products.length > 0) {
+      responseBody.products = products;
+      responseBody.product = products[0];
     }
 
     return new Response(
-      JSON.stringify({ reply, timestamp: new Date().toISOString() }),
+      JSON.stringify(responseBody),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (err: any) {
-    // Gmail fallback
-    if (settings?.gmail_fallback_enabled && settings?.gmail_fallback_email) {
-      console.log(`Webhook failed, Gmail fallback would send to: ${settings.gmail_fallback_email}`);
+    console.error("AI error:", err.message);
+
+    // Fallback: if AI fails but we have product data, return product info without AI
+    if (products && products.length > 0) {
+      const firstProduct = products[0];
+      return new Response(
+        JSON.stringify({
+          reply: `${firstProduct.name} costs ${firstProduct.price} and delivery usually takes ${firstProduct.delivery_time || "5–10 minutes"}.`,
+          products,
+          product: firstProduct,
+          timestamp: new Date().toISOString(),
+        }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
-    const errorMsg = err.name === "AbortError"
-      ? "AI is taking too long to respond. Please try again."
-      : err.message || "Failed to connect to AI service";
-
     return new Response(
-      JSON.stringify({ reply: `❌ ${errorMsg}`, timestamp: new Date().toISOString(), error: true }),
+      JSON.stringify({ reply: `❌ ${err.message}`, timestamp: new Date().toISOString(), error: true }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
@@ -234,7 +271,6 @@ async function handleOrderStatus(body: any) {
 }
 
 async function handleOrder(body: any) {
-  // Future-ready placeholder
   return new Response(
     JSON.stringify({ message: "Order creation via chatbot coming soon.", timestamp: new Date().toISOString() }),
     { headers: { ...corsHeaders, "Content-Type": "application/json" } }
