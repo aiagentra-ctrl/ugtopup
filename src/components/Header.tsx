@@ -161,6 +161,11 @@ export const Header = () => {
                         Dashboard
                       </Link>
                     </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link to="/refer-earn" className="cursor-pointer">
+                        Refer & Earn
+                      </Link>
+                    </DropdownMenuItem>
                     <DropdownMenuItem onClick={logout} className="cursor-pointer">
                       Logout
                     </DropdownMenuItem>
