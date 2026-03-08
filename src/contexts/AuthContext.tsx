@@ -125,15 +125,46 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     };
   }, [user?.id]);
 
-  // Email/Password Login
+  // Inactivity auto-logout
+  useEffect(() => {
+    if (!user) return;
+    const cleanup = startInactivityMonitor(async () => {
+      toast({
+        title: "Session expired",
+        description: "You were logged out due to inactivity.",
+      });
+      await logout();
+    });
+    return cleanup;
+  }, [user]);
+
+  // Email/Password Login with rate limiting
   const login = async (email: string, password: string) => {
+    const sanitizedEmail = sanitizeInput(email).toLowerCase();
+    
+    // Rate limit check
+    const rateCheck = checkLoginRate(sanitizedEmail);
+    if (!rateCheck.allowed) {
+      const minutes = Math.ceil(rateCheck.remainingMs / 60000);
+      const errorMsg = `Too many login attempts. Please try again in ${minutes} minute(s).`;
+      toast({
+        title: "Account temporarily locked",
+        description: errorMsg,
+        variant: "destructive",
+      });
+      return { error: { message: errorMsg } };
+    }
+
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
-        email,
+        email: sanitizedEmail,
         password,
       });
 
       if (error) throw error;
+
+      // Reset rate limiter on success
+      loginLimiter.reset(`login:${sanitizedEmail}`);
 
       toast({
         title: "Welcome back!",
