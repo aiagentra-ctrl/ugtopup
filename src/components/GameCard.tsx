@@ -11,6 +11,8 @@ export const GameCard = ({ image, title }: GameCardProps) => {
           <img
             src={image}
             alt={title}
+            loading="lazy"
+            decoding="async"
             className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-110"
           />
         </div>
