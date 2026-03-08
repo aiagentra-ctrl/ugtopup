@@ -59,7 +59,7 @@ export const Testimonials = () => {
                   index === currentIndex ? "opacity-100" : "absolute opacity-0"
                 }`}
               >
-                <div className="glass-card rounded-2xl p-8 md:p-12">
+                <div className="glass-card rounded-xl sm:rounded-2xl p-5 sm:p-8 md:p-12">
                   <div className="flex items-center gap-4 mb-4">
                     <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/20 text-primary text-xl font-bold">
                       {testimonial.name.charAt(0).toUpperCase()}
