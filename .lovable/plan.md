@@ -1,96 +1,87 @@
 
-# Dynamic Website with Advanced Admin Panel
+
+# Advanced Supabase Management & Monitoring System
 
 ## Overview
-Make the entire website content dynamic and admin-controlled by creating two new admin sections and supporting database tables. The existing "Products (New)" page (GameProductPrices) will remain completely untouched.
 
-## What Changes
+Upgrade the existing DB Management section and EnhancedDashboard with: (1) a new `system_daily_reports` table for auto-generated daily summaries, (2) enhanced edge function with alert generation and daily report logic, (3) a new `SystemHealthMonitor` admin component with order/credit/health monitoring, and (4) integration of alert widgets into the existing dashboard.
 
-### Phase 1: Database Setup
+## Database Changes (1 migration)
 
-**New table: `dynamic_products`** - stores products displayed on the homepage
-- `id`, `title`, `description`, `image_url`, `link`, `category` (topup/voucher/subscription/design), `price`, `discount_price`, `features` (jsonb array), `tags` (text array), `plans` (jsonb array), `display_order`, `is_active`, `created_at`, `updated_at`
+### New table: `system_daily_reports`
+- `id` uuid PK
+- `report_date` date UNIQUE NOT NULL
+- `total_orders` integer DEFAULT 0
+- `total_revenue` numeric DEFAULT 0
+- `total_credit_requests` integer DEFAULT 0
+- `total_chatbot_interactions` integer DEFAULT 0
+- `pending_orders` integer DEFAULT 0
+- `failed_orders` integer DEFAULT 0
+- `active_users` integer DEFAULT 0
+- `database_stats` jsonb DEFAULT '{}'
+- `created_at` timestamptz DEFAULT now()
+- RLS: admin-only SELECT
 
-**New table: `product_categories`** - dynamic categories
-- `id`, `name`, `slug`, `display_order`, `is_active`, `created_at`, `updated_at`
+### New cleanup_settings seeds (via insert tool)
+Add rows for `expired_coupon_retention_days` if not already present.
 
-**New table: `offers`** - dynamic offer/deal sections
-- `id`, `title`, `subtitle`, `description`, `image_url`, `offer_type` (flash_sale/limited_time/daily_deal/discount_bundle), `timer_enabled`, `timer_type` (hours/days/both/none), `timer_end_date`, `product_link`, `custom_icon_url`, `display_order`, `is_active`, `show_on_homepage`, `show_on_product_page`, `created_at`, `updated_at`
+## Edge Function Changes: `database-cleanup/index.ts`
 
-RLS: Public SELECT for active items, admin ALL for management.
+Extend the existing function with:
 
-**Seed `dynamic_products`** with current hardcoded data from ProductTabs so nothing changes visually on day one.
+1. **Expired coupon cleanup**: Delete expired coupons older than retention period (new cleanup category).
 
-### Phase 2: Admin Panel - Product Update Page (new section)
+2. **Alert generation logic** (runs after cleanup):
+   - Count pending orders older than 2 hours → if > 0, create admin notification "X orders pending for 2+ hours"
+   - Count pending credit requests older than 1 hour → if > 0, create admin notification
+   - Count failed orders today → if > 3, alert "X failed orders today"
+   - Check database record counts against thresholds → alert if approaching limits
 
-Add a new sidebar menu item **"Product Update"** in AdminLayout.
+3. **Daily report generation**:
+   - Count today's orders, revenue, credit requests, chatbot conversations, pending/failed orders
+   - Upsert into `system_daily_reports` for today's date
+   - This runs each time cleanup runs (daily via cron)
 
-New component: `src/components/admin/DynamicProductManager.tsx`
-- Full CRUD table listing all dynamic products
-- Inline editing with image upload (to `product-images` storage bucket)
-- Fields: title, description, image, link, category, price, discount price, features (add/remove chips), tags (add/remove), plans (JSON editor)
-- Product preview panel showing how it looks on the frontend
-- Search, filter by category, drag-to-reorder
+## New Component: `SystemHealthMonitor.tsx`
 
-New component: `src/components/admin/CategoryManager.tsx`
-- Add/rename/delete categories
-- Reorder categories via drag or arrows
-- Auto-updates category options across the product form
+A new admin panel section with 4 sub-tabs:
 
-### Phase 3: Admin Panel - Offer Management Page (new section)
+### Order Monitor Tab
+- Cards: orders today, orders this week, pending orders, failed orders needing attention
+- Table of orders pending > 2 hours (highlighted as urgent)
+- Table of recent failed orders
 
-Add a new sidebar menu item **"Offers"** in AdminLayout.
+### Credit Monitor Tab  
+- Cards: credit requests today, pending verification, approved today, rejected today
+- Table of pending credit requests with age indicator
 
-New component: `src/components/admin/OfferManager.tsx`
-- List all offers with enable/disable toggle
-- Add new offer with form: title, subtitle, description, image upload, offer type selector, timer controls (enable/disable, type, end date), product link picker
-- Edit existing offers inline
-- Reorder offers
-- Toggle homepage/product page visibility
+### System Health Tab
+- Reuse `fetchSupabaseLimits` for storage gauge
+- Record count bars: orders, notifications, activity logs, chatbot logs (with warning thresholds)
+- Active users count (profiles with recent activity)
+- API activity summary (from activity_logs counts)
 
-### Phase 4: Frontend - Make ProductTabs Dynamic
+### Daily Reports Tab
+- Table of `system_daily_reports` entries (last 30 days)
+- Summary cards for today's report
+- Export capability
 
-Update `src/components/ProductTabs.tsx`:
-- Fetch products from `dynamic_products` table instead of hardcoded `productData`
-- Fetch categories from `product_categories` table for tab names
-- Keep the exact same visual layout, just swap data source
-- Real-time subscription so admin changes appear instantly
+## File Changes
 
-### Phase 5: Frontend - Make BestDeals/Offers Dynamic
+| File | Action |
+|------|--------|
+| Migration SQL | Create `system_daily_reports` table + RLS |
+| `supabase/functions/database-cleanup/index.ts` | Add expired coupon cleanup, alert generation, daily report generation |
+| New: `src/components/admin/SystemHealthMonitor.tsx` | Full monitoring component |
+| `src/components/admin/AdminLayout.tsx` | Add "System Health" menu item |
+| `src/pages/AdminPanel.tsx` | Add `system-health` case |
+| `src/components/admin/DatabaseManagement.tsx` | Add expired coupons to settingLabels map |
 
-Update `src/components/BestDeals.tsx`:
-- Fetch active homepage offers from `offers` table
-- Render offer blocks dynamically with optional countdown timers
-- Keep existing visual style, just make content admin-controlled
+## Implementation Order
 
-### What Will NOT Change
-- **"Products (New)" page** (`GameProductPrices` component) -- zero modifications
-- **Existing `ProductsList`** component -- untouched
-- **Game pricing system** (`game_product_prices` table) -- untouched
-- **Overall website design/layout** -- only data sources change
+1. Database migration (system_daily_reports table)
+2. Insert new cleanup_settings row for expired coupons
+3. Update edge function (coupon cleanup + alerts + daily report)
+4. Build SystemHealthMonitor component
+5. Wire into AdminLayout + AdminPanel
 
-## Technical Details
-
-### New Files
-- `src/components/admin/DynamicProductManager.tsx` - Product Update admin page
-- `src/components/admin/CategoryManager.tsx` - Category management
-- `src/components/admin/OfferManager.tsx` - Offer management admin page
-- `src/lib/dynamicProductApi.ts` - API functions for dynamic products/categories
-- `src/lib/offerApi.ts` - API functions for offers
-- `src/hooks/useDynamicProducts.ts` - Frontend hook with real-time subscriptions
-- `src/hooks/useOffers.ts` - Frontend hook for offers
-
-### Modified Files
-- `src/components/admin/AdminLayout.tsx` - Add 3 new sidebar items (Product Update, Categories, Offers)
-- `src/pages/AdminPanel.tsx` - Add new section cases in switch
-- `src/components/ProductTabs.tsx` - Replace hardcoded data with database fetch
-- `src/components/BestDeals.tsx` - Replace hardcoded deals with database fetch
-
-### New Storage Bucket
-- `product-images` (public) for product image uploads
-
-### Database Migration
-- Create `dynamic_products`, `product_categories`, `offers` tables
-- Create `product-images` storage bucket
-- RLS policies for all new tables
-- Seed initial data from current hardcoded products
