@@ -37,7 +37,7 @@ async function fetchTrending(): Promise<RecommendationItem[]> {
 
   return Array.from(counts.values())
     .sort((a, b) => b.order_count - a.order_count)
-    .slice(0, 8);
+    .slice(0, 3);
 }
 
 async function fetchPopular(): Promise<RecommendationItem[]> {
