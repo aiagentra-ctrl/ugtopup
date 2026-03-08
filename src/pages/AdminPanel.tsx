@@ -35,6 +35,7 @@ import { TicketManager } from "@/components/admin/TicketManager";
 import { AnnouncementManager } from "@/components/admin/AnnouncementManager";
 import { UserAnalytics } from "@/components/admin/UserAnalytics";
 import { MaintenanceLog } from "@/components/admin/MaintenanceLog";
+import { DatabaseManagement } from "@/components/admin/DatabaseManagement";
 import { checkAdminAccess } from "@/lib/adminApi";
 import { useAdminPushNotifications } from "@/hooks/useAdminPushNotifications";
 import { toast } from "sonner";
@@ -163,6 +164,8 @@ const AdminPanel = () => {
         return <UserAnalytics />;
       case "maintenance-log":
         return <MaintenanceLog />;
+      case "db-management":
+        return <DatabaseManagement />;
       default:
         return <EnhancedDashboard />;
     }

@@ -80,6 +80,7 @@ const menuItems = [
   { id: "announcements", title: "Announcements", icon: Megaphone },
   { id: "user-analytics", title: "User Analytics", icon: BarChart3 },
   { id: "maintenance-log", title: "Maintenance Log", icon: Wrench },
+  { id: "db-management", title: "DB Management", icon: Database },
 ];
 
 // Bottom nav items for mobile quick access
