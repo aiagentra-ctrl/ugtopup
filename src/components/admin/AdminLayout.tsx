@@ -18,16 +18,11 @@ import {
   Gift,
   Bot,
   Ticket,
+  Smartphone,
 } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
-  SidebarGroup,
-  SidebarGroupContent,
-  SidebarGroupLabel,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
   SidebarProvider,
   SidebarTrigger,
   useSidebar,
@@ -62,6 +57,15 @@ const menuItems = [
   { id: "chatbot", title: "AI Chatbot", icon: Bot },
   { id: "vouchers", title: "Voucher Inventory", icon: Ticket },
   { id: "ml-monitoring", title: "API Monitoring", icon: Activity },
+  { id: "admin-app", title: "Admin App", icon: Smartphone },
+];
+
+// Bottom nav items for mobile quick access
+const bottomNavItems = [
+  { id: "dashboard", title: "Dashboard", icon: LayoutDashboard },
+  { id: "orders", title: "Orders", icon: ShoppingCart },
+  { id: "payments", title: "Payments", icon: CreditCard },
+  { id: "notifications", title: "Alerts", icon: Bell },
 ];
 
 function AdminSidebar({ 
@@ -95,7 +99,7 @@ function AdminSidebar({
       </div>
 
       {/* Navigation Menu */}
-      <div className="flex-1 py-4">
+      <div className="flex-1 py-4 overflow-y-auto">
         <div className="px-3 py-2">
           <h2 className="mb-2 px-4 text-xs font-semibold tracking-tight text-muted-foreground">
             Navigation
@@ -171,6 +175,38 @@ function AdminSidebar({
   );
 }
 
+function MobileBottomNav({
+  activeSection,
+  onSectionChange,
+}: {
+  activeSection: string;
+  onSectionChange: (section: string) => void;
+}) {
+  return (
+    <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-card/95 backdrop-blur-lg border-t border-border safe-area-bottom">
+      <div className="flex items-center justify-around h-16">
+        {bottomNavItems.map((item) => {
+          const isActive = activeSection === item.id;
+          return (
+            <button
+              key={item.id}
+              onClick={() => onSectionChange(item.id)}
+              className={`flex flex-col items-center justify-center gap-0.5 flex-1 h-full transition-colors ${
+                isActive
+                  ? "text-primary"
+                  : "text-muted-foreground"
+              }`}
+            >
+              <item.icon className={`h-5 w-5 ${isActive ? "text-primary" : ""}`} />
+              <span className="text-[10px] font-medium">{item.title}</span>
+            </button>
+          );
+        })}
+      </div>
+    </nav>
+  );
+}
+
 export function AdminLayout({ children, activeSection, onSectionChange }: AdminLayoutProps) {
   return (
     <SidebarProvider>
@@ -182,11 +218,11 @@ export function AdminLayout({ children, activeSection, onSectionChange }: AdminL
         
         <div className="flex-1 flex flex-col min-w-0">
           {/* Top Header Bar */}
-          <header className="h-16 border-b border-border bg-card/50 backdrop-blur-lg flex items-center px-4 lg:px-6 sticky top-0 z-10 shadow-sm">
+          <header className="h-14 lg:h-16 border-b border-border bg-card/50 backdrop-blur-lg flex items-center px-3 lg:px-6 sticky top-0 z-10 shadow-sm">
             {/* Mobile Menu */}
             <Sheet>
-              <SheetTrigger asChild className="lg:hidden mr-4">
-                <Button variant="ghost" size="icon">
+              <SheetTrigger asChild className="lg:hidden mr-3">
+                <Button variant="ghost" size="icon" className="h-9 w-9">
                   <Menu className="h-5 w-5" />
                 </Button>
               </SheetTrigger>
@@ -203,7 +239,7 @@ export function AdminLayout({ children, activeSection, onSectionChange }: AdminL
             <SidebarTrigger className="hidden lg:flex mr-4" />
 
             <div className="flex-1 min-w-0">
-              <h1 className="text-lg lg:text-xl font-bold text-foreground truncate">
+              <h1 className="text-base lg:text-xl font-bold text-foreground truncate">
                 {menuItems.find(item => item.id === activeSection)?.title || "Dashboard"}
               </h1>
               <p className="text-xs text-muted-foreground hidden sm:block">Manage your gaming store operations</p>
@@ -211,10 +247,13 @@ export function AdminLayout({ children, activeSection, onSectionChange }: AdminL
           </header>
 
           {/* Main Content */}
-          <main className="flex-1 p-4 lg:p-6 overflow-auto">
+          <main className="flex-1 p-3 lg:p-6 overflow-auto pb-20 lg:pb-6">
             {children}
           </main>
         </div>
+
+        {/* Mobile Bottom Navigation */}
+        <MobileBottomNav activeSection={activeSection} onSectionChange={onSectionChange} />
       </div>
     </SidebarProvider>
   );

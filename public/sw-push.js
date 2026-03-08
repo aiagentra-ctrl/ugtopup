@@ -43,8 +43,16 @@ self.addEventListener('notificationclick', function(event) {
     return;
   }
 
-  const urlToOpen = event.notification.data?.url || '/';
-  const fullUrl = self.location.origin + urlToOpen;
+  const rawUrl = event.notification.data?.url || '/';
+  
+  // Handle admin deep-links: /admin?section=orders -> navigate to admin panel with section
+  let fullUrl;
+  if (rawUrl.startsWith('/admin')) {
+    // Preserve query params for admin section deep-linking
+    fullUrl = self.location.origin + rawUrl;
+  } else {
+    fullUrl = self.location.origin + rawUrl;
+  }
 
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function(clientList) {

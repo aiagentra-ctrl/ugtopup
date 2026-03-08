@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { EnhancedDashboard } from "@/components/admin/EnhancedDashboard";
 import { CreditRequestsTable } from "@/components/admin/CreditRequestsTable";
@@ -21,13 +21,29 @@ import { OfferManager } from "@/components/admin/OfferManager";
 import { ChatbotSettings } from "@/components/admin/ChatbotSettings";
 import { VoucherInventory } from "@/components/admin/VoucherInventory";
 import { MLApiMonitoring } from "@/components/admin/MLApiMonitoring";
+import { AdminAppDownload } from "@/components/admin/AdminAppDownload";
 import { checkAdminAccess } from "@/lib/adminApi";
+import { useAdminPushNotifications } from "@/hooks/useAdminPushNotifications";
 import { toast } from "sonner";
+import { Bell } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 const AdminPanel = () => {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [activeSection, setActiveSection] = useState("dashboard");
   const [loading, setLoading] = useState(true);
+  const { isSupported, isSubscribed, permission, requestAndSubscribe } = useAdminPushNotifications();
+
+  // Deep-link: read ?section= param on load
+  useEffect(() => {
+    const section = searchParams.get("section");
+    if (section) {
+      setActiveSection(section);
+      // Clear the param after reading
+      setSearchParams({}, { replace: true });
+    }
+  }, []);
 
   useEffect(() => {
     const verifyAccess = async () => {
@@ -49,6 +65,9 @@ const AdminPanel = () => {
 
     verifyAccess();
   }, [navigate]);
+
+  // Show push notification prompt for admins
+  const showPushPrompt = isSupported && permission === 'default' && !loading;
 
   if (loading) {
     return (
@@ -103,6 +122,8 @@ const AdminPanel = () => {
         return <VoucherInventory />;
       case "ml-monitoring":
         return <MLApiMonitoring />;
+      case "admin-app":
+        return <AdminAppDownload />;
       default:
         return <EnhancedDashboard />;
     }
@@ -110,6 +131,16 @@ const AdminPanel = () => {
 
   return (
     <AdminLayout activeSection={activeSection} onSectionChange={setActiveSection}>
+      {/* Push notification prompt banner */}
+      {showPushPrompt && (
+        <div className="mb-4 p-3 rounded-lg bg-primary/10 border border-primary/20 flex items-center gap-3 flex-wrap">
+          <Bell className="h-5 w-5 text-primary shrink-0" />
+          <p className="text-sm text-foreground flex-1">Enable push notifications to get instant alerts for new orders and credit requests.</p>
+          <Button size="sm" onClick={requestAndSubscribe} className="shrink-0">
+            Enable Notifications
+          </Button>
+        </div>
+      )}
       {renderContent()}
     </AdminLayout>
   );
