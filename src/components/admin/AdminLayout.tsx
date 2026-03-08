@@ -19,6 +19,8 @@ import {
   Bot,
   Ticket,
   Smartphone,
+  Trophy,
+  UserPlus,
 } from "lucide-react";
 import {
   Sidebar,

@@ -99,6 +99,22 @@ const App = () => (
                 </ProtectedRoute>
               } 
             />
+            <Route 
+              path="/rewards" 
+              element={
+                <ProtectedRoute>
+                  <Rewards />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/referrals" 
+              element={
+                <ProtectedRoute>
+                  <Referrals />
+                </ProtectedRoute>
+              } 
+            />
             {/* Payment result pages */}
             <Route path="/payment/success" element={<PaymentSuccess />} />
             <Route path="/payment/cancel" element={<PaymentCancel />} />

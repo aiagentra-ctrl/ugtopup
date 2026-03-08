@@ -12,6 +12,8 @@ interface Profile {
   avatar_url?: string;
   balance: number;
   provider?: string;
+  referral_code?: string;
+  referred_by?: string;
 }
 
 interface AuthContextType {

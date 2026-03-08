@@ -126,6 +126,10 @@ const AdminPanel = () => {
         return <MLApiMonitoring />;
       case "admin-app":
         return <AdminAppDownload />;
+      case "milestones":
+        return <RewardMilestoneManager />;
+      case "referrals":
+        return <ReferralManager />;
       default:
         return <EnhancedDashboard />;
     }
