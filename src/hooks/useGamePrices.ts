@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useEffect } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 
 export interface GamePrice {
@@ -15,37 +16,29 @@ export interface GamePrice {
   is_api_product?: boolean;
 }
 
+async function fetchGamePrices(game: string): Promise<GamePrice[]> {
+  const { data, error } = await supabase
+    .from('game_product_prices')
+    .select('*')
+    .eq('game', game)
+    .eq('is_active', true)
+    .order('display_order', { ascending: true });
+
+  if (error) throw error;
+  return (data || []) as GamePrice[];
+}
+
 export const useGamePrices = (game: string) => {
-  const [prices, setPrices] = useState<GamePrice[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const queryClient = useQueryClient();
 
-  // Fetch initial prices
-  useEffect(() => {
-    const fetchPrices = async () => {
-      setLoading(true);
-      try {
-        const { data, error } = await supabase
-          .from('game_product_prices')
-          .select('*')
-          .eq('game', game)
-          .eq('is_active', true)
-          .order('display_order', { ascending: true });
+  const { data: prices = [], isLoading: loading, error } = useQuery({
+    queryKey: ['game-prices', game],
+    queryFn: () => fetchGamePrices(game),
+    staleTime: 1000 * 60 * 5,
+    gcTime: 1000 * 60 * 60 * 24,
+  });
 
-        if (error) throw error;
-        setPrices(data || []);
-      } catch (err) {
-        console.error('Error fetching game prices:', err);
-        setError(err instanceof Error ? err.message : 'Failed to fetch prices');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchPrices();
-  }, [game]);
-
-  // Subscribe to real-time updates
+  // Real-time subscription
   useEffect(() => {
     const channel = supabase
       .channel(`game-prices-${game}`)
@@ -57,55 +50,18 @@ export const useGamePrices = (game: string) => {
           table: 'game_product_prices',
           filter: `game=eq.${game}`,
         },
-        (payload) => {
-          if (payload.eventType === 'UPDATE') {
-            setPrices((prev) =>
-              prev.map((p) =>
-                p.id === (payload.new as GamePrice).id
-                  ? (payload.new as GamePrice)
-                  : p
-              )
-            );
-          } else if (payload.eventType === 'INSERT') {
-            setPrices((prev) => [...prev, payload.new as GamePrice]);
-          } else if (payload.eventType === 'DELETE') {
-            setPrices((prev) =>
-              prev.filter((p) => p.id !== (payload.old as GamePrice).id)
-            );
-          }
+        () => {
+          queryClient.invalidateQueries({ queryKey: ['game-prices', game] });
         }
       )
       .subscribe();
 
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [game]);
+    return () => { supabase.removeChannel(channel); };
+  }, [game, queryClient]);
 
-  // Helper to get price by package type
-  const getPricesByType = (type: string) => {
-    return prices.filter((p) => p.package_type === type);
-  };
+  const getPricesByType = (type: string) => prices.filter((p) => p.package_type === type);
 
-  // Refresh prices from DB
-  const refresh = async () => {
-    setLoading(true);
-    try {
-      const { data, error } = await supabase
-        .from('game_product_prices')
-        .select('*')
-        .eq('game', game)
-        .eq('is_active', true)
-        .order('display_order', { ascending: true });
+  const refresh = () => queryClient.invalidateQueries({ queryKey: ['game-prices', game] });
 
-      if (error) throw error;
-      setPrices(data || []);
-    } catch (err) {
-      console.error('Error refreshing prices:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return { prices, loading, error, getPricesByType, refresh };
+  return { prices, loading, error: error instanceof Error ? error.message : null, getPricesByType, refresh };
 };

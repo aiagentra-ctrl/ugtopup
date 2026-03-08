@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
 export interface DynamicProduct {
@@ -30,43 +31,62 @@ export interface ProductCategory {
   is_active: boolean;
 }
 
+async function fetchProducts() {
+  const { data, error } = await supabase
+    .from("dynamic_products")
+    .select("*, product_categories(id, name, slug), offers(id, badge_text, badge_color, badge_text_color, animation_type, design_template)")
+    .eq("is_active", true)
+    .order("display_order");
+  if (error) throw error;
+  return (data || []) as DynamicProduct[];
+}
+
+async function fetchCategories() {
+  const { data, error } = await supabase
+    .from("product_categories")
+    .select("*")
+    .eq("is_active", true)
+    .order("display_order");
+  if (error) throw error;
+  return (data || []) as ProductCategory[];
+}
+
 export function useDynamicProducts() {
-  const [products, setProducts] = useState<DynamicProduct[]>([]);
-  const [categories, setCategories] = useState<ProductCategory[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
 
-  const fetchAll = async () => {
-    try {
-      const [prodRes, catRes] = await Promise.all([
-        supabase
-          .from("dynamic_products")
-          .select("*, product_categories(id, name, slug), offers(id, badge_text, badge_color, badge_text_color, animation_type, design_template)")
-          .eq("is_active", true)
-          .order("display_order"),
-        supabase
-          .from("product_categories")
-          .select("*")
-          .eq("is_active", true)
-          .order("display_order"),
-      ]);
-      if (prodRes.data) setProducts(prodRes.data as any);
-      if (catRes.data) setCategories(catRes.data);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const { data: products = [], isLoading: productsLoading } = useQuery({
+    queryKey: ["dynamic-products"],
+    queryFn: fetchProducts,
+    staleTime: 1000 * 60 * 5,
+    gcTime: 1000 * 60 * 60 * 24,
+  });
 
+  const { data: categories = [], isLoading: categoriesLoading } = useQuery({
+    queryKey: ["product-categories"],
+    queryFn: fetchCategories,
+    staleTime: 1000 * 60 * 10,
+    gcTime: 1000 * 60 * 60 * 24,
+  });
+
+  // Real-time subscription to invalidate cache
   useEffect(() => {
-    fetchAll();
-
-    const prodChannel = supabase
+    const channel = supabase
       .channel("dynamic-products-realtime")
-      .on("postgres_changes", { event: "*", schema: "public", table: "dynamic_products" }, () => fetchAll())
-      .on("postgres_changes", { event: "*", schema: "public", table: "product_categories" }, () => fetchAll())
+      .on("postgres_changes", { event: "*", schema: "public", table: "dynamic_products" }, () => {
+        queryClient.invalidateQueries({ queryKey: ["dynamic-products"] });
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "product_categories" }, () => {
+        queryClient.invalidateQueries({ queryKey: ["product-categories"] });
+      })
       .subscribe();
 
-    return () => { supabase.removeChannel(prodChannel); };
-  }, []);
+    return () => { supabase.removeChannel(channel); };
+  }, [queryClient]);
 
-  return { products, categories, loading, refetch: fetchAll };
+  const refetch = () => {
+    queryClient.invalidateQueries({ queryKey: ["dynamic-products"] });
+    queryClient.invalidateQueries({ queryKey: ["product-categories"] });
+  };
+
+  return { products, categories, loading: productsLoading || categoriesLoading, refetch };
 }
