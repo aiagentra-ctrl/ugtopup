@@ -77,6 +77,7 @@ const App = () => (
             <Route path="/product/thumbnail-design" element={<ThumbnailDesign />} />
             <Route path="/contact" element={<ContactUs />} />
             <Route path="/refund-policy" element={<RefundPolicy />} />
+            <Route path="/coupon-policy" element={<CouponPolicy />} />
             <Route
               path="/dashboard"
               element={
