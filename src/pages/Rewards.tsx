@@ -14,6 +14,8 @@ interface Coupon {
   id: string;
   code: string;
   discount_percent: number;
+  discount_type: string;
+  discount_value: number;
   source: string;
   is_used: boolean;
   used_at: string | null;
