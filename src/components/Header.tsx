@@ -114,7 +114,7 @@ export const Header = () => {
           </Link>
 
           {/* Right Section */}
-          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-1.5 sm:gap-3">
             {isAuthenticated ? (
               <>
                 {/* Credit Balance - Visible on all devices */}
