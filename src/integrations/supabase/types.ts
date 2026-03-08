@@ -104,6 +104,99 @@ export type Database = {
         }
         Relationships: []
       }
+      archived_orders: {
+        Row: {
+          admin_remarks: string | null
+          archived_at: string
+          canceled_at: string | null
+          cancellation_reason: string | null
+          completed_at: string | null
+          confirmed_at: string | null
+          created_at: string | null
+          credits_deducted: number | null
+          failed_at: string | null
+          failure_reason: string | null
+          id: string
+          metadata: Json | null
+          order_number: string
+          package_name: string
+          payment_method: string | null
+          price: number
+          processing_started_at: string | null
+          product_category: string
+          product_details: Json
+          product_name: string
+          quantity: number
+          reviewed_by: string | null
+          status: string
+          transaction_id: string | null
+          updated_at: string | null
+          user_email: string
+          user_id: string
+          user_name: string | null
+        }
+        Insert: {
+          admin_remarks?: string | null
+          archived_at?: string
+          canceled_at?: string | null
+          cancellation_reason?: string | null
+          completed_at?: string | null
+          confirmed_at?: string | null
+          created_at?: string | null
+          credits_deducted?: number | null
+          failed_at?: string | null
+          failure_reason?: string | null
+          id: string
+          metadata?: Json | null
+          order_number: string
+          package_name: string
+          payment_method?: string | null
+          price: number
+          processing_started_at?: string | null
+          product_category: string
+          product_details?: Json
+          product_name: string
+          quantity: number
+          reviewed_by?: string | null
+          status: string
+          transaction_id?: string | null
+          updated_at?: string | null
+          user_email: string
+          user_id: string
+          user_name?: string | null
+        }
+        Update: {
+          admin_remarks?: string | null
+          archived_at?: string
+          canceled_at?: string | null
+          cancellation_reason?: string | null
+          completed_at?: string | null
+          confirmed_at?: string | null
+          created_at?: string | null
+          credits_deducted?: number | null
+          failed_at?: string | null
+          failure_reason?: string | null
+          id?: string
+          metadata?: Json | null
+          order_number?: string
+          package_name?: string
+          payment_method?: string | null
+          price?: number
+          processing_started_at?: string | null
+          product_category?: string
+          product_details?: Json
+          product_name?: string
+          quantity?: number
+          reviewed_by?: string | null
+          status?: string
+          transaction_id?: string | null
+          updated_at?: string | null
+          user_email?: string
+          user_id?: string
+          user_name?: string | null
+        }
+        Relationships: []
+      }
       banner_slides: {
         Row: {
           created_at: string
@@ -272,6 +365,63 @@ export type Database = {
           updated_at?: string
           webhook_url?: string | null
           welcome_message?: string | null
+        }
+        Relationships: []
+      }
+      cleanup_logs: {
+        Row: {
+          cleanup_type: string
+          created_at: string
+          details: string | null
+          id: string
+          records_affected: number | null
+        }
+        Insert: {
+          cleanup_type: string
+          created_at?: string
+          details?: string | null
+          id?: string
+          records_affected?: number | null
+        }
+        Update: {
+          cleanup_type?: string
+          created_at?: string
+          details?: string | null
+          id?: string
+          records_affected?: number | null
+        }
+        Relationships: []
+      }
+      cleanup_settings: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          is_enabled: boolean | null
+          last_run_at: string | null
+          setting_key: string
+          setting_value: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_enabled?: boolean | null
+          last_run_at?: string | null
+          setting_key: string
+          setting_value?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_enabled?: boolean | null
+          last_run_at?: string | null
+          setting_key?: string
+          setting_value?: number
+          updated_at?: string
         }
         Relationships: []
       }
