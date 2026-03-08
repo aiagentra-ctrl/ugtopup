@@ -132,6 +132,10 @@ const AdminPanel = () => {
         return <RewardMilestoneManager />;
       case "referrals":
         return <ReferralManager />;
+      case "coupon-rules":
+        return <CouponRulesManager />;
+      case "promo-analytics":
+        return <PromotionAnalytics />;
       default:
         return <EnhancedDashboard />;
     }

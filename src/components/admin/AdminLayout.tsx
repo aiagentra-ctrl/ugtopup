@@ -62,6 +62,8 @@ const menuItems = [
   { id: "admin-app", title: "Admin App", icon: Smartphone },
   { id: "milestones", title: "Reward Milestones", icon: Trophy },
   { id: "referrals", title: "Referral Program", icon: UserPlus },
+  { id: "coupon-rules", title: "Coupon Rules", icon: Ticket },
+  { id: "promo-analytics", title: "Promo Analytics", icon: Activity },
 ];
 
 // Bottom nav items for mobile quick access
