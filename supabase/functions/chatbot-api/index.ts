@@ -38,6 +38,24 @@ const PRODUCT_ROUTES: Record<string, string> = {
   unipin: "/unipin-uc",
 };
 
+// Map keywords to game names in game_product_prices table
+const KEYWORD_TO_GAME: Record<string, string> = {
+  chatgpt: "chatgpt",
+  netflix: "netflix",
+  tiktok: "tiktok",
+  "free fire": "freefire",
+  freefire: "freefire",
+  "mobile legends": "mobile_legends",
+  ml: "mobile_legends",
+  roblox: "roblox",
+  pubg: "pubg",
+  garena: "garena",
+  youtube: "youtube",
+  smile: "smilecoin",
+  smilecoin: "smilecoin",
+  unipin: "unipin",
+};
+
 async function getSettings() {
   const sb = supabaseAdmin();
   const { data } = await sb
@@ -55,7 +73,49 @@ async function searchProducts(message: string) {
   const matchedKeyword = PRODUCT_KEYWORDS.find((kw) => lowerMsg.includes(kw));
   if (!matchedKeyword) return null;
 
-  // Search dynamic_products first
+  const gameName = KEYWORD_TO_GAME[matchedKeyword] || matchedKeyword;
+  const route = PRODUCT_ROUTES[matchedKeyword] || null;
+
+  // 1. Always check game_product_prices first — this has real package pricing
+  const { data: gamePrices } = await sb
+    .from("game_product_prices")
+    .select("package_name, price, currency, game, quantity")
+    .eq("is_active", true)
+    .eq("game", gameName)
+    .order("display_order", { ascending: true })
+    .limit(6);
+
+  if (gamePrices && gamePrices.length > 0) {
+    // Get product image from dynamic_products
+    const { data: productInfo } = await sb
+      .from("dynamic_products")
+      .select("image_url")
+      .eq("is_active", true)
+      .ilike("title", `%${matchedKeyword}%`)
+      .limit(1);
+
+    // Fallback: check products table for image
+    let imageUrl = productInfo?.[0]?.image_url || null;
+    if (!imageUrl) {
+      const { data: legacyProduct } = await sb
+        .from("products")
+        .select("image_url")
+        .eq("is_active", true)
+        .ilike("name", `%${matchedKeyword}%`)
+        .limit(1);
+      imageUrl = legacyProduct?.[0]?.image_url || null;
+    }
+
+    return gamePrices.map((p: any) => ({
+      name: p.package_name,
+      price: `${p.currency || "NPR"} ${p.price}`,
+      image_url: imageUrl,
+      link: route,
+      delivery_time: "5–10 minutes",
+    }));
+  }
+
+  // 2. Check dynamic_products — but only return if price > 0
   const { data: dynProducts } = await sb
     .from("dynamic_products")
     .select("title, price, discount_price, image_url, link, description")
@@ -64,39 +124,26 @@ async function searchProducts(message: string) {
     .limit(3);
 
   if (dynProducts && dynProducts.length > 0) {
+    const validProducts = dynProducts.filter(
+      (p: any) => (p.discount_price && p.discount_price > 0) || (p.price && p.price > 0)
+    );
+
+    if (validProducts.length > 0) {
+      return validProducts.map((p: any) => ({
+        name: p.title,
+        price: `NPR ${p.discount_price || p.price}`,
+        image_url: p.image_url,
+        link: p.link || route,
+        delivery_time: "5–10 minutes",
+      }));
+    }
+
+    // Product exists but has no price — return with link but note pricing is on the page
     return dynProducts.map((p: any) => ({
       name: p.title,
-      price: `NPR ${p.discount_price ?? p.price}`,
+      price: "See pricing on product page",
       image_url: p.image_url,
-      link: p.link || PRODUCT_ROUTES[matchedKeyword] || null,
-      delivery_time: "5–10 minutes",
-    }));
-  }
-
-  // Search game_product_prices
-  const { data: gamePrices } = await sb
-    .from("game_product_prices")
-    .select("package_name, price, currency, game")
-    .eq("is_active", true)
-    .ilike("game", `%${matchedKeyword}%`)
-    .order("display_order", { ascending: true })
-    .limit(3);
-
-  if (gamePrices && gamePrices.length > 0) {
-    const { data: productInfo } = await sb
-      .from("products")
-      .select("image_url, name")
-      .eq("is_active", true)
-      .ilike("name", `%${matchedKeyword}%`)
-      .limit(1);
-
-    const imageUrl = productInfo?.[0]?.image_url || null;
-
-    return gamePrices.map((p: any) => ({
-      name: `${p.game} - ${p.package_name}`,
-      price: `${p.currency || "NPR"} ${p.price}`,
-      image_url: imageUrl,
-      link: PRODUCT_ROUTES[matchedKeyword] || null,
+      link: p.link || route,
       delivery_time: "5–10 minutes",
     }));
   }
@@ -105,9 +152,12 @@ async function searchProducts(message: string) {
 }
 
 function buildProductContext(products: any[]): string {
-  return products.map((p: any) =>
-    `Product: ${p.name} | Price: ${p.price} | Delivery: ${p.delivery_time || "5-10 minutes"} | Link: ${p.link || "N/A"}`
-  ).join("\n");
+  return products
+    .map(
+      (p: any) =>
+        `Product: ${p.name} | Price: ${p.price} | Delivery: ${p.delivery_time || "5-10 minutes"} | Link: ${p.link || "N/A"}`
+    )
+    .join("\n");
 }
 
 interface ConversationMessage {
@@ -127,19 +177,21 @@ async function callAI(
   }
 
   const model = settings?.ai_model || "google/gemini-3-flash-preview";
-  const systemPrompt = settings?.ai_system_prompt ||
+  const systemPrompt =
+    settings?.ai_system_prompt ||
     "You are UIQ, a helpful AI sales assistant for UGC-Topup. Help users with products, pricing, orders, and account questions.";
 
-  const fullSystemPrompt = productContext
-    ? `${systemPrompt}\n\nRelevant product data from our database:\n${productContext}\n\nUse this data to answer the user's question accurately. Include the price and delivery time in your response.`
-    : systemPrompt;
+  let fullSystemPrompt = systemPrompt;
+  if (productContext) {
+    fullSystemPrompt += `\n\nRelevant product data from our database:\n${productContext}\n\nUse this data to answer the user's question accurately. Include the price and delivery time in your response. If a price says "See pricing on product page", tell the user to visit the product page for detailed pricing and provide the link.`;
+  } else {
+    fullSystemPrompt += `\n\nIf the user asks about a product that is not found in our database, respond with: "This product is not currently available on our website. It may be added soon."`;
+  }
 
-  // Build messages array with conversation history
   const messages: { role: string; content: string }[] = [
     { role: "system", content: fullSystemPrompt },
   ];
 
-  // Add conversation history (last 10 messages for context)
   if (conversationHistory && conversationHistory.length > 0) {
     const recentHistory = conversationHistory.slice(-10);
     for (const msg of recentHistory) {
@@ -147,28 +199,35 @@ async function callAI(
     }
   }
 
-  // Add current user message
   messages.push({ role: "user", content: message });
 
-  const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${LOVABLE_API_KEY}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ model, messages }),
-  });
+  const response = await fetch(
+    "https://ai.gateway.lovable.dev/v1/chat/completions",
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ model, messages }),
+    }
+  );
 
   if (!response.ok) {
     const errText = await response.text();
     console.error("AI gateway error:", response.status, errText);
-    if (response.status === 429) throw new Error("AI is busy. Please try again in a moment.");
-    if (response.status === 402) throw new Error("AI service quota reached. Please try later.");
+    if (response.status === 429)
+      throw new Error("AI is busy. Please try again in a moment.");
+    if (response.status === 402)
+      throw new Error("AI service quota reached. Please try later.");
     throw new Error("Failed to get AI response");
   }
 
   const data = await response.json();
-  return data.choices?.[0]?.message?.content || "I couldn't generate a response. Please try again.";
+  return (
+    data.choices?.[0]?.message?.content ||
+    "I couldn't generate a response. Please try again."
+  );
 }
 
 async function handleMessage(body: any) {
@@ -176,53 +235,62 @@ async function handleMessage(body: any) {
   if (!message) {
     return new Response(
       JSON.stringify({ error: "message is required" }),
-      { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      }
     );
   }
 
   const settings = await getSettings();
 
-  // Check if chatbot is enabled
   if (settings && !settings.is_enabled) {
     return new Response(
-      JSON.stringify({ reply: "Chatbot is currently offline. Please try again later.", timestamp: new Date().toISOString() }),
+      JSON.stringify({
+        reply: "Chatbot is currently offline. Please try again later.",
+        timestamp: new Date().toISOString(),
+      }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
 
-  // 1. Check for product matches
   const products = await searchProducts(message);
 
   try {
-    // 2. Call AI with product context and conversation history
-    const productContext = products ? buildProductContext(products) : undefined;
-    const conversationHistory = Array.isArray(history) ? history as ConversationMessage[] : undefined;
-    const aiReply = await callAI(message, settings, productContext, conversationHistory);
+    const productContext = products
+      ? buildProductContext(products)
+      : undefined;
+    const conversationHistory = Array.isArray(history)
+      ? (history as ConversationMessage[])
+      : undefined;
+    const aiReply = await callAI(
+      message,
+      settings,
+      productContext,
+      conversationHistory
+    );
 
     const responseBody: any = {
       reply: aiReply,
       timestamp: new Date().toISOString(),
     };
 
-    // Include product cards if found
     if (products && products.length > 0) {
       responseBody.products = products;
       responseBody.product = products[0];
     }
 
-    return new Response(
-      JSON.stringify(responseBody),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    return new Response(JSON.stringify(responseBody), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   } catch (err: any) {
     console.error("AI error:", err.message);
 
-    // Fallback: if AI fails but we have product data, return product info without AI
     if (products && products.length > 0) {
       const firstProduct = products[0];
       return new Response(
         JSON.stringify({
-          reply: `${firstProduct.name} costs ${firstProduct.price} and delivery usually takes ${firstProduct.delivery_time || "5–10 minutes"}.`,
+          reply: `Here are some options for ${firstProduct.name}:\n${products.map((p: any) => `• ${p.name} — ${p.price}`).join("\n")}\n\nDelivery usually takes ${firstProduct.delivery_time || "5–10 minutes"}.`,
           products,
           product: firstProduct,
           timestamp: new Date().toISOString(),
@@ -232,7 +300,11 @@ async function handleMessage(body: any) {
     }
 
     return new Response(
-      JSON.stringify({ reply: `❌ ${err.message}`, timestamp: new Date().toISOString(), error: true }),
+      JSON.stringify({
+        reply: `❌ ${err.message}`,
+        timestamp: new Date().toISOString(),
+        error: true,
+      }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
@@ -243,23 +315,30 @@ async function handleOrderStatus(body: any) {
   if (!order_id) {
     return new Response(
       JSON.stringify({ error: "order_id is required" }),
-      { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      }
     );
   }
 
   const sb = supabaseAdmin();
   const { data, error } = await sb
     .from("product_orders")
-    .select("order_number, product_name, package_name, status, price, created_at, confirmed_at, completed_at, canceled_at, cancellation_reason")
-    .or(`order_number.eq.${order_id.trim()},user_email.eq.${order_id.trim()}`)
+    .select(
+      "order_number, product_name, package_name, status, price, created_at, confirmed_at, completed_at, canceled_at, cancellation_reason"
+    )
+    .or(
+      `order_number.eq.${order_id.trim()},user_email.eq.${order_id.trim()}`
+    )
     .order("created_at", { ascending: false })
     .limit(5);
 
   if (error) {
-    return new Response(
-      JSON.stringify({ error: error.message }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    return new Response(JSON.stringify({ error: error.message }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
 
   if (!data || data.length === 0) {
@@ -293,24 +372,29 @@ async function handleOrderStatus(body: any) {
 
 async function handleOrder(body: any) {
   return new Response(
-    JSON.stringify({ message: "Order creation via chatbot coming soon.", timestamp: new Date().toISOString() }),
+    JSON.stringify({
+      message: "Order creation via chatbot coming soon.",
+      timestamp: new Date().toISOString(),
+    }),
     { headers: { ...corsHeaders, "Content-Type": "application/json" } }
   );
 }
 
 async function handleCreditRequest(body: any) {
   const { name, email, whatsapp, amount, screenshot_url } = body;
-  
+
   if (!name || !email || !amount) {
     return new Response(
       JSON.stringify({ error: "name, email, and amount are required" }),
-      { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      }
     );
   }
 
   const sb = supabaseAdmin();
 
-  // Find user by email
   const { data: profile } = await sb
     .from("profiles")
     .select("id")
@@ -319,12 +403,17 @@ async function handleCreditRequest(body: any) {
 
   if (!profile) {
     return new Response(
-      JSON.stringify({ error: "No account found with this email. Please register first." }),
-      { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      JSON.stringify({
+        error:
+          "No account found with this email. Please register first.",
+      }),
+      {
+        status: 404,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      }
     );
   }
 
-  // Create payment request
   const { data: request, error } = await sb
     .from("payment_requests")
     .insert({
@@ -343,8 +432,13 @@ async function handleCreditRequest(body: any) {
   if (error) {
     console.error("Credit request error:", error);
     return new Response(
-      JSON.stringify({ error: "Failed to create credit request. " + error.message }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      JSON.stringify({
+        error: "Failed to create credit request. " + error.message,
+      }),
+      {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      }
     );
   }
 
@@ -380,13 +474,22 @@ Deno.serve(async (req) => {
       default:
         return new Response(
           JSON.stringify({ error: `Unknown action: ${action}` }),
-          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          {
+            status: 400,
+            headers: {
+              ...corsHeaders,
+              "Content-Type": "application/json",
+            },
+          }
         );
     }
   } catch (err: any) {
     return new Response(
       JSON.stringify({ error: err.message || "Internal server error" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      }
     );
   }
 });
