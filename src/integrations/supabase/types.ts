@@ -62,6 +62,48 @@ export type Database = {
         }
         Relationships: []
       }
+      announcements: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          expires_at: string | null
+          id: string
+          is_active: boolean
+          message: string
+          starts_at: string | null
+          target: string
+          target_emails: string[] | null
+          title: string
+          type: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean
+          message: string
+          starts_at?: string | null
+          target?: string
+          target_emails?: string[] | null
+          title: string
+          type?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean
+          message?: string
+          starts_at?: string | null
+          target?: string
+          target_emails?: string[] | null
+          title?: string
+          type?: string
+        }
+        Relationships: []
+      }
       banner_slides: {
         Row: {
           created_at: string
@@ -340,6 +382,33 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      developer_maintenance_log: {
+        Row: {
+          created_at: string
+          description: string
+          feature_area: string
+          hours_spent: number
+          id: string
+          month: string
+        }
+        Insert: {
+          created_at?: string
+          description: string
+          feature_area: string
+          hours_spent?: number
+          id?: string
+          month: string
+        }
+        Update: {
+          created_at?: string
+          description?: string
+          feature_area?: string
+          hours_spent?: number
+          id?: string
+          month?: string
+        }
+        Relationships: []
       }
       dynamic_products: {
         Row: {
@@ -1356,6 +1425,119 @@ export type Database = {
         }
         Relationships: []
       }
+      subscriptions: {
+        Row: {
+          created_at: string
+          frequency: string
+          id: string
+          is_active: boolean
+          next_run_at: string | null
+          package_name: string
+          price: number
+          product_category: string
+          product_name: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          frequency?: string
+          id?: string
+          is_active?: boolean
+          next_run_at?: string | null
+          package_name: string
+          price: number
+          product_category: string
+          product_name: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          frequency?: string
+          id?: string
+          is_active?: boolean
+          next_run_at?: string | null
+          package_name?: string
+          price?: number
+          product_category?: string
+          product_name?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      support_tickets: {
+        Row: {
+          closed_at: string | null
+          created_at: string
+          description: string
+          id: string
+          priority: string
+          status: string
+          subject: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          closed_at?: string | null
+          created_at?: string
+          description: string
+          id?: string
+          priority?: string
+          status?: string
+          subject: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          closed_at?: string | null
+          created_at?: string
+          description?: string
+          id?: string
+          priority?: string
+          status?: string
+          subject?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      ticket_messages: {
+        Row: {
+          created_at: string
+          id: string
+          message: string
+          sender_id: string
+          sender_role: string
+          ticket_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          message: string
+          sender_id: string
+          sender_role?: string
+          ticket_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          message?: string
+          sender_id?: string
+          sender_role?: string
+          ticket_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ticket_messages_ticket_id_fkey"
+            columns: ["ticket_id"]
+            isOneToOne: false
+            referencedRelation: "support_tickets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_notifications: {
         Row: {
           created_at: string
@@ -1525,6 +1707,30 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      wishlists: {
+        Row: {
+          created_at: string
+          id: string
+          product_id: string
+          product_name: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          product_id: string
+          product_name: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          product_id?: string
+          product_name?: string
+          user_id?: string
+        }
+        Relationships: []
       }
     }
     Views: {
