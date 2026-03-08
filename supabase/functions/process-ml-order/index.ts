@@ -28,6 +28,8 @@ interface LianaOrderResponse {
   balance_after?: number;
   message?: string;
   error?: string;
+  code?: string;
+  data?: { status?: number };
 }
 
 // Complete mapping of ML Indian diamond packages to Liana variation_ids
@@ -90,16 +92,13 @@ function getLianaHeaders(apiKey: string, apiSecret: string) {
 // Fetch Liana wallet balance
 async function fetchWalletBalance(apiKey: string, apiSecret: string): Promise<any> {
   const headers = getLianaHeaders(apiKey, apiSecret);
-  
   try {
     const response = await fetch(`${LIANA_API_BASE_URL}/balance`, {
       method: 'GET',
       headers,
     });
-    
     const text = await response.text();
     console.log('Wallet balance raw response:', text);
-    
     try {
       return JSON.parse(text);
     } catch {
@@ -114,7 +113,6 @@ async function fetchWalletBalance(apiKey: string, apiSecret: string): Promise<an
 // Handle wallet balance check action
 async function handleBalanceCheck(lianaApiKey: string, lianaApiSecret: string) {
   const balanceData = await fetchWalletBalance(lianaApiKey, lianaApiSecret);
-  
   return new Response(
     JSON.stringify({
       success: balanceData.status !== 'error',
@@ -123,6 +121,77 @@ async function handleBalanceCheck(lianaApiKey: string, lianaApiSecret: string) {
     }),
     { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
   );
+}
+
+// Handle wallet activity logs retrieval
+async function handleWalletLogs(supabaseAdmin: any) {
+  const { data, error } = await supabaseAdmin
+    .from('wallet_activity_logs')
+    .select('*')
+    .order('created_at', { ascending: false })
+    .limit(100);
+
+  if (error) {
+    return new Response(
+      JSON.stringify({ success: false, error: error.message }),
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  }
+
+  // Calculate summary
+  const today = new Date().toISOString().split('T')[0];
+  const todayLogs = (data || []).filter((l: any) => l.created_at?.startsWith(today));
+  const coinsUsedToday = todayLogs
+    .filter((l: any) => l.action === 'order_completed')
+    .reduce((sum: number, l: any) => sum + (parseFloat(l.coins_used) || 0), 0);
+
+  return new Response(
+    JSON.stringify({
+      success: true,
+      logs: data || [],
+      summary: {
+        total_logs: (data || []).length,
+        coins_used_today: coinsUsedToday,
+        orders_today: todayLogs.filter((l: any) => l.action === 'order_completed').length,
+        failures_today: todayLogs.filter((l: any) => l.action === 'order_failed').length,
+      }
+    }),
+    { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+  );
+}
+
+// Log wallet activity
+async function logWalletActivity(
+  supabaseAdmin: any,
+  params: {
+    order_id?: string;
+    liana_order_id?: string;
+    order_number?: string;
+    action: string;
+    coins_used?: number;
+    balance_before?: number;
+    balance_after?: number;
+    api_status?: string;
+    api_response?: any;
+    error_message?: string;
+  }
+) {
+  try {
+    await supabaseAdmin.from('wallet_activity_logs').insert({
+      order_id: params.order_id || null,
+      liana_order_id: params.liana_order_id || null,
+      order_number: params.order_number || null,
+      action: params.action,
+      coins_used: params.coins_used || 0,
+      balance_before: params.balance_before ?? null,
+      balance_after: params.balance_after ?? null,
+      api_status: params.api_status || null,
+      api_response: params.api_response || null,
+      error_message: params.error_message || null,
+    });
+  } catch (err) {
+    console.error('Failed to log wallet activity:', err);
+  }
 }
 
 // Process ML order
@@ -195,21 +264,55 @@ async function handleProcessOrder(
   console.log('Checking Liana wallet balance before order...');
   const balanceData = await fetchWalletBalance(lianaApiKey, lianaApiSecret);
   console.log('Wallet balance check result:', JSON.stringify(balanceData));
-  
+
+  let balanceBefore: number | undefined;
+
   if (balanceData.status === 'success' && balanceData.balance !== undefined) {
-    const walletBalance = parseFloat(balanceData.balance);
-    console.log(`Liana wallet balance: ${walletBalance} coins`);
-    
-    if (walletBalance <= 0) {
+    balanceBefore = parseFloat(balanceData.balance);
+    console.log(`Liana wallet balance: ${balanceBefore} coins`);
+
+    // Log the pre-order balance check
+    await logWalletActivity(supabaseAdmin, {
+      order_id: orderId,
+      order_number: order.order_number,
+      action: 'balance_check',
+      balance_before: balanceBefore,
+      api_status: 'success',
+      api_response: balanceData,
+    });
+
+    // Use a minimum threshold — reject if balance is critically low
+    // Liana deducts coins based on product cost, so we check > 0
+    if (balanceBefore <= 0) {
+      await logWalletActivity(supabaseAdmin, {
+        order_id: orderId,
+        order_number: order.order_number,
+        action: 'order_failed',
+        balance_before: balanceBefore,
+        api_status: 'insufficient_funds',
+        error_message: 'Wallet balance is zero or negative',
+      });
+
       return new Response(
-        JSON.stringify({ 
-          success: false, 
+        JSON.stringify({
+          success: false,
           error: 'Liana wallet has insufficient balance. Please top up the merchant wallet.',
-          wallet_balance: walletBalance
+          wallet_balance: balanceBefore,
         }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+  } else {
+    // Balance check failed but we proceed cautiously — log the error
+    console.warn('Could not verify wallet balance, proceeding with order...');
+    await logWalletActivity(supabaseAdmin, {
+      order_id: orderId,
+      order_number: order.order_number,
+      action: 'balance_check',
+      api_status: 'error',
+      api_response: balanceData,
+      error_message: balanceData.message || 'Balance check failed',
+    });
   }
 
   // Create or update liana_orders tracking
@@ -311,6 +414,17 @@ async function handleProcessOrder(
         failure_reason: `Verification failed: ${errorMessage}`, updated_at: new Date().toISOString()
       }).eq('id', orderId);
 
+      await logWalletActivity(supabaseAdmin, {
+        order_id: orderId,
+        liana_order_id: lianaOrderId,
+        order_number: order.order_number,
+        action: 'order_failed',
+        balance_before: balanceBefore,
+        api_status: 'verification_failed',
+        api_response: verifyData,
+        error_message: errorMessage,
+      });
+
       return new Response(
         JSON.stringify({ success: false, error: errorMessage, stage: 'verification' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -354,6 +468,9 @@ async function handleProcessOrder(
 
     if (!orderResponse.ok || orderData.status !== 'success') {
       const errorMessage = orderData.message || orderData.error || 'Order creation failed';
+      const isInsufficientFunds = orderData.code === 'insufficient_funds' || 
+        errorMessage.toLowerCase().includes('not enough coins');
+      
       console.error('Order creation failed:', errorMessage);
 
       await supabaseAdmin.from('liana_orders').update({
@@ -361,19 +478,43 @@ async function handleProcessOrder(
         api_response: orderData, updated_at: new Date().toISOString()
       }).eq('id', lianaOrderId);
 
+      // For insufficient funds, keep as pending so admin can retry after top-up
+      const newStatus = isInsufficientFunds ? 'pending' : 'canceled';
       await supabaseAdmin.from('product_orders').update({
-        status: 'canceled', failed_at: new Date().toISOString(),
-        failure_reason: `Order failed: ${errorMessage}`, updated_at: new Date().toISOString()
+        status: newStatus,
+        ...(newStatus === 'canceled' ? { failed_at: new Date().toISOString() } : {}),
+        failure_reason: `Order failed: ${errorMessage}`,
+        updated_at: new Date().toISOString()
       }).eq('id', orderId);
 
+      await logWalletActivity(supabaseAdmin, {
+        order_id: orderId,
+        liana_order_id: lianaOrderId,
+        order_number: order.order_number,
+        action: 'order_failed',
+        balance_before: balanceBefore,
+        api_status: isInsufficientFunds ? 'insufficient_funds' : 'api_error',
+        api_response: orderData,
+        error_message: errorMessage,
+      });
+
       return new Response(
-        JSON.stringify({ success: false, error: errorMessage, stage: 'order' }),
+        JSON.stringify({ 
+          success: false, 
+          error: errorMessage, 
+          stage: 'order',
+          insufficient_funds: isInsufficientFunds,
+        }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // Success
+    // Success — capture balance_after from response
     const transactionId = orderData.order_id || orderData.transaction_id || '';
+    const balanceAfter = orderData.balance_after !== undefined ? parseFloat(String(orderData.balance_after)) : undefined;
+    const coinsUsed = (balanceBefore !== undefined && balanceAfter !== undefined) 
+      ? balanceBefore - balanceAfter 
+      : undefined;
 
     await supabaseAdmin.from('liana_orders').update({
       status: 'completed', api_response: orderData, api_transaction_id: transactionId,
@@ -382,15 +523,36 @@ async function handleProcessOrder(
 
     await supabaseAdmin.from('product_orders').update({
       status: 'completed', transaction_id: transactionId,
-      completed_at: new Date().toISOString(), updated_at: new Date().toISOString()
+      completed_at: new Date().toISOString(), updated_at: new Date().toISOString(),
+      metadata: {
+        ...(order.metadata || {}),
+        wallet_balance_before: balanceBefore,
+        wallet_balance_after: balanceAfter,
+        coins_used: coinsUsed,
+      }
     }).eq('id', orderId);
 
-    console.log(`Order ${order.order_number} completed! Transaction: ${transactionId}`);
+    // Log successful order with coin details
+    await logWalletActivity(supabaseAdmin, {
+      order_id: orderId,
+      liana_order_id: lianaOrderId,
+      order_number: order.order_number,
+      action: 'order_completed',
+      coins_used: coinsUsed || 0,
+      balance_before: balanceBefore,
+      balance_after: balanceAfter,
+      api_status: 'success',
+      api_response: orderData,
+    });
+
+    console.log(`Order ${order.order_number} completed! Transaction: ${transactionId}, Coins used: ${coinsUsed}, Balance after: ${balanceAfter}`);
 
     return new Response(
       JSON.stringify({
         success: true, message: 'Diamonds delivered successfully!',
         ign, transaction_id: transactionId,
+        wallet_balance_after: balanceAfter,
+        coins_used: coinsUsed,
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
@@ -408,6 +570,16 @@ async function handleProcessOrder(
       status: 'canceled', failed_at: new Date().toISOString(),
       failure_reason: `Connection error: ${errorMessage}`, updated_at: new Date().toISOString()
     }).eq('id', orderId);
+
+    await logWalletActivity(supabaseAdmin, {
+      order_id: orderId,
+      liana_order_id: lianaOrderId,
+      order_number: order.order_number,
+      action: 'order_failed',
+      balance_before: balanceBefore,
+      api_status: 'connection_error',
+      error_message: errorMessage,
+    });
 
     return new Response(
       JSON.stringify({ success: false, error: errorMessage, stage: 'api_connection' }),
@@ -460,6 +632,12 @@ Deno.serve(async (req) => {
       return await handleBalanceCheck(lianaApiKey, lianaApiSecret);
     }
 
+    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
+
+    if (action === 'wallet-logs') {
+      return await handleWalletLogs(supabaseAdmin);
+    }
+
     // Default: process order
     const { order_id } = body;
     if (!order_id) {
@@ -469,7 +647,6 @@ Deno.serve(async (req) => {
       );
     }
 
-    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
     return await handleProcessOrder(order_id, supabaseAdmin, lianaApiKey, lianaApiSecret);
 
   } catch (err) {
