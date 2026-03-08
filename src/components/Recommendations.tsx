@@ -43,24 +43,20 @@ export const Recommendations = ({ type, currentProductCategory }: Recommendation
   return (
     <div className="space-y-4">
       <h2 className={`text-lg sm:text-xl font-bold ${color}`}>{title}</h2>
-      <ScrollArea className="w-full">
-        <div className="flex gap-3 pb-4">
-          {mapped.map((product) => (
-            <div key={product.id} className="w-[140px] sm:w-[180px] flex-shrink-0">
-              <ProductCard
-                image={product.image_url || "/placeholder.svg"}
-                title={product.title}
-                link={product.link || undefined}
-                badgeText={product.offers?.badge_text || product.offer_badge_text || undefined}
-                badgeColor={product.offers?.badge_color || product.offer_badge_color || undefined}
-                badgeTextColor={product.offers?.badge_text_color || undefined}
-                badgeAnimation={product.offers?.animation_type || undefined}
-              />
-            </div>
-          ))}
-        </div>
-        <ScrollBar orientation="horizontal" />
-      </ScrollArea>
+      <div className="grid grid-cols-3 gap-3">
+        {mapped.slice(0, 3).map((product) => (
+          <ProductCard
+            key={product.id}
+            image={product.image_url || "/placeholder.svg"}
+            title={product.title}
+            link={product.link || undefined}
+            badgeText={product.offers?.badge_text || product.offer_badge_text || undefined}
+            badgeColor={product.offers?.badge_color || product.offer_badge_color || undefined}
+            badgeTextColor={product.offers?.badge_text_color || undefined}
+            badgeAnimation={product.offers?.animation_type || undefined}
+          />
+        ))}
+      </div>
     </div>
   );
 };
