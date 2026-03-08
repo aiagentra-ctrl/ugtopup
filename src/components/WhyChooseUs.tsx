@@ -25,12 +25,12 @@ const features = [
 
 export const WhyChooseUs = () => {
   return (
-    <section className="py-16">
-      <div className="container mx-auto px-4">
-        <h2 className="mb-4 text-center text-3xl font-bold md:text-4xl">
+    <section className="py-10 sm:py-16">
+      <div className="container mx-auto px-3 sm:px-4">
+        <h2 className="mb-3 sm:mb-4 text-center text-2xl font-bold sm:text-3xl md:text-4xl">
           Why Choose <span className="text-primary">UG TOP-UP</span>?
         </h2>
-        <p className="mx-auto mb-12 max-w-2xl text-center text-muted-foreground">
+        <p className="mx-auto mb-8 sm:mb-12 max-w-2xl text-center text-sm sm:text-base text-muted-foreground">
           We provide the fastest, most secure, and affordable gaming top-up service. 
           Your trust and satisfaction are our top priorities.
         </p>
