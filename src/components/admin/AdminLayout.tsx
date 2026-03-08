@@ -62,6 +62,8 @@ const menuItems = [
   { id: "categories", title: "Categories", icon: FolderOpen },
   { id: "offers", title: "Offers", icon: Gift },
   { id: "chatbot", title: "AI Chatbot", icon: Bot },
+  { id: "knowledge-base", title: "Knowledge Base", icon: BookOpen },
+  { id: "chat-feedback", title: "Chat Feedback", icon: ThumbsUp },
   { id: "chatbot-docs", title: "API Documentation", icon: Bot },
   { id: "vouchers", title: "Voucher Inventory", icon: Ticket },
   { id: "ml-monitoring", title: "API Monitoring", icon: Activity },
