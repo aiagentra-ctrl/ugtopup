@@ -16,6 +16,7 @@ interface OrderHistoryCardProps {
 
 export const OrderHistoryCard = ({ orders, loading, error }: OrderHistoryCardProps) => {
   const [showAll, setShowAll] = useState(false);
+  const [expandedOrder, setExpandedOrder] = useState<string | null>(null);
   const displayedOrders = showAll ? orders : orders.slice(0, 4);
 
   const getStatusColor = (status: string) => {
