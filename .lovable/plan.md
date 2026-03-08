@@ -1,96 +1,65 @@
 
-# Dynamic Website with Advanced Admin Panel
 
-## Overview
-Make the entire website content dynamic and admin-controlled by creating two new admin sections and supporting database tables. The existing "Products (New)" page (GameProductPrices) will remain completely untouched.
+# Simplified Offer Management UI with Real-Time Preview
 
-## What Changes
+## Problem
+The current OfferManager dialog is a single long scrolling form with all fields visible at once. It is overwhelming — badge settings, animation, gradient, timer, visibility toggles, and image upload are all packed into one view with no live preview of what the offer will look like.
 
-### Phase 1: Database Setup
+## Solution
+Replace the single-dialog form with a **tabbed editor** and a **real-time live preview panel** that renders the actual offer components (`OfferBanner`, `OfferBadge`, `OfferHighlight`, `OfferSeasonal`, `OfferDailyDeal`) as the admin edits.
 
-**New table: `dynamic_products`** - stores products displayed on the homepage
-- `id`, `title`, `description`, `image_url`, `link`, `category` (topup/voucher/subscription/design), `price`, `discount_price`, `features` (jsonb array), `tags` (text array), `plans` (jsonb array), `display_order`, `is_active`, `created_at`, `updated_at`
+## File Changes
 
-**New table: `product_categories`** - dynamic categories
-- `id`, `name`, `slug`, `display_order`, `is_active`, `created_at`, `updated_at`
+### Modified: `src/components/admin/OfferManager.tsx`
+Complete rewrite of the dialog content. Replace the flat form with:
 
-**New table: `offers`** - dynamic offer/deal sections
-- `id`, `title`, `subtitle`, `description`, `image_url`, `offer_type` (flash_sale/limited_time/daily_deal/discount_bundle), `timer_enabled`, `timer_type` (hours/days/both/none), `timer_end_date`, `product_link`, `custom_icon_url`, `display_order`, `is_active`, `show_on_homepage`, `show_on_product_page`, `created_at`, `updated_at`
+**Split layout** inside the dialog (max-w-5xl):
+- **Left panel (60%)**: Tabbed form with 4 tabs
+- **Right panel (40%)**: Sticky live preview that updates in real-time
 
-RLS: Public SELECT for active items, admin ALL for management.
+**4 Tabs:**
+1. **Basics** — Template selector (existing `OfferTemplatePreview`), Title, Subtitle, Description, Offer Type, Product Link
+2. **Style** — Badge text/colors with color pickers, Background gradient (with preset buttons like "Purple Haze", "Sunset", "Ocean"), Image upload, Seasonal theme (only if seasonal template)
+3. **Animation** — Visual animation picker: clickable cards with animated preview icons for each animation (pulse, flash, bounce, slide-in, none). When clicked, the live preview instantly reflects the animation.
+4. **Schedule** — Timer toggle, timer type, start/end dates, Visibility toggles (homepage/product page), Active toggle
 
-**Seed `dynamic_products`** with current hardcoded data from ProductTabs so nothing changes visually on day one.
+**Live Preview Panel:**
+- Renders the actual offer component based on `form.design_template`:
+  - `badge` → renders `OfferBadge` on a mock product card
+  - `animated_banner` → renders `OfferBanner`
+  - `homepage_highlight` → renders `OfferHighlight`
+  - `seasonal` → renders `OfferSeasonal`
+  - `daily_deal` → renders `OfferDailyDeal`
+- Converts form state to a mock `Offer` object and passes it to the component
+- Shows "Mobile" / "Desktop" toggle to switch preview width (320px vs full)
+- Updates instantly on every form field change (already reactive via state)
 
-### Phase 2: Admin Panel - Product Update Page (new section)
+**Gradient presets** (new addition in Style tab):
+Instead of asking admin to type CSS, provide clickable preset buttons:
+- "Purple Haze" → `linear-gradient(135deg, #667eea, #764ba2)`
+- "Sunset" → `linear-gradient(135deg, #f093fb, #f5576c)`
+- "Ocean" → `linear-gradient(135deg, #4facfe, #00f2fe)`
+- "Forest" → `linear-gradient(135deg, #11998e, #38ef7d)`
+- "Custom" → shows the text input for manual CSS
 
-Add a new sidebar menu item **"Product Update"** in AdminLayout.
+**Animation picker** (replace the dropdown):
+Instead of a Select dropdown, show visual cards with the animation name and a small animated indicator element that demonstrates the animation in real-time.
 
-New component: `src/components/admin/DynamicProductManager.tsx`
-- Full CRUD table listing all dynamic products
-- Inline editing with image upload (to `product-images` storage bucket)
-- Fields: title, description, image, link, category, price, discount price, features (add/remove chips), tags (add/remove), plans (JSON editor)
-- Product preview panel showing how it looks on the frontend
-- Search, filter by category, drag-to-reorder
+### Modified: `src/components/offers/OfferTemplatePreview.tsx`
+No changes needed — already clean and works well.
 
-New component: `src/components/admin/CategoryManager.tsx`
-- Add/rename/delete categories
-- Reorder categories via drag or arrows
-- Auto-updates category options across the product form
+### New: `src/components/admin/OfferLivePreview.tsx`
+Extracted preview component that:
+- Takes the form state as props
+- Constructs a mock `Offer` object
+- Renders the correct offer component based on `design_template`
+- Has a mobile/desktop width toggle
+- Wrapped in a bordered container with "Preview" label
 
-### Phase 3: Admin Panel - Offer Management Page (new section)
+## Summary
+- 1 new file: `OfferLivePreview.tsx`
+- 1 major rewrite: `OfferManager.tsx` dialog section (list view stays the same)
+- No database changes
+- No API changes
+- All existing functionality preserved, just reorganized into tabs with live preview
 
-Add a new sidebar menu item **"Offers"** in AdminLayout.
-
-New component: `src/components/admin/OfferManager.tsx`
-- List all offers with enable/disable toggle
-- Add new offer with form: title, subtitle, description, image upload, offer type selector, timer controls (enable/disable, type, end date), product link picker
-- Edit existing offers inline
-- Reorder offers
-- Toggle homepage/product page visibility
-
-### Phase 4: Frontend - Make ProductTabs Dynamic
-
-Update `src/components/ProductTabs.tsx`:
-- Fetch products from `dynamic_products` table instead of hardcoded `productData`
-- Fetch categories from `product_categories` table for tab names
-- Keep the exact same visual layout, just swap data source
-- Real-time subscription so admin changes appear instantly
-
-### Phase 5: Frontend - Make BestDeals/Offers Dynamic
-
-Update `src/components/BestDeals.tsx`:
-- Fetch active homepage offers from `offers` table
-- Render offer blocks dynamically with optional countdown timers
-- Keep existing visual style, just make content admin-controlled
-
-### What Will NOT Change
-- **"Products (New)" page** (`GameProductPrices` component) -- zero modifications
-- **Existing `ProductsList`** component -- untouched
-- **Game pricing system** (`game_product_prices` table) -- untouched
-- **Overall website design/layout** -- only data sources change
-
-## Technical Details
-
-### New Files
-- `src/components/admin/DynamicProductManager.tsx` - Product Update admin page
-- `src/components/admin/CategoryManager.tsx` - Category management
-- `src/components/admin/OfferManager.tsx` - Offer management admin page
-- `src/lib/dynamicProductApi.ts` - API functions for dynamic products/categories
-- `src/lib/offerApi.ts` - API functions for offers
-- `src/hooks/useDynamicProducts.ts` - Frontend hook with real-time subscriptions
-- `src/hooks/useOffers.ts` - Frontend hook for offers
-
-### Modified Files
-- `src/components/admin/AdminLayout.tsx` - Add 3 new sidebar items (Product Update, Categories, Offers)
-- `src/pages/AdminPanel.tsx` - Add new section cases in switch
-- `src/components/ProductTabs.tsx` - Replace hardcoded data with database fetch
-- `src/components/BestDeals.tsx` - Replace hardcoded deals with database fetch
-
-### New Storage Bucket
-- `product-images` (public) for product image uploads
-
-### Database Migration
-- Create `dynamic_products`, `product_categories`, `offers` tables
-- Create `product-images` storage bucket
-- RLS policies for all new tables
-- Seed initial data from current hardcoded products
