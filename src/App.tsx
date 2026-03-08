@@ -43,6 +43,7 @@ import LoginRequired from "./pages/LoginRequired";
 import Rewards from "./pages/Rewards";
 import Referrals from "./pages/Referrals";
 import ReferAndEarn from "./pages/ReferAndEarn";
+import ApiDocs from "./pages/ApiDocs";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
