@@ -40,6 +40,7 @@ import { Badge } from "@/components/ui/badge";
 import { DashboardSkeleton } from "./DashboardSkeleton";
 import { SalesSummaryCards } from "./SalesSummaryCards";
 import { SalesComparisonChart } from "./SalesComparisonChart";
+import { LianaWalletBalance } from "./LianaWalletBalance";
 
 interface SalesData {
   todaySales: SalesPeriodData;
