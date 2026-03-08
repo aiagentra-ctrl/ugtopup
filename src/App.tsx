@@ -83,6 +83,7 @@ const App = () => (
             <AnnouncementBanner />
             <Routes>
               <Route path="/" element={<Index />} />
+            <Route path="/products" element={<Products />} />
             <Route path="/auth" element={<Auth />} />
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<Signup />} />
