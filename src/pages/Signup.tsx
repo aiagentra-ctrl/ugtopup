@@ -14,6 +14,8 @@ const Signup = () => {
   const [googleLoading, setGoogleLoading] = useState(false);
   const { signup, loginWithGoogle, isAuthenticated } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const refCode = searchParams.get("ref") || "";
 
   useEffect(() => {
     if (isAuthenticated) {
