@@ -93,10 +93,12 @@ const FreefireDiamond = () => {
     setIsReviewOpen(true);
   };
 
-  const handleConfirmPurchase = async () => {
+  const handleConfirmPurchase = async (couponCode?: string, finalPrice?: number) => {
     if (!user || !selectedPackage || !formData || isPlacingOrder) return;
     
     setIsPlacingOrder(true);
+    
+    const orderPrice = finalPrice ?? totalPrice;
     
     try {
       // Create order with deduplication
@@ -109,7 +111,7 @@ const FreefireDiamond = () => {
             product_name: 'Free Fire Diamond',
             package_name: selectedPackage.name,
             quantity: totalItems,
-            price: totalPrice,
+            price: orderPrice,
             product_details: {
               uid: formData.uid,
               username: formData.username || "Not provided",
@@ -117,7 +119,8 @@ const FreefireDiamond = () => {
               purchase_quantity: purchaseQuantity,
               unit_price: selectedPackage.price,
               unit_quantity: selectedPackage.quantity,
-            }
+            },
+            coupon_code: couponCode,
           });
         }
       );

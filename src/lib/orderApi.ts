@@ -8,6 +8,7 @@ export interface OrderInput {
   quantity: number;
   price: number;
   product_details: Record<string, any>;
+  coupon_code?: string;
 }
 
 export interface Order {
@@ -53,7 +54,8 @@ export const createOrder = async (orderData: OrderInput): Promise<Order> => {
       p_quantity: orderData.quantity,
       p_price: orderData.price,
       p_product_details: orderData.product_details,
-      p_payment_method: 'credit'
+      p_payment_method: 'credit',
+      p_coupon_code: orderData.coupon_code || null,
     });
 
     if (error) throw error;

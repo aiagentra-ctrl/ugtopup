@@ -16,6 +16,8 @@ import { BannerManager } from "@/components/admin/BannerManager";
 import { OnlinePayments } from "@/components/admin/OnlinePayments";
 import { LianaOrdersDashboard } from "@/components/admin/LianaOrdersDashboard";
 import { DynamicProductManager } from "@/components/admin/DynamicProductManager";
+import { CouponRulesManager } from "@/components/admin/CouponRulesManager";
+import { PromotionAnalytics } from "@/components/admin/PromotionAnalytics";
 import { CategoryManager } from "@/components/admin/CategoryManager";
 import { OfferManager } from "@/components/admin/OfferManager";
 import { ChatbotSettings } from "@/components/admin/ChatbotSettings";
@@ -130,6 +132,10 @@ const AdminPanel = () => {
         return <RewardMilestoneManager />;
       case "referrals":
         return <ReferralManager />;
+      case "coupon-rules":
+        return <CouponRulesManager />;
+      case "promo-analytics":
+        return <PromotionAnalytics />;
       default:
         return <EnhancedDashboard />;
     }
