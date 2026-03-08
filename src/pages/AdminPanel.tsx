@@ -149,6 +149,10 @@ const AdminPanel = () => {
         return <PromotionAnalytics />;
       case "chatbot-orders":
         return <ChatbotOrders />;
+      case "knowledge-base":
+        return <KnowledgeBaseManager />;
+      case "chat-feedback":
+        return <ChatbotFeedback />;
       case "service-status":
         return <ServiceStatus />;
       case "tickets":

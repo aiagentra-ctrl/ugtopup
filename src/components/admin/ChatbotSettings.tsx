@@ -92,6 +92,8 @@ export const ChatbotSettings = () => {
           ai_provider: settings.ai_provider,
           ai_model: settings.ai_model,
           ai_system_prompt: settings.ai_system_prompt,
+          custom_api_url: settings.custom_api_url,
+          custom_api_key_name: settings.custom_api_key_name,
         } as any)
         .eq('id', settings.id);
       if (error) throw error;

@@ -26,6 +26,8 @@ import {
   Megaphone,
   BarChart3,
   Wrench,
+  BookOpen,
+  ThumbsUp,
 } from "lucide-react";
 import {
   Sidebar,
