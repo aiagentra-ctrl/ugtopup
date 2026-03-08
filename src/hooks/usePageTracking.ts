@@ -31,7 +31,7 @@ function detectTrafficSource(): { source: string; referrer: string } {
         return { source: "social", referrer: ref };
       if (!hostname.includes(window.location.hostname))
         return { source: "referral", referrer: ref };
-    } catch {}
+    } catch { /* ignore */ }
   }
 
   return { source: "direct", referrer: "" };
@@ -39,25 +39,27 @@ function detectTrafficSource(): { source: string; referrer: string } {
 
 export function usePageTracking() {
   const location = useLocation();
-  const isFirstLoad = useRef(true);
+  const pageCountRef = useRef(0);
   const trafficInfo = useRef(detectTrafficSource());
 
   useEffect(() => {
     const sessionId = getSessionId();
     const { source, referrer } = trafficInfo.current;
+    pageCountRef.current++;
+    const currentCount = pageCountRef.current;
 
-    // Record page view
+    // Record page view (fire and forget)
     supabase.from("page_views").insert({
       session_id: sessionId,
       page_path: location.pathname,
       page_title: document.title,
-      referrer: isFirstLoad.current ? referrer : "",
+      referrer: currentCount === 1 ? referrer : "",
       traffic_source: source,
       user_agent: navigator.userAgent,
     }).then(() => {});
 
-    if (isFirstLoad.current) {
-      // Create session
+    // Upsert session
+    if (currentCount === 1) {
       supabase.from("visitor_sessions").upsert(
         {
           session_id: sessionId,
@@ -69,17 +71,14 @@ export function usePageTracking() {
         },
         { onConflict: "session_id" }
       ).then(() => {});
-      isFirstLoad.current = false;
     } else {
-      // Update session: increment page count, mark not bounce
-      supabase.rpc("increment_session_page_count" as any, { p_session_id: sessionId }).then(() => {});
-      // Fallback: direct update
+      // Update: mark not bounce, update last_active_at
       supabase
         .from("visitor_sessions")
         .update({
-          page_count: undefined, // handled by rpc ideally
           is_bounce: false,
           last_active_at: new Date().toISOString(),
+          page_count: currentCount,
         })
         .eq("session_id", sessionId)
         .then(() => {});
