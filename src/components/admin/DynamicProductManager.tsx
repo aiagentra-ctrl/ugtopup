@@ -19,6 +19,13 @@ import {
   fetchCategories,
 } from "@/lib/dynamicProductApi";
 
+interface Plan {
+  name: string;
+  price: number;
+  discount_price: number | null;
+  api_code: string;
+}
+
 interface Product {
   id: string;
   title: string;
@@ -52,11 +59,14 @@ const emptyForm = {
   discount_price: null as number | null,
   features: [] as string[],
   tags: [] as string[],
+  plans: [] as Plan[],
   is_active: true,
   offer_id: "" as string,
   offer_badge_text: "",
   offer_badge_color: "",
 };
+
+const emptyPlan: Plan = { name: "", price: 0, discount_price: null, api_code: "" };
 
 export function DynamicProductManager() {
   const [products, setProducts] = useState<Product[]>([]);
@@ -85,7 +95,6 @@ export function DynamicProductManager() {
 
   useEffect(() => { load(); }, []);
 
-  // Detect duplicate image URLs
   const duplicateImageUrls = useMemo(() => {
     const urlCount: Record<string, number> = {};
     products.forEach((p) => {
@@ -106,6 +115,16 @@ export function DynamicProductManager() {
     setDialogOpen(true);
   };
 
+  const parsePlans = (raw: any): Plan[] => {
+    if (!Array.isArray(raw)) return [];
+    return raw.map((p: any) => ({
+      name: p.name || "",
+      price: Number(p.price) || 0,
+      discount_price: p.discount_price != null ? Number(p.discount_price) : null,
+      api_code: p.api_code || "",
+    }));
+  };
+
   const openEdit = (p: Product) => {
     setEditingId(p.id);
     setForm({
@@ -118,6 +137,7 @@ export function DynamicProductManager() {
       discount_price: p.discount_price,
       features: Array.isArray(p.features) ? p.features : [],
       tags: Array.isArray(p.tags) ? p.tags : [],
+      plans: parsePlans(p.plans),
       is_active: p.is_active,
       offer_id: (p as any).offer_id || "",
       offer_badge_text: (p as any).offer_badge_text || "",
@@ -139,6 +159,7 @@ export function DynamicProductManager() {
         discount_price: form.discount_price,
         features: form.features,
         tags: form.tags,
+        plans: form.plans.filter((p) => p.name.trim()),
         is_active: form.is_active,
         offer_id: form.offer_id || null,
         offer_badge_text: form.offer_badge_text || null,
@@ -213,6 +234,22 @@ export function DynamicProductManager() {
     setTagInput("");
   };
 
+  // Plan helpers
+  const addPlan = () => {
+    setForm((f) => ({ ...f, plans: [...f.plans, { ...emptyPlan }] }));
+  };
+
+  const updatePlan = (index: number, field: keyof Plan, value: string | number | null) => {
+    setForm((f) => ({
+      ...f,
+      plans: f.plans.map((p, i) => i === index ? { ...p, [field]: value } : p),
+    }));
+  };
+
+  const removePlan = (index: number) => {
+    setForm((f) => ({ ...f, plans: f.plans.filter((_, i) => i !== index) }));
+  };
+
   if (loading) return <div className="text-center py-10">Loading products...</div>;
 
   return (
@@ -256,6 +293,9 @@ export function DynamicProductManager() {
                       <AlertTriangle className="h-3 w-3" /> Duplicate Image
                     </Badge>
                   )}
+                  {Array.isArray(p.plans) && p.plans.length > 0 && (
+                    <Badge variant="outline" className="text-[10px]">{p.plans.length} plans</Badge>
+                  )}
                 </div>
                 <p className="text-sm text-muted-foreground truncate">
                   {p.product_categories?.name || "No category"} • {p.link || "No link"}
@@ -275,19 +315,17 @@ export function DynamicProductManager() {
 
       {/* Add/Edit Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editingId ? "Edit Product" : "Add Product"}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
+            {/* Title */}
             <div>
               <Label>Title *</Label>
               <Input value={form.title} onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))} />
             </div>
-            <div>
-              <Label>Description</Label>
-              <Textarea value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} />
-            </div>
+            {/* Image */}
             <div>
               <Label>Image</Label>
               <div className="flex gap-2 items-center">
@@ -299,10 +337,7 @@ export function DynamicProductManager() {
               </div>
               {form.image_url && <img src={form.image_url} alt="Preview" className="mt-2 h-20 rounded-lg object-cover" />}
             </div>
-            <div>
-              <Label>Link</Label>
-              <Input value={form.link} onChange={(e) => setForm((f) => ({ ...f, link: e.target.value }))} placeholder="/product/..." />
-            </div>
+            {/* Category */}
             <div>
               <Label>Category</Label>
               <Select value={form.category_id} onValueChange={(v) => setForm((f) => ({ ...f, category_id: v }))}>
@@ -314,9 +349,20 @@ export function DynamicProductManager() {
                 </SelectContent>
               </Select>
             </div>
+            {/* Description */}
+            <div>
+              <Label>Description</Label>
+              <Textarea value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} />
+            </div>
+            {/* Link */}
+            <div>
+              <Label>Link</Label>
+              <Input value={form.link} onChange={(e) => setForm((f) => ({ ...f, link: e.target.value }))} placeholder="/product/..." />
+            </div>
+            {/* Base Price */}
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <Label>Price</Label>
+                <Label>Base Price</Label>
                 <Input type="number" value={form.price} onChange={(e) => setForm((f) => ({ ...f, price: Number(e.target.value) }))} />
               </div>
               <div>
@@ -324,6 +370,65 @@ export function DynamicProductManager() {
                 <Input type="number" value={form.discount_price ?? ""} onChange={(e) => setForm((f) => ({ ...f, discount_price: e.target.value ? Number(e.target.value) : null }))} />
               </div>
             </div>
+
+            {/* Pricing Plans */}
+            <div className="border rounded-lg p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <Label className="text-sm font-semibold">Pricing Plans</Label>
+                <Button variant="outline" size="sm" onClick={addPlan}>
+                  <Plus className="h-3 w-3 mr-1" /> Add Plan
+                </Button>
+              </div>
+              {form.plans.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-4">
+                  No plans yet. Add pricing plans for this product.
+                </p>
+              ) : (
+                <div className="space-y-2">
+                  {/* Header */}
+                  <div className="grid grid-cols-[1fr_80px_80px_100px_32px] gap-2 text-xs font-medium text-muted-foreground px-1">
+                    <span>Plan Name</span>
+                    <span>Price</span>
+                    <span>Disc. Price</span>
+                    <span>API Code</span>
+                    <span></span>
+                  </div>
+                  {form.plans.map((plan, i) => (
+                    <div key={i} className="grid grid-cols-[1fr_80px_80px_100px_32px] gap-2 items-center">
+                      <Input
+                        value={plan.name}
+                        onChange={(e) => updatePlan(i, "name", e.target.value)}
+                        placeholder="e.g. 110 Diamonds"
+                        className="h-8 text-sm"
+                      />
+                      <Input
+                        type="number"
+                        value={plan.price}
+                        onChange={(e) => updatePlan(i, "price", Number(e.target.value))}
+                        className="h-8 text-sm"
+                      />
+                      <Input
+                        type="number"
+                        value={plan.discount_price ?? ""}
+                        onChange={(e) => updatePlan(i, "discount_price", e.target.value ? Number(e.target.value) : null)}
+                        placeholder="—"
+                        className="h-8 text-sm"
+                      />
+                      <Input
+                        value={plan.api_code}
+                        onChange={(e) => updatePlan(i, "api_code", e.target.value)}
+                        placeholder="Optional"
+                        className="h-8 text-sm"
+                      />
+                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => removePlan(i)}>
+                        <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
             {/* Features */}
             <div>
               <Label>Features</Label>
