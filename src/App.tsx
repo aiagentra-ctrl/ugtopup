@@ -43,6 +43,7 @@ import LoginRequired from "./pages/LoginRequired";
 import Rewards from "./pages/Rewards";
 import Referrals from "./pages/Referrals";
 import ReferAndEarn from "./pages/ReferAndEarn";
+import ApiDocs from "./pages/ApiDocs";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -130,6 +131,7 @@ const App = () => (
             <Route path="/payment/success" element={<PaymentSuccess />} />
             <Route path="/payment/cancel" element={<PaymentCancel />} />
             <Route path="/login-required" element={<LoginRequired />} />
+            <Route path="/api-docs" element={<ApiDocs />} />
             <Route path="/admin-login" element={<AdminLogin />} />
             <Route 
               path="/admin" 

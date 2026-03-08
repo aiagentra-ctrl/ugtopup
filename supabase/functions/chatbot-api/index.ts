@@ -76,7 +76,6 @@ async function searchProducts(message: string) {
   const gameName = KEYWORD_TO_GAME[matchedKeyword] || matchedKeyword;
   const route = PRODUCT_ROUTES[matchedKeyword] || null;
 
-  // 1. Always check game_product_prices first — this has real package pricing
   const { data: gamePrices } = await sb
     .from("game_product_prices")
     .select("package_name, price, currency, game, quantity")
@@ -86,7 +85,6 @@ async function searchProducts(message: string) {
     .limit(6);
 
   if (gamePrices && gamePrices.length > 0) {
-    // Get product image from dynamic_products
     const { data: productInfo } = await sb
       .from("dynamic_products")
       .select("image_url")
@@ -94,7 +92,6 @@ async function searchProducts(message: string) {
       .ilike("title", `%${matchedKeyword}%`)
       .limit(1);
 
-    // Fallback: check products table for image
     let imageUrl = productInfo?.[0]?.image_url || null;
     if (!imageUrl) {
       const { data: legacyProduct } = await sb
@@ -115,7 +112,6 @@ async function searchProducts(message: string) {
     }));
   }
 
-  // 2. Check dynamic_products — but only return if price > 0
   const { data: dynProducts } = await sb
     .from("dynamic_products")
     .select("title, price, discount_price, image_url, link, description")
@@ -138,7 +134,6 @@ async function searchProducts(message: string) {
       }));
     }
 
-    // Product exists but has no price — return with link but note pricing is on the page
     return dynProducts.map((p: any) => ({
       name: p.title,
       price: "See pricing on product page",
@@ -230,8 +225,40 @@ async function callAI(
   );
 }
 
+// ── Conversation storage helpers ──
+
+async function loadServerHistory(sessionId: string): Promise<ConversationMessage[]> {
+  const sb = supabaseAdmin();
+  const { data } = await sb
+    .from("chatbot_conversations")
+    .select("role, message")
+    .eq("session_id", sessionId)
+    .order("created_at", { ascending: false })
+    .limit(10);
+
+  if (!data || data.length === 0) return [];
+
+  // Reverse so oldest first
+  return data.reverse().map((r: any) => ({
+    role: r.role as "user" | "assistant",
+    content: r.message,
+  }));
+}
+
+async function storeMessage(sessionId: string, platform: string, role: string, message: string) {
+  const sb = supabaseAdmin();
+  await sb.from("chatbot_conversations").insert({
+    session_id: sessionId,
+    platform,
+    role,
+    message,
+  });
+}
+
 async function handleMessage(body: any) {
-  const { message, session_id, history } = body;
+  const { message, session_id, history, platform } = body;
+  const effectivePlatform = platform || "web";
+
   if (!message) {
     return new Response(
       JSON.stringify({ error: "message is required" }),
@@ -256,12 +283,25 @@ async function handleMessage(body: any) {
 
   const products = await searchProducts(message);
 
+  // Determine conversation history source
+  let conversationHistory: ConversationMessage[] | undefined;
+
+  if (effectivePlatform !== "web" && session_id) {
+    // External platforms: load from server-side storage
+    conversationHistory = await loadServerHistory(session_id);
+  } else if (Array.isArray(history)) {
+    // Web: use client-sent history (backward compatible)
+    conversationHistory = history as ConversationMessage[];
+  }
+
+  // Store inbound user message (for all platforms with a session_id)
+  if (session_id) {
+    await storeMessage(session_id, effectivePlatform, "user", message);
+  }
+
   try {
     const productContext = products
       ? buildProductContext(products)
-      : undefined;
-    const conversationHistory = Array.isArray(history)
-      ? (history as ConversationMessage[])
       : undefined;
     const aiReply = await callAI(
       message,
@@ -269,6 +309,11 @@ async function handleMessage(body: any) {
       productContext,
       conversationHistory
     );
+
+    // Store assistant reply
+    if (session_id) {
+      await storeMessage(session_id, effectivePlatform, "assistant", aiReply);
+    }
 
     const responseBody: any = {
       reply: aiReply,
@@ -288,9 +333,15 @@ async function handleMessage(body: any) {
 
     if (products && products.length > 0) {
       const firstProduct = products[0];
+      const fallbackReply = `Here are some options for ${firstProduct.name}:\n${products.map((p: any) => `• ${p.name} — ${p.price}`).join("\n")}\n\nDelivery usually takes ${firstProduct.delivery_time || "5–10 minutes"}.`;
+
+      if (session_id) {
+        await storeMessage(session_id, effectivePlatform, "assistant", fallbackReply);
+      }
+
       return new Response(
         JSON.stringify({
-          reply: `Here are some options for ${firstProduct.name}:\n${products.map((p: any) => `• ${p.name} — ${p.price}`).join("\n")}\n\nDelivery usually takes ${firstProduct.delivery_time || "5–10 minutes"}.`,
+          reply: fallbackReply,
           products,
           product: firstProduct,
           timestamp: new Date().toISOString(),
@@ -453,6 +504,33 @@ async function handleCreditRequest(body: any) {
   );
 }
 
+async function handleCleanupConversations() {
+  const sb = supabaseAdmin();
+  const tenDaysAgo = new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString();
+
+  const { error, count } = await sb
+    .from("chatbot_conversations")
+    .delete()
+    .lt("created_at", tenDaysAgo);
+
+  if (error) {
+    return new Response(
+      JSON.stringify({ error: error.message }),
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
+
+  return new Response(
+    JSON.stringify({
+      success: true,
+      message: `Cleaned up conversations older than 10 days.`,
+      deleted: count ?? 0,
+      timestamp: new Date().toISOString(),
+    }),
+    { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+  );
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -471,6 +549,8 @@ Deno.serve(async (req) => {
         return await handleOrder(body);
       case "credit-request":
         return await handleCreditRequest(body);
+      case "cleanup-conversations":
+        return await handleCleanupConversations();
       default:
         return new Response(
           JSON.stringify({ error: `Unknown action: ${action}` }),
