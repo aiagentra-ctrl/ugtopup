@@ -40,6 +40,7 @@ import { Badge } from "@/components/ui/badge";
 import { DashboardSkeleton } from "./DashboardSkeleton";
 import { SalesSummaryCards } from "./SalesSummaryCards";
 import { SalesComparisonChart } from "./SalesComparisonChart";
+import { LianaWalletBalance } from "./LianaWalletBalance";
 
 interface SalesData {
   todaySales: SalesPeriodData;
@@ -210,6 +211,9 @@ export function EnhancedDashboard() {
           weekVsWeekChange={salesData.weekVsWeekChange}
         />
       </div>
+
+      {/* Liana Wallet Balance */}
+      <LianaWalletBalance />
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6">
