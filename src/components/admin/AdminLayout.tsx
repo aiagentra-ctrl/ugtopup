@@ -22,6 +22,10 @@ import {
   Trophy,
   UserPlus,
   HeartPulse,
+  MessageSquare,
+  Megaphone,
+  BarChart3,
+  Wrench,
 } from "lucide-react";
 import {
   Sidebar,
