@@ -13,14 +13,40 @@ function supabaseAdmin() {
   return createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 }
 
-// Product name keywords to search for
+// ── Rate Limiting ──
+
+const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
+const RATE_LIMIT_WINDOW_MS = 60_000; // 1 minute
+const RATE_LIMIT_MAX = 15; // max requests per window per session
+
+function checkRateLimit(sessionId: string): boolean {
+  const now = Date.now();
+  const entry = rateLimitMap.get(sessionId);
+  if (!entry || now > entry.resetAt) {
+    rateLimitMap.set(sessionId, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS });
+    return true;
+  }
+  entry.count++;
+  if (entry.count > RATE_LIMIT_MAX) return false;
+  return true;
+}
+
+// Clean stale entries periodically
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, val] of rateLimitMap) {
+    if (now > val.resetAt) rateLimitMap.delete(key);
+  }
+}, 120_000);
+
+// ── Product Constants ──
+
 const PRODUCT_KEYWORDS = [
   "chatgpt", "netflix", "tiktok", "free fire", "freefire",
   "mobile legends", "ml", "roblox", "pubg", "garena",
   "youtube", "smile", "smilecoin", "unipin", "capcut",
 ];
 
-// Route mapping for product links
 const PRODUCT_ROUTES: Record<string, string> = {
   chatgpt: "/chatgpt",
   netflix: "/netflix",
@@ -38,7 +64,6 @@ const PRODUCT_ROUTES: Record<string, string> = {
   unipin: "/unipin-uc",
 };
 
-// Map keywords to game names in game_product_prices table
 const KEYWORD_TO_GAME: Record<string, string> = {
   chatgpt: "chatgpt",
   netflix: "netflix",
@@ -56,6 +81,8 @@ const KEYWORD_TO_GAME: Record<string, string> = {
   unipin: "unipin",
 };
 
+// ── Helpers ──
+
 async function getSettings() {
   const sb = supabaseAdmin();
   const { data } = await sb
@@ -66,14 +93,28 @@ async function getSettings() {
   return data;
 }
 
-// ── RAG: Knowledge Base Search ──
+async function logActivity(description: string, metadata?: Record<string, unknown>) {
+  try {
+    const sb = supabaseAdmin();
+    await sb.from("chatbot_conversations").insert({
+      session_id: "__system__",
+      platform: "system",
+      role: "system",
+      message: description,
+      metadata: metadata || {},
+    });
+  } catch (_e) {
+    // non-critical, don't block
+  }
+}
+
+// ── RAG: Knowledge Base Search (scored) ──
 
 async function searchKnowledgeBase(message: string): Promise<string | null> {
   const sb = supabaseAdmin();
   const lowerMsg = message.toLowerCase();
 
-  // Extract meaningful keywords (3+ chars, skip stop words)
-  const stopWords = new Set(["the", "and", "for", "are", "but", "not", "you", "all", "can", "had", "her", "was", "one", "our", "out", "how", "what", "when", "where", "who", "why", "this", "that", "with", "have", "from", "will", "your", "about", "does"]);
+  const stopWords = new Set(["the", "and", "for", "are", "but", "not", "you", "all", "can", "had", "her", "was", "one", "our", "out", "how", "what", "when", "where", "who", "why", "this", "that", "with", "have", "from", "will", "your", "about", "does", "please", "help", "want", "need"]);
   const keywords = lowerMsg
     .replace(/[^a-z0-9\s]/g, "")
     .split(/\s+/)
@@ -81,25 +122,43 @@ async function searchKnowledgeBase(message: string): Promise<string | null> {
 
   if (keywords.length === 0) return null;
 
-  // Build OR filter for ilike matching
-  const orFilters = keywords
-    .slice(0, 5)
+  const searchKeywords = keywords.slice(0, 6);
+  const orFilters = searchKeywords
     .flatMap((kw) => [`title.ilike.%${kw}%`, `content.ilike.%${kw}%`])
     .join(",");
 
   const { data, error } = await sb
     .from("knowledge_base")
-    .select("title, content, category")
+    .select("title, content, category, tags")
     .eq("is_active", true)
     .or(orFilters)
-    .limit(5);
+    .limit(8);
 
   if (error || !data || data.length === 0) return null;
 
-  return data
+  // Score results by keyword match count
+  const scored = data.map((entry: any) => {
+    const text = `${entry.title} ${entry.content} ${(entry.tags || []).join(" ")}`.toLowerCase();
+    let score = 0;
+    for (const kw of searchKeywords) {
+      if (text.includes(kw)) score++;
+      // Bonus for title match
+      if (entry.title.toLowerCase().includes(kw)) score += 2;
+      // Bonus for tag match
+      if ((entry.tags || []).some((t: string) => t.toLowerCase().includes(kw))) score += 1;
+    }
+    return { ...entry, score };
+  });
+
+  scored.sort((a: any, b: any) => b.score - a.score);
+
+  return scored
+    .slice(0, 5)
     .map((entry: any) => `[${entry.category.toUpperCase()}] ${entry.title}\n${entry.content}`)
     .join("\n\n---\n\n");
 }
+
+// ── Product Search ──
 
 async function searchProducts(message: string) {
   const sb = supabaseAdmin();
@@ -190,10 +249,41 @@ function buildProductContext(products: any[]): string {
     .join("\n");
 }
 
+// ── Conversation Memory ──
+
 interface ConversationMessage {
   role: "user" | "assistant";
   content: string;
 }
+
+async function loadServerHistory(sessionId: string): Promise<ConversationMessage[]> {
+  const sb = supabaseAdmin();
+  const { data } = await sb
+    .from("chatbot_conversations")
+    .select("role, message")
+    .eq("session_id", sessionId)
+    .order("created_at", { ascending: false })
+    .limit(10);
+
+  if (!data || data.length === 0) return [];
+
+  return data.reverse().map((r: any) => ({
+    role: r.role as "user" | "assistant",
+    content: r.message,
+  }));
+}
+
+async function storeMessage(sessionId: string, platform: string, role: string, message: string) {
+  const sb = supabaseAdmin();
+  await sb.from("chatbot_conversations").insert({
+    session_id: sessionId,
+    platform,
+    role,
+    message,
+  });
+}
+
+// ── AI Call ──
 
 async function callAI(
   message: string,
@@ -202,7 +292,6 @@ async function callAI(
   knowledgeContext?: string,
   conversationHistory?: ConversationMessage[]
 ): Promise<string> {
-  // Check for custom provider first
   const isCustom = settings?.ai_provider === "custom" && settings?.custom_api_url;
   
   let apiUrl: string;
@@ -230,7 +319,6 @@ async function callAI(
 
   let fullSystemPrompt = systemPrompt;
 
-  // Inject knowledge base context (RAG)
   if (knowledgeContext) {
     fullSystemPrompt += `\n\n--- KNOWLEDGE BASE ---\nThe following information comes from our knowledge base. Use it to provide accurate answers:\n\n${knowledgeContext}\n--- END KNOWLEDGE BASE ---`;
   }
@@ -240,6 +328,16 @@ async function callAI(
   } else {
     fullSystemPrompt += `\n\nIf the user asks about a product that is not found in our database, respond with: "This product is not currently available on our website. It may be added soon."`;
   }
+
+  // Add Nepali payment/service context
+  fullSystemPrompt += `\n\n--- PAYMENT & SERVICE INTEGRATION ---
+You can help users with:
+- Payment: Users can pay online via API Nepal gateway or manual bank transfer. Guide them to the Dashboard > Add Credit section.
+- Order tracking: Users can track orders by order number or email.
+- Credit requests: Users can request credit top-ups with payment screenshots.
+- Available payment methods: Online payment (eSewa, Khalti, etc. via API Nepal), manual QR payment, bank transfer.
+When users ask about payments or adding credits, provide helpful guidance about these options.
+--- END PAYMENT & SERVICE INTEGRATION ---`;
 
   const messages: { role: string; content: string }[] = [
     { role: "system", content: fullSystemPrompt },
@@ -280,46 +378,37 @@ async function callAI(
   );
 }
 
-// ── Conversation storage helpers ──
-
-async function loadServerHistory(sessionId: string): Promise<ConversationMessage[]> {
-  const sb = supabaseAdmin();
-  const { data } = await sb
-    .from("chatbot_conversations")
-    .select("role, message")
-    .eq("session_id", sessionId)
-    .order("created_at", { ascending: false })
-    .limit(10);
-
-  if (!data || data.length === 0) return [];
-
-  return data.reverse().map((r: any) => ({
-    role: r.role as "user" | "assistant",
-    content: r.message,
-  }));
-}
-
-async function storeMessage(sessionId: string, platform: string, role: string, message: string) {
-  const sb = supabaseAdmin();
-  await sb.from("chatbot_conversations").insert({
-    session_id: sessionId,
-    platform,
-    role,
-    message,
-  });
-}
+// ── Message Handler ──
 
 async function handleMessage(body: any) {
   const { message, session_id, history, platform } = body;
   const effectivePlatform = platform || "web";
+  const effectiveSessionId = session_id || "anonymous";
 
   if (!message) {
     return new Response(
       JSON.stringify({ error: "message is required" }),
-      {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      }
+      { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
+
+  // Input validation
+  if (typeof message !== "string" || message.length > 2000) {
+    return new Response(
+      JSON.stringify({ error: "Message must be a string under 2000 characters" }),
+      { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
+
+  // Rate limiting
+  if (!checkRateLimit(effectiveSessionId)) {
+    return new Response(
+      JSON.stringify({
+        reply: "⏳ You're sending messages too quickly. Please wait a moment and try again.",
+        timestamp: new Date().toISOString(),
+        error: true,
+      }),
+      { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
 
@@ -356,9 +445,7 @@ async function handleMessage(body: any) {
   }
 
   try {
-    const productContext = products
-      ? buildProductContext(products)
-      : undefined;
+    const productContext = products ? buildProductContext(products) : undefined;
     const aiReply = await callAI(
       message,
       settings,
@@ -460,15 +547,14 @@ async function handleFeedback(body: any) {
   );
 }
 
+// ── Order Status ──
+
 async function handleOrderStatus(body: any) {
   const { order_id } = body;
   if (!order_id) {
     return new Response(
       JSON.stringify({ error: "order_id is required" }),
-      {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      }
+      { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
 
@@ -519,6 +605,8 @@ async function handleOrderStatus(body: any) {
     { headers: { ...corsHeaders, "Content-Type": "application/json" } }
   );
 }
+
+// ── Order Placement ──
 
 async function handleOrder(body: any) {
   const { email, package_id, player_id, zone_id, product_name } = body;
@@ -658,6 +746,8 @@ async function handleOrder(body: any) {
   );
 }
 
+// ── Payment Initiation (Nepali API Nepal Gateway) ──
+
 async function handleInitiatePayment(body: any) {
   const { email, amount } = body;
 
@@ -793,6 +883,8 @@ async function handleInitiatePayment(body: any) {
   }
 }
 
+// ── Payment Status ──
+
 async function handlePaymentStatus(body: any) {
   const { identifier } = body;
 
@@ -826,16 +918,15 @@ async function handlePaymentStatus(body: any) {
   );
 }
 
+// ── Credit Request ──
+
 async function handleCreditRequest(body: any) {
   const { name, email, whatsapp, amount, screenshot_url } = body;
 
   if (!name || !email || !amount) {
     return new Response(
       JSON.stringify({ error: "name, email, and amount are required" }),
-      {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      }
+      { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
 
@@ -849,14 +940,8 @@ async function handleCreditRequest(body: any) {
 
   if (!profile) {
     return new Response(
-      JSON.stringify({
-        error:
-          "No account found with this email. Please register first.",
-      }),
-      {
-        status: 404,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      }
+      JSON.stringify({ error: "No account found with this email. Please register first." }),
+      { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
 
@@ -878,13 +963,8 @@ async function handleCreditRequest(body: any) {
   if (error) {
     console.error("Credit request error:", error);
     return new Response(
-      JSON.stringify({
-        error: "Failed to create credit request. " + error.message,
-      }),
-      {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      }
+      JSON.stringify({ error: "Failed to create credit request. " + error.message }),
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
 
@@ -899,14 +979,16 @@ async function handleCreditRequest(body: any) {
   );
 }
 
+// ── Conversation Cleanup (15 days) ──
+
 async function handleCleanupConversations() {
   const sb = supabaseAdmin();
-  const tenDaysAgo = new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString();
+  const fifteenDaysAgo = new Date(Date.now() - 15 * 24 * 60 * 60 * 1000).toISOString();
 
   const { error, count } = await sb
     .from("chatbot_conversations")
     .delete()
-    .lt("created_at", tenDaysAgo);
+    .lt("created_at", fifteenDaysAgo);
 
   if (error) {
     return new Response(
@@ -915,16 +997,20 @@ async function handleCleanupConversations() {
     );
   }
 
+  await logActivity(`Auto-cleanup: deleted ${count ?? 0} conversations older than 15 days`);
+
   return new Response(
     JSON.stringify({
       success: true,
-      message: `Cleaned up conversations older than 10 days.`,
+      message: `Cleaned up conversations older than 15 days.`,
       deleted: count ?? 0,
       timestamp: new Date().toISOString(),
     }),
     { headers: { ...corsHeaders, "Content-Type": "application/json" } }
   );
 }
+
+// ── Main Router ──
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -955,22 +1041,13 @@ Deno.serve(async (req) => {
       default:
         return new Response(
           JSON.stringify({ error: `Unknown action: ${action}` }),
-          {
-            status: 400,
-            headers: {
-              ...corsHeaders,
-              "Content-Type": "application/json",
-            },
-          }
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
     }
   } catch (err: any) {
     return new Response(
       JSON.stringify({ error: err.message || "Internal server error" }),
-      {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      }
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
 });

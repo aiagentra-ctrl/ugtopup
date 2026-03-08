@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -7,8 +7,9 @@ import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { toast } from 'sonner';
-import { Bot, Save, Eye, Brain, MessageCircle, Package, CreditCard, Mail, Loader2 } from 'lucide-react';
+import { Bot, Save, Eye, Brain, MessageCircle, Package, CreditCard, Mail, Loader2, Send, Play, User } from 'lucide-react';
 
 interface Settings {
   id: string;
@@ -32,6 +33,11 @@ interface Settings {
   custom_api_key_name: string | null;
 }
 
+interface TestMessage {
+  role: 'user' | 'bot';
+  text: string;
+}
+
 const AI_MODELS = [
   { value: 'google/gemini-3-flash-preview', label: 'Gemini 3 Flash (Fast, Recommended)' },
   { value: 'google/gemini-2.5-flash', label: 'Gemini 2.5 Flash (Balanced)' },
@@ -42,15 +48,27 @@ const AI_MODELS = [
   { value: 'openai/gpt-5', label: 'GPT-5 (Best Quality)' },
 ];
 
+const EDGE_FUNCTION_URL = `https://iwcqutzgtpbdowghalnl.supabase.co/functions/v1/chatbot-api`;
+const API_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml3Y3F1dHpndHBiZG93Z2hhbG5sIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjEwMDkxNDYsImV4cCI6MjA3NjU4NTE0Nn0.f_NA471WGd5doUunIq39i3kh1NXYA70g1vVwTJU70P4';
+
 export const ChatbotSettings = () => {
   const [settings, setSettings] = useState<Settings | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
+  const [showTestChat, setShowTestChat] = useState(false);
+  const [testMessages, setTestMessages] = useState<TestMessage[]>([]);
+  const [testInput, setTestInput] = useState('');
+  const [testLoading, setTestLoading] = useState(false);
+  const testEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     fetchSettings();
   }, []);
+
+  useEffect(() => {
+    testEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [testMessages]);
 
   const fetchSettings = async () => {
     try {
@@ -109,6 +127,39 @@ export const ChatbotSettings = () => {
     setSettings(prev => prev ? { ...prev, [key]: value } : prev);
   };
 
+  const sendTestMessage = async () => {
+    if (!testInput.trim() || testLoading) return;
+    const userMsg = testInput.trim();
+    setTestInput('');
+    setTestMessages(prev => [...prev, { role: 'user', text: userMsg }]);
+    setTestLoading(true);
+
+    try {
+      const history = testMessages.map(m => ({
+        role: m.role === 'user' ? 'user' as const : 'assistant' as const,
+        content: m.text,
+      }));
+
+      const response = await fetch(EDGE_FUNCTION_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'apikey': API_KEY },
+        body: JSON.stringify({
+          action: 'message',
+          message: userMsg,
+          session_id: `admin-test-${Date.now()}`,
+          history,
+        }),
+      });
+
+      const data = await response.json();
+      setTestMessages(prev => [...prev, { role: 'bot', text: data.reply || data.error || 'No response' }]);
+    } catch (err: any) {
+      setTestMessages(prev => [...prev, { role: 'bot', text: `❌ Error: ${err.message}` }]);
+    } finally {
+      setTestLoading(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
@@ -122,19 +173,23 @@ export const ChatbotSettings = () => {
   return (
     <div className="space-y-6 max-w-4xl">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-2">
         <div>
           <h2 className="text-2xl font-bold text-foreground flex items-center gap-2">
             <Bot className="h-6 w-6 text-primary" /> AI Chatbot Settings
           </h2>
           <p className="text-sm text-muted-foreground mt-1">Configure your AI chatbot — no external tools needed</p>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={() => setShowPreview(!showPreview)}>
+        <div className="flex gap-2 flex-wrap">
+          <Button variant="outline" size="sm" onClick={() => { setShowTestChat(!showTestChat); if (!showTestChat) setShowPreview(false); }}>
+            <Play className="h-4 w-4 mr-2" />
+            {showTestChat ? 'Hide' : 'Try'} Chatbot
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => { setShowPreview(!showPreview); if (!showPreview) setShowTestChat(false); }}>
             <Eye className="h-4 w-4 mr-2" />
             {showPreview ? 'Hide' : 'Show'} Preview
           </Button>
-          <Button onClick={handleSave} disabled={saving}>
+          <Button size="sm" onClick={handleSave} disabled={saving}>
             {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
             Save Settings
           </Button>
@@ -347,9 +402,97 @@ export const ChatbotSettings = () => {
           </Card>
         </div>
 
-        {/* Right: Preview */}
-        {showPreview && (
-          <div className="lg:sticky lg:top-24 h-fit">
+        {/* Right: Preview or Test Chat */}
+        <div className="lg:sticky lg:top-24 h-fit">
+          {/* Try Chatbot Panel */}
+          {showTestChat && (
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <Play className="h-4 w-4 text-primary" /> Test Chatbot
+                  </CardTitle>
+                  <Button variant="ghost" size="sm" onClick={() => setTestMessages([])}>Clear</Button>
+                </div>
+                <CardDescription>Simulate a user conversation to verify AI responses</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="w-full rounded-xl border border-border overflow-hidden">
+                  {/* Chat header */}
+                  <div className="bg-gradient-to-br from-primary to-secondary text-primary-foreground px-4 py-3">
+                    <h3 className="font-semibold text-sm">Admin Test Mode</h3>
+                    <div className="flex items-center gap-1.5 mt-0.5">
+                      <span className="w-2 h-2 rounded-full bg-green-400" />
+                      <span className="text-xs opacity-90">
+                        {AI_MODELS.find(m => m.value === settings.ai_model)?.label || settings.ai_model}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Messages */}
+                  <ScrollArea className="h-[350px] p-3 bg-background">
+                    <div className="space-y-3">
+                      {testMessages.length === 0 && (
+                        <p className="text-xs text-muted-foreground text-center py-8">
+                          Send a message to test the chatbot's responses.<br />
+                          Try asking about products, orders, or payments.
+                        </p>
+                      )}
+                      {testMessages.map((msg, i) => (
+                        <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                          <div className={`flex items-start gap-2 max-w-[85%] ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
+                            <div className={`w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 ${
+                              msg.role === 'user' ? 'bg-primary/20' : 'bg-secondary/20'
+                            }`}>
+                              {msg.role === 'user' ? <User className="h-3 w-3 text-primary" /> : <Bot className="h-3 w-3 text-secondary" />}
+                            </div>
+                            <div className={`px-3 py-2 rounded-xl text-sm ${
+                              msg.role === 'user'
+                                ? 'bg-primary text-primary-foreground rounded-br-md'
+                                : 'bg-card border border-border text-card-foreground rounded-bl-md'
+                            }`}>
+                              <p className="whitespace-pre-wrap">{msg.text}</p>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                      {testLoading && (
+                        <div className="flex justify-start">
+                          <div className="bg-card border border-border rounded-xl rounded-bl-md px-4 py-2">
+                            <div className="flex gap-1">
+                              <span className="w-2 h-2 bg-muted-foreground/40 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                              <span className="w-2 h-2 bg-muted-foreground/40 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                              <span className="w-2 h-2 bg-muted-foreground/40 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                      <div ref={testEndRef} />
+                    </div>
+                  </ScrollArea>
+
+                  {/* Input */}
+                  <div className="p-3 border-t border-border bg-card">
+                    <form onSubmit={(e) => { e.preventDefault(); sendTestMessage(); }} className="flex gap-2">
+                      <Input
+                        value={testInput}
+                        onChange={(e) => setTestInput(e.target.value)}
+                        placeholder="Test a message..."
+                        disabled={testLoading}
+                        className="text-sm"
+                      />
+                      <Button type="submit" size="icon" disabled={testLoading || !testInput.trim()}>
+                        <Send className="h-4 w-4" />
+                      </Button>
+                    </form>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Static Preview */}
+          {showPreview && (
             <Card>
               <CardHeader>
                 <CardTitle className="text-base">Live Preview</CardTitle>
@@ -407,8 +550,8 @@ export const ChatbotSettings = () => {
                 </div>
               </CardContent>
             </Card>
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </div>
   );
