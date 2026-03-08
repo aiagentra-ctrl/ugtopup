@@ -79,6 +79,7 @@ const App = () => (
       <BrowserRouter>
         <AuthProvider>
           <Suspense fallback={<LoadingScreen />}>
+            <AnnouncementBanner />
             <Routes>
               <Route path="/" element={<Index />} />
             <Route path="/auth" element={<Auth />} />
