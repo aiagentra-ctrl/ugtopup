@@ -22,6 +22,14 @@ export const createOffer = async (offer: {
   custom_icon_url?: string;
   show_on_homepage?: boolean;
   show_on_product_page?: boolean;
+  design_template?: string;
+  badge_text?: string;
+  badge_color?: string;
+  badge_text_color?: string;
+  animation_type?: string;
+  seasonal_theme?: string;
+  background_gradient?: string;
+  timer_start_date?: string;
 }) => {
   const { data: existing } = await supabase
     .from("offers")

@@ -3,7 +3,6 @@ import { ProductCard } from "@/components/ProductCard";
 import { useToast } from "@/hooks/use-toast";
 import { useDynamicProducts } from "@/hooks/useDynamicProducts";
 
-// Fallback imports for local images used in seed data
 import productUnipin from "@/assets/product-unipin.jpg";
 import productGarena from "@/assets/product-garena.jpg";
 import productSmile from "@/assets/product-smile.jpg";
@@ -11,7 +10,6 @@ import productNetflix from "@/assets/product-netflix.jpg";
 import productYoutube from "@/assets/product-youtube.jpg";
 import productChatgpt from "@/assets/product-chatgpt.jpg";
 
-// Map local asset paths to actual imports
 const localAssetMap: Record<string, string> = {
   "/assets/product-unipin.jpg": productUnipin,
   "/assets/product-garena.jpg": productGarena,
@@ -75,15 +73,27 @@ export const ProductTabs = () => {
           return (
             <TabsContent key={cat.slug} value={cat.slug} className="animate-fade-in">
               <div className={`grid gap-3 sm:gap-4 md:gap-6 ${gridCols}`}>
-                {catProducts.map((product) => (
-                  <ProductCard
-                    key={product.id}
-                    image={resolveImage(product.image_url)}
-                    title={product.title}
-                    link={product.link || "#"}
-                    onBuyNow={() => handleBuyNow(product.title)}
-                  />
-                ))}
+                {catProducts.map((product) => {
+                  // Resolve badge: product override > attached offer
+                  const badgeText = product.offer_badge_text || product.offers?.badge_text || undefined;
+                  const badgeColor = product.offer_badge_color || product.offers?.badge_color || undefined;
+                  const badgeTextColor = product.offers?.badge_text_color || undefined;
+                  const badgeAnimation = product.offers?.animation_type || undefined;
+
+                  return (
+                    <ProductCard
+                      key={product.id}
+                      image={resolveImage(product.image_url)}
+                      title={product.title}
+                      link={product.link || "#"}
+                      onBuyNow={() => handleBuyNow(product.title)}
+                      badgeText={badgeText}
+                      badgeColor={badgeColor}
+                      badgeTextColor={badgeTextColor}
+                      badgeAnimation={badgeAnimation}
+                    />
+                  );
+                })}
               </div>
               {catProducts.length === 0 && (
                 <p className="text-center text-muted-foreground py-8">No products in this category yet.</p>
