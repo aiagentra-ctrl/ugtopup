@@ -46,6 +46,7 @@ import Referrals from "./pages/Referrals";
 import ReferAndEarn from "./pages/ReferAndEarn";
 import ApiDocs from "./pages/ApiDocs";
 import NotFound from "./pages/NotFound";
+import Products from "./pages/Products";
 import DeveloperPanel from "./pages/DeveloperPanel";
 import { DeveloperRoute } from "./components/DeveloperRoute";
 import SupportTickets from "./pages/SupportTickets";
@@ -82,6 +83,7 @@ const App = () => (
             <AnnouncementBanner />
             <Routes>
               <Route path="/" element={<Index />} />
+            <Route path="/products" element={<Products />} />
             <Route path="/auth" element={<Auth />} />
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<Signup />} />
