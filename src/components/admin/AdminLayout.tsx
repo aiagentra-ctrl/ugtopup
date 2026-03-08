@@ -17,6 +17,7 @@ import {
   FolderOpen,
   Gift,
   Bot,
+  Ticket,
 } from "lucide-react";
 import {
   Sidebar,
