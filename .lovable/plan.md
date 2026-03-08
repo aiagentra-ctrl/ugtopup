@@ -1,140 +1,96 @@
 
+# Dynamic Website with Advanced Admin Panel
 
-# Strategic Feature Roadmap for UG TopUps
+## Overview
+Make the entire website content dynamic and admin-controlled by creating two new admin sections and supporting database tables. The existing "Products (New)" page (GameProductPrices) will remain completely untouched.
 
-## Current System Analysis
+## What Changes
 
-Your platform already has a solid foundation:
-- **Commerce**: Product ordering, game top-up APIs (Liana), voucher inventory, dynamic pricing
-- **Engagement**: AI chatbot, push notifications, referral/rewards/coupon system, offers
-- **Admin**: Full admin panel with dashboard, order management, analytics, feature flags, developer controls
-- **Infrastructure**: PWA with offline caching, online payments, real-time updates
+### Phase 1: Database Setup
 
-The platform covers ordering, engagement, and admin operations well. The gaps are in **user personalization**, **self-service support**, **retention automation**, and **visual polish**.
+**New table: `dynamic_products`** - stores products displayed on the homepage
+- `id`, `title`, `description`, `image_url`, `link`, `category` (topup/voucher/subscription/design), `price`, `discount_price`, `features` (jsonb array), `tags` (text array), `plans` (jsonb array), `display_order`, `is_active`, `created_at`, `updated_at`
 
----
+**New table: `product_categories`** - dynamic categories
+- `id`, `name`, `slug`, `display_order`, `is_active`, `created_at`, `updated_at`
 
-## Month 1 — User Experience & Visual Polish
+**New table: `offers`** - dynamic offer/deal sections
+- `id`, `title`, `subtitle`, `description`, `image_url`, `offer_type` (flash_sale/limited_time/daily_deal/discount_bundle), `timer_enabled`, `timer_type` (hours/days/both/none), `timer_end_date`, `product_link`, `custom_icon_url`, `display_order`, `is_active`, `show_on_homepage`, `show_on_product_page`, `created_at`, `updated_at`
 
-### 1. Animated Product Cards with Quick-View
-- Add hover/tap micro-animations (scale, shadow lift) to product cards on the homepage
-- Add a "Quick View" modal so users can see package options without navigating away
-- Estimated files: `ProductCard.tsx`, `GameCard.tsx`, new `QuickViewModal.tsx`
+RLS: Public SELECT for active items, admin ALL for management.
 
-### 2. User Dashboard Redesign
-- Add a "Welcome back" greeting with last order summary
-- Show a visual spending chart (weekly/monthly) using recharts
-- Add quick-action buttons: "Reorder Last", "Check Rewards", "Browse Deals"
-- File: `Dashboard.tsx` and dashboard components
+**Seed `dynamic_products`** with current hardcoded data from ProductTabs so nothing changes visually on day one.
 
-### 3. Smooth Page Transitions
-- Add fade/slide transitions between routes using `framer-motion`
-- Add skeleton loading states on product pages for perceived performance
-- Files: `App.tsx` wrapper, individual page components
+### Phase 2: Admin Panel - Product Update Page (new section)
 
----
+Add a new sidebar menu item **"Product Update"** in AdminLayout.
 
-## Month 2 — Loyalty & Retention Systems
+New component: `src/components/admin/DynamicProductManager.tsx`
+- Full CRUD table listing all dynamic products
+- Inline editing with image upload (to `product-images` storage bucket)
+- Fields: title, description, image, link, category, price, discount price, features (add/remove chips), tags (add/remove), plans (JSON editor)
+- Product preview panel showing how it looks on the frontend
+- Search, filter by category, drag-to-reorder
 
-### 4. Loyalty Points System
-- Users earn points per order (e.g., 1 point per ₹10 spent)
-- Points can be redeemed for discounts on future orders
-- New DB table: `loyalty_points` (user_id, points, source, created_at)
-- New page: `LoyaltyPoints.tsx` showing balance, earning history, redemption options
-- **Benefit**: Encourages repeat purchases
+New component: `src/components/admin/CategoryManager.tsx`
+- Add/rename/delete categories
+- Reorder categories via drag or arrows
+- Auto-updates category options across the product form
 
-### 5. Product Recommendation Engine
-- "Frequently bought together" section on product pages based on order history
-- "Popular in your area" or "Trending now" section on homepage
-- Uses existing `product_orders` data to calculate recommendations
-- New component: `Recommendations.tsx`
-- **Benefit**: Increases average order value
+### Phase 3: Admin Panel - Offer Management Page (new section)
 
-### 6. Order Status Timeline
-- Replace simple status badges with a visual step-by-step timeline (Placed → Processing → Completed)
-- Real-time updates via existing Supabase subscriptions
-- New component: `OrderTimeline.tsx` used in Dashboard and order details
-- **Benefit**: Reduces "where is my order" support queries
+Add a new sidebar menu item **"Offers"** in AdminLayout.
 
----
+New component: `src/components/admin/OfferManager.tsx`
+- List all offers with enable/disable toggle
+- Add new offer with form: title, subtitle, description, image upload, offer type selector, timer controls (enable/disable, type, end date), product link picker
+- Edit existing offers inline
+- Reorder offers
+- Toggle homepage/product page visibility
 
-## Month 3 — Support & Communication
+### Phase 4: Frontend - Make ProductTabs Dynamic
 
-### 7. Customer Support Ticket System
-- Users can create support tickets from their dashboard
-- Admin can view, reply, and close tickets from the admin panel
-- New DB tables: `support_tickets`, `ticket_messages`
-- New pages: `SupportTickets.tsx` (user), admin `TicketManager.tsx`
-- **Benefit**: Structured support instead of relying only on chatbot
+Update `src/components/ProductTabs.tsx`:
+- Fetch products from `dynamic_products` table instead of hardcoded `productData`
+- Fetch categories from `product_categories` table for tab names
+- Keep the exact same visual layout, just swap data source
+- Real-time subscription so admin changes appear instantly
 
-### 8. In-App Announcements System
-- Admin can push targeted announcements (all users, specific segments)
-- Shows as a dismissible banner or modal on user's next visit
-- New DB table: `announcements` with targeting rules
-- **Benefit**: Direct communication channel for promotions, maintenance notices
+### Phase 5: Frontend - Make BestDeals/Offers Dynamic
 
----
+Update `src/components/BestDeals.tsx`:
+- Fetch active homepage offers from `offers` table
+- Render offer blocks dynamically with optional countdown timers
+- Keep existing visual style, just make content admin-controlled
 
-## Month 4 — Analytics & Automation
+### What Will NOT Change
+- **"Products (New)" page** (`GameProductPrices` component) -- zero modifications
+- **Existing `ProductsList`** component -- untouched
+- **Game pricing system** (`game_product_prices` table) -- untouched
+- **Overall website design/layout** -- only data sources change
 
-### 9. User Analytics Dashboard (Admin)
-- User cohort analysis: new vs returning users per week
-- Revenue per user segment
-- Most popular products by time period
-- Churn indicators (users who haven't ordered in 30+ days)
-- New admin section: `UserAnalytics.tsx`
-- **Benefit**: Data-driven decisions on pricing and promotions
+## Technical Details
 
-### 10. Automated Marketing Campaigns
-- Trigger-based notifications: "You haven't ordered in 7 days — here's 5% off"
-- Birthday/anniversary coupons (if DOB collected)
-- Restock reminders for subscription-type products
-- Uses Supabase Edge Functions on a cron schedule
-- **Benefit**: Automated re-engagement without manual effort
+### New Files
+- `src/components/admin/DynamicProductManager.tsx` - Product Update admin page
+- `src/components/admin/CategoryManager.tsx` - Category management
+- `src/components/admin/OfferManager.tsx` - Offer management admin page
+- `src/lib/dynamicProductApi.ts` - API functions for dynamic products/categories
+- `src/lib/offerApi.ts` - API functions for offers
+- `src/hooks/useDynamicProducts.ts` - Frontend hook with real-time subscriptions
+- `src/hooks/useOffers.ts` - Frontend hook for offers
 
----
+### Modified Files
+- `src/components/admin/AdminLayout.tsx` - Add 3 new sidebar items (Product Update, Categories, Offers)
+- `src/pages/AdminPanel.tsx` - Add new section cases in switch
+- `src/components/ProductTabs.tsx` - Replace hardcoded data with database fetch
+- `src/components/BestDeals.tsx` - Replace hardcoded deals with database fetch
 
-## Month 5 — Advanced Features
+### New Storage Bucket
+- `product-images` (public) for product image uploads
 
-### 11. Wishlist / Favorites
-- Users can save products they're interested in
-- "Price drop" notifications when saved product goes on offer
-- Simple DB table: `wishlists` (user_id, product_id)
-- **Benefit**: Engagement even when users aren't buying
-
-### 12. Subscription Plans
-- Recurring top-up subscriptions (e.g., "100 diamonds every week")
-- Auto-deduct from credit balance on schedule
-- New DB tables: `subscriptions`, `subscription_plans`
-- **Benefit**: Predictable revenue and user retention
-
----
-
-## Implementation Priority Summary
-
-| Priority | Feature | Effort | Impact |
-|----------|---------|--------|--------|
-| High | Product card animations + quick view | Small | Visual appeal |
-| High | Dashboard redesign with charts | Medium | User engagement |
-| High | Order status timeline | Small | Reduces support load |
-| High | Loyalty points system | Medium | Retention |
-| Medium | Product recommendations | Medium | Revenue increase |
-| Medium | Support ticket system | Medium | Better support |
-| Medium | In-app announcements | Small | Communication |
-| Medium | User analytics (admin) | Medium | Business insights |
-| Low | Automated campaigns | Large | Retention automation |
-| Low | Wishlist/favorites | Small | Engagement |
-| Low | Subscription plans | Large | Recurring revenue |
-
----
-
-## Recommended First Implementation
-
-I recommend starting with **Month 1** items since they deliver immediate visual improvement with relatively low effort:
-
-1. **Animated product cards with quick-view modal** — makes the homepage feel modern
-2. **Dashboard redesign** — improves the logged-in user experience
-3. **Page transitions** — adds polish across the entire app
-
-Should I proceed with implementing these Month 1 features?
-
+### Database Migration
+- Create `dynamic_products`, `product_categories`, `offers` tables
+- Create `product-images` storage bucket
+- RLS policies for all new tables
+- Seed initial data from current hardcoded products
