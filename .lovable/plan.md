@@ -1,96 +1,78 @@
 
-# Dynamic Website with Advanced Admin Panel
+
+# Voucher Code Inventory System
 
 ## Overview
-Make the entire website content dynamic and admin-controlled by creating two new admin sections and supporting database tables. The existing "Products (New)" page (GameProductPrices) will remain completely untouched.
 
-## What Changes
+Build an admin-managed voucher code inventory that stores redeemable codes (e.g., UniPin vouchers, gift cards), automatically assigns codes to orders upon purchase, and falls back to manual order management when stock runs out.
 
-### Phase 1: Database Setup
+## Database
 
-**New table: `dynamic_products`** - stores products displayed on the homepage
-- `id`, `title`, `description`, `image_url`, `link`, `category` (topup/voucher/subscription/design), `price`, `discount_price`, `features` (jsonb array), `tags` (text array), `plans` (jsonb array), `display_order`, `is_active`, `created_at`, `updated_at`
+**New table: `voucher_codes`**
 
-**New table: `product_categories`** - dynamic categories
-- `id`, `name`, `slug`, `display_order`, `is_active`, `created_at`, `updated_at`
+| Column | Type | Notes |
+|--------|------|-------|
+| id | uuid PK | |
+| product_name | text NOT NULL | e.g. "UniPin 2000 UC" |
+| game | text NOT NULL | matches `game_product_prices.game` e.g. "unipin" |
+| package_id | text | matches `game_product_prices.package_id` for auto-matching |
+| code | text NOT NULL UNIQUE | the voucher code |
+| status | text NOT NULL DEFAULT 'available' | 'available' or 'used' |
+| order_id | uuid NULL | FK to product_orders.id |
+| added_at | timestamptz DEFAULT now() |
+| used_at | timestamptz NULL |
 
-**New table: `offers`** - dynamic offer/deal sections
-- `id`, `title`, `subtitle`, `description`, `image_url`, `offer_type` (flash_sale/limited_time/daily_deal/discount_bundle), `timer_enabled`, `timer_type` (hours/days/both/none), `timer_end_date`, `product_link`, `custom_icon_url`, `display_order`, `is_active`, `show_on_homepage`, `show_on_product_page`, `created_at`, `updated_at`
+RLS: Admin full access. No public access (codes are secrets).
 
-RLS: Public SELECT for active items, admin ALL for management.
+**New DB function: `assign_voucher_code(p_order_id uuid, p_game text, p_package_id text)`**
 
-**Seed `dynamic_products`** with current hardcoded data from ProductTabs so nothing changes visually on day one.
+- Finds first available voucher matching game + package_id, ordered by added_at
+- Sets status='used', order_id, used_at
+- Returns the code or NULL if none available
+- Uses `FOR UPDATE SKIP LOCKED` for concurrency safety
 
-### Phase 2: Admin Panel - Product Update Page (new section)
+## Admin UI
 
-Add a new sidebar menu item **"Product Update"** in AdminLayout.
+**New component: `src/components/admin/VoucherInventory.tsx`**
 
-New component: `src/components/admin/DynamicProductManager.tsx`
-- Full CRUD table listing all dynamic products
-- Inline editing with image upload (to `product-images` storage bucket)
-- Fields: title, description, image, link, category, price, discount price, features (add/remove chips), tags (add/remove), plans (JSON editor)
-- Product preview panel showing how it looks on the frontend
-- Search, filter by category, drag-to-reorder
+Google-Sheet-style table with:
+- Columns: Product Name, Code, Status, Order ID, Date Added, Date Used
+- Inline editing for product name and code
+- Single add row + bulk import (textarea, one code per line with product name prefix)
+- Delete button per row
+- Summary stats at top: Total Available, Used Today, Low Stock warnings
+- Real-time updates via Supabase subscription on `voucher_codes`
+- Filter by product name, status
 
-New component: `src/components/admin/CategoryManager.tsx`
-- Add/rename/delete categories
-- Reorder categories via drag or arrows
-- Auto-updates category options across the product form
+**Admin navigation**: Add "Voucher Inventory" menu item with `Ticket` icon to `AdminLayout.tsx` and `AdminPanel.tsx`.
 
-### Phase 3: Admin Panel - Offer Management Page (new section)
+## Automatic Code Delivery
 
-Add a new sidebar menu item **"Offers"** in AdminLayout.
+**Modify `place_order` flow** — after order is created for voucher-eligible products (unipin and any future voucher products):
 
-New component: `src/components/admin/OfferManager.tsx`
-- List all offers with enable/disable toggle
-- Add new offer with form: title, subtitle, description, image upload, offer type selector, timer controls (enable/disable, type, end date), product link picker
-- Edit existing offers inline
-- Reorder offers
-- Toggle homepage/product page visibility
+Create a new DB function `try_assign_voucher(p_order_id, p_game, p_package_id)` called via a trigger on `product_orders` INSERT where `product_category = 'unipin'` (extensible list):
+1. Call `assign_voucher_code`
+2. If code found: store code in `product_orders.metadata->>'voucher_code'`, set status to 'completed', notify user with code
+3. If no code: leave order as 'pending' for manual admin handling, create admin notification "Voucher stock empty for [product]"
 
-### Phase 4: Frontend - Make ProductTabs Dynamic
+Alternatively, implement this in application code (edge function or RPC) called right after `place_order` returns, to keep the trigger simple. **Preferred approach**: Post-order RPC call from frontend.
 
-Update `src/components/ProductTabs.tsx`:
-- Fetch products from `dynamic_products` table instead of hardcoded `productData`
-- Fetch categories from `product_categories` table for tab names
-- Keep the exact same visual layout, just swap data source
-- Real-time subscription so admin changes appear instantly
+## Frontend Order Flow Update
 
-### Phase 5: Frontend - Make BestDeals/Offers Dynamic
+In the UniPin order page (and similar voucher products), after `place_order` succeeds:
+1. Call `supabase.rpc('try_assign_voucher', { p_order_id, p_game, p_package_id })`
+2. If returns a code → show success modal with the voucher code
+3. If returns null → show "Order placed, code will be delivered manually"
 
-Update `src/components/BestDeals.tsx`:
-- Fetch active homepage offers from `offers` table
-- Render offer blocks dynamically with optional countdown timers
-- Keep existing visual style, just make content admin-controlled
-
-### What Will NOT Change
-- **"Products (New)" page** (`GameProductPrices` component) -- zero modifications
-- **Existing `ProductsList`** component -- untouched
-- **Game pricing system** (`game_product_prices` table) -- untouched
-- **Overall website design/layout** -- only data sources change
-
-## Technical Details
+## Files Summary
 
 ### New Files
-- `src/components/admin/DynamicProductManager.tsx` - Product Update admin page
-- `src/components/admin/CategoryManager.tsx` - Category management
-- `src/components/admin/OfferManager.tsx` - Offer management admin page
-- `src/lib/dynamicProductApi.ts` - API functions for dynamic products/categories
-- `src/lib/offerApi.ts` - API functions for offers
-- `src/hooks/useDynamicProducts.ts` - Frontend hook with real-time subscriptions
-- `src/hooks/useOffers.ts` - Frontend hook for offers
+- `src/components/admin/VoucherInventory.tsx` — Admin spreadsheet UI
+- Migration SQL — `voucher_codes` table + `assign_voucher_code` + `try_assign_voucher` functions + trigger/RPC
 
 ### Modified Files
-- `src/components/admin/AdminLayout.tsx` - Add 3 new sidebar items (Product Update, Categories, Offers)
-- `src/pages/AdminPanel.tsx` - Add new section cases in switch
-- `src/components/ProductTabs.tsx` - Replace hardcoded data with database fetch
-- `src/components/BestDeals.tsx` - Replace hardcoded deals with database fetch
+- `src/components/admin/AdminLayout.tsx` — Add menu item
+- `src/pages/AdminPanel.tsx` — Add case for "vouchers" section
+- `src/pages/UnipinUC.tsx` (or its order component) — Call voucher assignment after order
+- `src/components/unipin/UnipinSuccessModal.tsx` — Display voucher code if present
 
-### New Storage Bucket
-- `product-images` (public) for product image uploads
-
-### Database Migration
-- Create `dynamic_products`, `product_categories`, `offers` tables
-- Create `product-images` storage bucket
-- RLS policies for all new tables
-- Seed initial data from current hardcoded products
