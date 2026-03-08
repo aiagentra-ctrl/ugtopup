@@ -8,11 +8,14 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { Plus, Pencil, Trash2, ArrowUp, ArrowDown, Zap, Clock, Tag, Gift } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Plus, Pencil, Trash2, ArrowUp, ArrowDown, Zap, Clock, Tag, Gift, Palette, Play, Calendar } from "lucide-react";
 import { toast } from "sonner";
 import { fetchOffers, createOffer, updateOffer, deleteOffer } from "@/lib/offerApi";
 import { uploadProductImage } from "@/lib/dynamicProductApi";
 import { OfferTemplatePreview } from "@/components/offers/OfferTemplatePreview";
+import { OfferLivePreview } from "@/components/admin/OfferLivePreview";
+import { cn } from "@/lib/utils";
 
 interface Offer {
   id: string;
@@ -52,6 +55,31 @@ const templateLabels: Record<string, string> = {
   badge: "Badge", animated_banner: "Banner", homepage_highlight: "Highlight", seasonal: "Seasonal", daily_deal: "Daily Deal",
 };
 
+const gradientPresets = [
+  { name: "Purple Haze", value: "linear-gradient(135deg, #667eea, #764ba2)" },
+  { name: "Sunset", value: "linear-gradient(135deg, #f093fb, #f5576c)" },
+  { name: "Ocean", value: "linear-gradient(135deg, #4facfe, #00f2fe)" },
+  { name: "Forest", value: "linear-gradient(135deg, #11998e, #38ef7d)" },
+  { name: "Fire", value: "linear-gradient(135deg, #f7971e, #ffd200)" },
+  { name: "Night", value: "linear-gradient(135deg, #0f0c29, #302b63)" },
+];
+
+const animationOptions = [
+  { id: "none", label: "None", desc: "No animation" },
+  { id: "pulse", label: "Pulse", desc: "Gentle pulsing glow" },
+  { id: "flash", label: "Flash", desc: "Quick attention flash" },
+  { id: "bounce", label: "Bounce", desc: "Subtle bounce effect" },
+  { id: "slide-in", label: "Slide In", desc: "Slides from left" },
+];
+
+const animationDemoClass: Record<string, string> = {
+  none: "",
+  pulse: "animate-pulse",
+  flash: "animate-ping",
+  bounce: "animate-bounce",
+  "slide-in": "animate-fade-in",
+};
+
 const emptyForm = {
   title: "",
   subtitle: "",
@@ -83,6 +111,7 @@ export function OfferManager() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [uploading, setUploading] = useState(false);
+  const [customGradient, setCustomGradient] = useState(false);
 
   const load = async () => {
     try {
@@ -100,11 +129,14 @@ export function OfferManager() {
   const openAdd = () => {
     setEditingId(null);
     setForm(emptyForm);
+    setCustomGradient(false);
     setDialogOpen(true);
   };
 
   const openEdit = (o: Offer) => {
     setEditingId(o.id);
+    const isPreset = gradientPresets.some(p => p.value === (o.background_gradient || ""));
+    setCustomGradient(!isPreset && !!o.background_gradient);
     setForm({
       title: o.title,
       subtitle: o.subtitle || "",
@@ -248,8 +280,6 @@ export function OfferManager() {
                     {o.subtitle || "No subtitle"} • {o.timer_enabled ? `Timer: ${o.timer_type}` : "No timer"}
                     {o.show_on_homepage && " • Homepage"}
                     {o.show_on_product_page && " • Product Page"}
-                    {o.badge_text && ` • Badge: "${o.badge_text}"`}
-                    {o.animation_type && o.animation_type !== "none" && ` • Animation: ${o.animation_type}`}
                   </p>
                 </div>
                 <div className="flex items-center gap-1 flex-shrink-0">
@@ -267,187 +297,243 @@ export function OfferManager() {
       </div>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>{editingId ? "Edit Offer" : "Add Offer"}</DialogTitle>
+        <DialogContent className="max-w-5xl max-h-[90vh] overflow-hidden p-0">
+          <DialogHeader className="px-6 pt-6 pb-0">
+            <DialogTitle>{editingId ? "Edit Offer" : "Create Offer"}</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4">
-            {/* Design Template */}
-            <div>
-              <Label className="mb-2 block">Design Template</Label>
-              <OfferTemplatePreview selected={form.design_template} onSelect={(t) => setForm((f) => ({ ...f, design_template: t }))} />
-            </div>
+          <div className="flex flex-col lg:flex-row h-[calc(90vh-80px)] overflow-hidden">
+            {/* Left: Tabbed Form */}
+            <div className="flex-1 lg:w-[60%] overflow-y-auto p-6 border-r">
+              <Tabs defaultValue="basics" className="space-y-4">
+                <TabsList className="grid grid-cols-4 w-full">
+                  <TabsTrigger value="basics" className="text-xs gap-1"><Tag className="h-3 w-3" />Basics</TabsTrigger>
+                  <TabsTrigger value="style" className="text-xs gap-1"><Palette className="h-3 w-3" />Style</TabsTrigger>
+                  <TabsTrigger value="animation" className="text-xs gap-1"><Play className="h-3 w-3" />Animation</TabsTrigger>
+                  <TabsTrigger value="schedule" className="text-xs gap-1"><Calendar className="h-3 w-3" />Schedule</TabsTrigger>
+                </TabsList>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <Label>Title *</Label>
-                <Input value={form.title} onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))} />
-              </div>
-              <div>
-                <Label>Subtitle</Label>
-                <Input value={form.subtitle} onChange={(e) => setForm((f) => ({ ...f, subtitle: e.target.value }))} />
-              </div>
-            </div>
-
-            <div>
-              <Label>Description</Label>
-              <Textarea value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} />
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <Label>Offer Type</Label>
-                <Select value={form.offer_type} onValueChange={(v) => setForm((f) => ({ ...f, offer_type: v }))}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="flash_sale">Flash Sale</SelectItem>
-                    <SelectItem value="limited_time">Limited Time</SelectItem>
-                    <SelectItem value="daily_deal">Daily Deal</SelectItem>
-                    <SelectItem value="discount_bundle">Discount Bundle</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label>Product Link</Label>
-                <Input value={form.product_link} onChange={(e) => setForm((f) => ({ ...f, product_link: e.target.value }))} placeholder="/freefire, /pubg..." />
-              </div>
-            </div>
-
-            {/* Badge Settings */}
-            <div className="border rounded-lg p-3 space-y-3">
-              <Label className="text-sm font-semibold">Badge Settings</Label>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <div>
-                  <Label className="text-xs">Badge Text</Label>
-                  <Input value={form.badge_text} onChange={(e) => setForm((f) => ({ ...f, badge_text: e.target.value }))} placeholder="20% OFF" />
-                </div>
-                <div>
-                  <Label className="text-xs">Badge Color</Label>
-                  <div className="flex gap-2 items-center">
-                    <input type="color" value={form.badge_color} onChange={(e) => setForm((f) => ({ ...f, badge_color: e.target.value }))} className="w-10 h-10 rounded border cursor-pointer" />
-                    <Input value={form.badge_color} onChange={(e) => setForm((f) => ({ ...f, badge_color: e.target.value }))} className="flex-1" />
-                  </div>
-                </div>
-                <div>
-                  <Label className="text-xs">Text Color</Label>
-                  <div className="flex gap-2 items-center">
-                    <input type="color" value={form.badge_text_color} onChange={(e) => setForm((f) => ({ ...f, badge_text_color: e.target.value }))} className="w-10 h-10 rounded border cursor-pointer" />
-                    <Input value={form.badge_text_color} onChange={(e) => setForm((f) => ({ ...f, badge_text_color: e.target.value }))} className="flex-1" />
-                  </div>
-                </div>
-              </div>
-              {form.badge_text && (
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-muted-foreground">Preview:</span>
-                  <span className="px-2 py-0.5 rounded-md text-xs font-bold" style={{ backgroundColor: form.badge_color, color: form.badge_text_color }}>
-                    {form.badge_text}
-                  </span>
-                </div>
-              )}
-            </div>
-
-            {/* Animation */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <Label>Animation Type</Label>
-                <Select value={form.animation_type} onValueChange={(v) => setForm((f) => ({ ...f, animation_type: v }))}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">None</SelectItem>
-                    <SelectItem value="pulse">Pulse</SelectItem>
-                    <SelectItem value="flash">Flash</SelectItem>
-                    <SelectItem value="bounce">Bounce</SelectItem>
-                    <SelectItem value="slide-in">Slide In</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              {form.design_template === "seasonal" && (
-                <div>
-                  <Label>Seasonal Theme</Label>
-                  <Select value={form.seasonal_theme} onValueChange={(v) => setForm((f) => ({ ...f, seasonal_theme: v }))}>
-                    <SelectTrigger><SelectValue placeholder="Select theme" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="holi">Holi 🎨</SelectItem>
-                      <SelectItem value="diwali">Diwali 🪔</SelectItem>
-                      <SelectItem value="christmas">Christmas 🎄</SelectItem>
-                      <SelectItem value="new_year">New Year 🎆</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
-            </div>
-
-            {/* Background Gradient */}
-            {(form.design_template === "animated_banner" || form.design_template === "homepage_highlight" || form.design_template === "seasonal") && (
-              <div>
-                <Label>Background Gradient (CSS)</Label>
-                <Input value={form.background_gradient} onChange={(e) => setForm((f) => ({ ...f, background_gradient: e.target.value }))} placeholder="linear-gradient(135deg, #667eea, #764ba2)" />
-                {form.background_gradient && (
-                  <div className="mt-2 h-8 rounded-md" style={{ background: form.background_gradient }} />
-                )}
-              </div>
-            )}
-
-            {/* Image */}
-            <div>
-              <Label>Image</Label>
-              <div className="flex gap-2">
-                <Input value={form.image_url} onChange={(e) => setForm((f) => ({ ...f, image_url: e.target.value }))} placeholder="URL or upload" className="flex-1" />
-                <label className="cursor-pointer">
-                  <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
-                  <Button variant="outline" size="sm" disabled={uploading} asChild><span>{uploading ? "..." : "Upload"}</span></Button>
-                </label>
-              </div>
-            </div>
-
-            {/* Timer Controls */}
-            <div className="border rounded-lg p-3 space-y-3">
-              <div className="flex items-center gap-2">
-                <Switch checked={form.timer_enabled} onCheckedChange={(v) => setForm((f) => ({ ...f, timer_enabled: v }))} />
-                <Label>Enable Countdown Timer</Label>
-              </div>
-              {form.timer_enabled && (
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                {/* BASICS TAB */}
+                <TabsContent value="basics" className="space-y-4">
                   <div>
-                    <Label className="text-xs">Timer Type</Label>
-                    <Select value={form.timer_type} onValueChange={(v) => setForm((f) => ({ ...f, timer_type: v }))}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="hours">Hours only</SelectItem>
-                        <SelectItem value="days">Days only</SelectItem>
-                        <SelectItem value="both">Days + Hours</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <Label className="mb-2 block text-sm font-semibold">Design Template</Label>
+                    <OfferTemplatePreview selected={form.design_template} onSelect={(t) => setForm((f) => ({ ...f, design_template: t }))} />
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <Label className="text-xs">Title *</Label>
+                      <Input value={form.title} onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))} placeholder="e.g. 50% Off Diamond Top-Up" />
+                    </div>
+                    <div>
+                      <Label className="text-xs">Subtitle</Label>
+                      <Input value={form.subtitle} onChange={(e) => setForm((f) => ({ ...f, subtitle: e.target.value }))} placeholder="Limited time only!" />
+                    </div>
                   </div>
                   <div>
-                    <Label className="text-xs">Start Date</Label>
-                    <Input type="datetime-local" value={form.timer_start_date} onChange={(e) => setForm((f) => ({ ...f, timer_start_date: e.target.value }))} />
+                    <Label className="text-xs">Description</Label>
+                    <Textarea value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} rows={2} placeholder="Short description of the offer..." />
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <Label className="text-xs">Offer Type</Label>
+                      <Select value={form.offer_type} onValueChange={(v) => setForm((f) => ({ ...f, offer_type: v }))}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="flash_sale">⚡ Flash Sale</SelectItem>
+                          <SelectItem value="limited_time">⏰ Limited Time</SelectItem>
+                          <SelectItem value="daily_deal">🏷️ Daily Deal</SelectItem>
+                          <SelectItem value="discount_bundle">🎁 Discount Bundle</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label className="text-xs">Product Link</Label>
+                      <Input value={form.product_link} onChange={(e) => setForm((f) => ({ ...f, product_link: e.target.value }))} placeholder="/freefire, /pubg..." />
+                    </div>
                   </div>
                   <div>
-                    <Label className="text-xs">End Date</Label>
-                    <Input type="datetime-local" value={form.timer_end_date} onChange={(e) => setForm((f) => ({ ...f, timer_end_date: e.target.value }))} />
+                    <Label className="text-xs">Image</Label>
+                    <div className="flex gap-2">
+                      <Input value={form.image_url} onChange={(e) => setForm((f) => ({ ...f, image_url: e.target.value }))} placeholder="URL or upload" className="flex-1" />
+                      <label className="cursor-pointer">
+                        <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
+                        <Button variant="outline" size="sm" disabled={uploading} asChild><span>{uploading ? "..." : "Upload"}</span></Button>
+                      </label>
+                    </div>
                   </div>
-                </div>
-              )}
+                </TabsContent>
+
+                {/* STYLE TAB */}
+                <TabsContent value="style" className="space-y-4">
+                  {/* Badge */}
+                  <div className="space-y-3">
+                    <Label className="text-sm font-semibold">Badge</Label>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      <div>
+                        <Label className="text-xs">Text</Label>
+                        <Input value={form.badge_text} onChange={(e) => setForm((f) => ({ ...f, badge_text: e.target.value }))} placeholder="20% OFF" />
+                      </div>
+                      <div>
+                        <Label className="text-xs">Color</Label>
+                        <div className="flex gap-2 items-center">
+                          <input type="color" value={form.badge_color} onChange={(e) => setForm((f) => ({ ...f, badge_color: e.target.value }))} className="w-8 h-8 rounded border cursor-pointer" />
+                          <Input value={form.badge_color} onChange={(e) => setForm((f) => ({ ...f, badge_color: e.target.value }))} className="flex-1" />
+                        </div>
+                      </div>
+                      <div>
+                        <Label className="text-xs">Text Color</Label>
+                        <div className="flex gap-2 items-center">
+                          <input type="color" value={form.badge_text_color} onChange={(e) => setForm((f) => ({ ...f, badge_text_color: e.target.value }))} className="w-8 h-8 rounded border cursor-pointer" />
+                          <Input value={form.badge_text_color} onChange={(e) => setForm((f) => ({ ...f, badge_text_color: e.target.value }))} className="flex-1" />
+                        </div>
+                      </div>
+                    </div>
+                    {form.badge_text && (
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-muted-foreground">Preview:</span>
+                        <span className="px-2 py-0.5 rounded-md text-xs font-bold" style={{ backgroundColor: form.badge_color, color: form.badge_text_color }}>
+                          {form.badge_text}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Gradient */}
+                  {(form.design_template === "animated_banner" || form.design_template === "homepage_highlight" || form.design_template === "seasonal") && (
+                    <div className="space-y-3">
+                      <Label className="text-sm font-semibold">Background Gradient</Label>
+                      <div className="grid grid-cols-3 gap-2">
+                        {gradientPresets.map((p) => (
+                          <button
+                            key={p.name}
+                            type="button"
+                            onClick={() => { setForm((f) => ({ ...f, background_gradient: p.value })); setCustomGradient(false); }}
+                            className={cn(
+                              "h-12 rounded-lg border-2 transition-all text-[10px] font-bold text-white flex items-end justify-center pb-1",
+                              form.background_gradient === p.value && !customGradient ? "border-primary ring-2 ring-primary/30" : "border-transparent"
+                            )}
+                            style={{ background: p.value }}
+                          >
+                            {p.name}
+                          </button>
+                        ))}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Switch checked={customGradient} onCheckedChange={(v) => setCustomGradient(v)} />
+                        <Label className="text-xs">Custom gradient</Label>
+                      </div>
+                      {customGradient && (
+                        <div>
+                          <Input value={form.background_gradient} onChange={(e) => setForm((f) => ({ ...f, background_gradient: e.target.value }))} placeholder="linear-gradient(135deg, #667eea, #764ba2)" />
+                          {form.background_gradient && (
+                            <div className="mt-2 h-8 rounded-md" style={{ background: form.background_gradient }} />
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Seasonal */}
+                  {form.design_template === "seasonal" && (
+                    <div>
+                      <Label className="text-sm font-semibold">Seasonal Theme</Label>
+                      <Select value={form.seasonal_theme} onValueChange={(v) => setForm((f) => ({ ...f, seasonal_theme: v }))}>
+                        <SelectTrigger><SelectValue placeholder="Select theme" /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="holi">Holi 🎨</SelectItem>
+                          <SelectItem value="diwali">Diwali 🪔</SelectItem>
+                          <SelectItem value="christmas">Christmas 🎄</SelectItem>
+                          <SelectItem value="new_year">New Year 🎆</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+                </TabsContent>
+
+                {/* ANIMATION TAB */}
+                <TabsContent value="animation" className="space-y-4">
+                  <Label className="text-sm font-semibold">Choose Animation</Label>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    {animationOptions.map((a) => (
+                      <button
+                        key={a.id}
+                        type="button"
+                        onClick={() => setForm((f) => ({ ...f, animation_type: a.id }))}
+                        className={cn(
+                          "flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all",
+                          form.animation_type === a.id
+                            ? "border-primary bg-primary/10 shadow-md"
+                            : "border-border hover:border-primary/50"
+                        )}
+                      >
+                        <div className={cn("w-6 h-6 rounded-full bg-primary", animationDemoClass[a.id])} />
+                        <span className="text-xs font-semibold">{a.label}</span>
+                        <span className="text-[10px] text-muted-foreground text-center">{a.desc}</span>
+                      </button>
+                    ))}
+                  </div>
+                </TabsContent>
+
+                {/* SCHEDULE TAB */}
+                <TabsContent value="schedule" className="space-y-4">
+                  {/* Timer */}
+                  <div className="border rounded-lg p-4 space-y-3">
+                    <div className="flex items-center gap-2">
+                      <Switch checked={form.timer_enabled} onCheckedChange={(v) => setForm((f) => ({ ...f, timer_enabled: v }))} />
+                      <Label className="text-sm font-semibold">Countdown Timer</Label>
+                    </div>
+                    {form.timer_enabled && (
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <div>
+                          <Label className="text-xs">Timer Type</Label>
+                          <Select value={form.timer_type} onValueChange={(v) => setForm((f) => ({ ...f, timer_type: v }))}>
+                            <SelectTrigger><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="hours">Hours only</SelectItem>
+                              <SelectItem value="days">Days only</SelectItem>
+                              <SelectItem value="both">Days + Hours</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div>
+                          <Label className="text-xs">Start Date</Label>
+                          <Input type="datetime-local" value={form.timer_start_date} onChange={(e) => setForm((f) => ({ ...f, timer_start_date: e.target.value }))} />
+                        </div>
+                        <div>
+                          <Label className="text-xs">End Date</Label>
+                          <Input type="datetime-local" value={form.timer_end_date} onChange={(e) => setForm((f) => ({ ...f, timer_end_date: e.target.value }))} />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Visibility */}
+                  <div className="border rounded-lg p-4 space-y-3">
+                    <Label className="text-sm font-semibold">Visibility</Label>
+                    <div className="flex flex-wrap gap-6">
+                      <div className="flex items-center gap-2">
+                        <Switch checked={form.show_on_homepage} onCheckedChange={(v) => setForm((f) => ({ ...f, show_on_homepage: v }))} />
+                        <Label className="text-sm">Homepage</Label>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Switch checked={form.show_on_product_page} onCheckedChange={(v) => setForm((f) => ({ ...f, show_on_product_page: v }))} />
+                        <Label className="text-sm">Product Page</Label>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Switch checked={form.is_active} onCheckedChange={(v) => setForm((f) => ({ ...f, is_active: v }))} />
+                        <Label className="text-sm">Active</Label>
+                      </div>
+                    </div>
+                  </div>
+                </TabsContent>
+              </Tabs>
+
+              <Button onClick={handleSave} className="w-full mt-6">{editingId ? "Update Offer" : "Create Offer"}</Button>
             </div>
 
-            {/* Visibility */}
-            <div className="flex flex-wrap gap-6">
-              <div className="flex items-center gap-2">
-                <Switch checked={form.show_on_homepage} onCheckedChange={(v) => setForm((f) => ({ ...f, show_on_homepage: v }))} />
-                <Label>Homepage</Label>
-              </div>
-              <div className="flex items-center gap-2">
-                <Switch checked={form.show_on_product_page} onCheckedChange={(v) => setForm((f) => ({ ...f, show_on_product_page: v }))} />
-                <Label>Product Page</Label>
-              </div>
-              <div className="flex items-center gap-2">
-                <Switch checked={form.is_active} onCheckedChange={(v) => setForm((f) => ({ ...f, is_active: v }))} />
-                <Label>Active</Label>
-              </div>
+            {/* Right: Live Preview */}
+            <div className="hidden lg:flex lg:w-[40%] bg-muted/20">
+              <OfferLivePreview form={form} />
             </div>
-
-            <Button onClick={handleSave} className="w-full">{editingId ? "Update Offer" : "Create Offer"}</Button>
           </div>
         </DialogContent>
       </Dialog>
