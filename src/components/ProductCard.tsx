@@ -24,6 +24,8 @@ export const ProductCard = ({ image, title, link }: ProductCardProps) => {
           <img
             src={image}
             alt={title}
+            loading="lazy"
+            decoding="async"
             className={`h-full w-full object-cover transition-all duration-500 ease-out group-hover:scale-105 ${
               imageLoading ? 'opacity-0' : 'opacity-100'
             }`}
