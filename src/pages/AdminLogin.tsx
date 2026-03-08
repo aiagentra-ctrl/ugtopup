@@ -33,6 +33,15 @@ export default function AdminLogin() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Rate limit check for admin login (stricter: 3 attempts per 15 min)
+    const rateCheck = checkLoginRate(`admin:${email}`);
+    if (!rateCheck.allowed) {
+      const minutes = Math.ceil(rateCheck.remainingMs / 60000);
+      toast.error(`Too many attempts. Try again in ${minutes} minute(s).`);
+      return;
+    }
+    
     setLoading(true);
 
     try {
