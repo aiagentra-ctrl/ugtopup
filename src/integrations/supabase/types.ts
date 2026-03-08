@@ -164,42 +164,132 @@ export type Database = {
         }
         Relationships: []
       }
+      coupon_rules: {
+        Row: {
+          applicable_categories: string[] | null
+          applicable_products: string[] | null
+          conditions: Json
+          coupon_code: string | null
+          created_at: string
+          description: string | null
+          discount_type: string
+          discount_value: number
+          expires_at: string | null
+          id: string
+          is_active: boolean
+          max_discount_amount: number | null
+          max_total_uses: number | null
+          max_uses_per_user: number | null
+          name: string
+          rule_type: string
+          starts_at: string | null
+          total_used: number | null
+          updated_at: string
+        }
+        Insert: {
+          applicable_categories?: string[] | null
+          applicable_products?: string[] | null
+          conditions?: Json
+          coupon_code?: string | null
+          created_at?: string
+          description?: string | null
+          discount_type?: string
+          discount_value?: number
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean
+          max_discount_amount?: number | null
+          max_total_uses?: number | null
+          max_uses_per_user?: number | null
+          name: string
+          rule_type?: string
+          starts_at?: string | null
+          total_used?: number | null
+          updated_at?: string
+        }
+        Update: {
+          applicable_categories?: string[] | null
+          applicable_products?: string[] | null
+          conditions?: Json
+          coupon_code?: string | null
+          created_at?: string
+          description?: string | null
+          discount_type?: string
+          discount_value?: number
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean
+          max_discount_amount?: number | null
+          max_total_uses?: number | null
+          max_uses_per_user?: number | null
+          name?: string
+          rule_type?: string
+          starts_at?: string | null
+          total_used?: number | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       coupons: {
         Row: {
+          applicable_categories: string[] | null
+          applicable_products: string[] | null
           code: string
           created_at: string
           discount_percent: number
+          discount_type: string
+          discount_value: number
           expires_at: string
           id: string
           is_used: boolean
+          max_discount_amount: number | null
+          max_uses: number
+          min_order_amount: number
           source: string
           source_id: string | null
+          use_count: number
           used_at: string | null
           used_on_order_id: string | null
           user_id: string
         }
         Insert: {
+          applicable_categories?: string[] | null
+          applicable_products?: string[] | null
           code: string
           created_at?: string
           discount_percent: number
+          discount_type?: string
+          discount_value?: number
           expires_at: string
           id?: string
           is_used?: boolean
+          max_discount_amount?: number | null
+          max_uses?: number
+          min_order_amount?: number
           source?: string
           source_id?: string | null
+          use_count?: number
           used_at?: string | null
           used_on_order_id?: string | null
           user_id: string
         }
         Update: {
+          applicable_categories?: string[] | null
+          applicable_products?: string[] | null
           code?: string
           created_at?: string
           discount_percent?: number
+          discount_type?: string
+          discount_value?: number
           expires_at?: string
           id?: string
           is_used?: boolean
+          max_discount_amount?: number | null
+          max_uses?: number
+          min_order_amount?: number
           source?: string
           source_id?: string | null
+          use_count?: number
           used_at?: string | null
           used_on_order_id?: string | null
           user_id?: string
@@ -931,6 +1021,77 @@ export type Database = {
           },
         ]
       }
+      promotion_analytics: {
+        Row: {
+          coupon_id: string | null
+          coupon_rule_id: string | null
+          created_at: string
+          discount_amount: number
+          event_type: string
+          final_price: number | null
+          id: string
+          offer_id: string | null
+          order_id: string | null
+          original_price: number | null
+          user_id: string
+        }
+        Insert: {
+          coupon_id?: string | null
+          coupon_rule_id?: string | null
+          created_at?: string
+          discount_amount?: number
+          event_type?: string
+          final_price?: number | null
+          id?: string
+          offer_id?: string | null
+          order_id?: string | null
+          original_price?: number | null
+          user_id: string
+        }
+        Update: {
+          coupon_id?: string | null
+          coupon_rule_id?: string | null
+          created_at?: string
+          discount_amount?: number
+          event_type?: string
+          final_price?: number | null
+          id?: string
+          offer_id?: string | null
+          order_id?: string | null
+          original_price?: number | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "promotion_analytics_coupon_id_fkey"
+            columns: ["coupon_id"]
+            isOneToOne: false
+            referencedRelation: "coupons"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "promotion_analytics_coupon_rule_id_fkey"
+            columns: ["coupon_rule_id"]
+            isOneToOne: false
+            referencedRelation: "coupon_rules"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "promotion_analytics_offer_id_fkey"
+            columns: ["offer_id"]
+            isOneToOne: false
+            referencedRelation: "offers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "promotion_analytics_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "product_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       push_subscriptions: {
         Row: {
           auth: string
@@ -1390,52 +1551,100 @@ export type Database = {
       }
       is_admin: { Args: never; Returns: boolean }
       is_super_admin: { Args: never; Returns: boolean }
-      place_order: {
-        Args: {
-          p_package_name: string
-          p_payment_method?: string
-          p_price: number
-          p_product_category: Database["public"]["Enums"]["product_category"]
-          p_product_details: Json
-          p_product_name: string
-          p_quantity: number
-        }
-        Returns: {
-          admin_remarks: string | null
-          canceled_at: string | null
-          cancellation_reason: string | null
-          completed_at: string | null
-          confirmed_at: string | null
-          created_at: string | null
-          credits_deducted: number | null
-          failed_at: string | null
-          failure_reason: string | null
-          id: string
-          metadata: Json | null
-          order_number: string
-          package_name: string
-          payment_method: string | null
-          price: number
-          processing_started_at: string | null
-          product_category: Database["public"]["Enums"]["product_category"]
-          product_details: Json
-          product_name: string
-          quantity: number
-          reviewed_by: string | null
-          status: Database["public"]["Enums"]["order_status"]
-          transaction_id: string | null
-          updated_at: string | null
-          user_email: string
-          user_id: string
-          user_name: string | null
-        }
-        SetofOptions: {
-          from: "*"
-          to: "product_orders"
-          isOneToOne: true
-          isSetofReturn: false
-        }
-      }
+      place_order:
+        | {
+            Args: {
+              p_package_name: string
+              p_payment_method?: string
+              p_price: number
+              p_product_category: Database["public"]["Enums"]["product_category"]
+              p_product_details: Json
+              p_product_name: string
+              p_quantity: number
+            }
+            Returns: {
+              admin_remarks: string | null
+              canceled_at: string | null
+              cancellation_reason: string | null
+              completed_at: string | null
+              confirmed_at: string | null
+              created_at: string | null
+              credits_deducted: number | null
+              failed_at: string | null
+              failure_reason: string | null
+              id: string
+              metadata: Json | null
+              order_number: string
+              package_name: string
+              payment_method: string | null
+              price: number
+              processing_started_at: string | null
+              product_category: Database["public"]["Enums"]["product_category"]
+              product_details: Json
+              product_name: string
+              quantity: number
+              reviewed_by: string | null
+              status: Database["public"]["Enums"]["order_status"]
+              transaction_id: string | null
+              updated_at: string | null
+              user_email: string
+              user_id: string
+              user_name: string | null
+            }
+            SetofOptions: {
+              from: "*"
+              to: "product_orders"
+              isOneToOne: true
+              isSetofReturn: false
+            }
+          }
+        | {
+            Args: {
+              p_coupon_code?: string
+              p_package_name: string
+              p_payment_method?: string
+              p_price: number
+              p_product_category: Database["public"]["Enums"]["product_category"]
+              p_product_details: Json
+              p_product_name: string
+              p_quantity: number
+            }
+            Returns: {
+              admin_remarks: string | null
+              canceled_at: string | null
+              cancellation_reason: string | null
+              completed_at: string | null
+              confirmed_at: string | null
+              created_at: string | null
+              credits_deducted: number | null
+              failed_at: string | null
+              failure_reason: string | null
+              id: string
+              metadata: Json | null
+              order_number: string
+              package_name: string
+              payment_method: string | null
+              price: number
+              processing_started_at: string | null
+              product_category: Database["public"]["Enums"]["product_category"]
+              product_details: Json
+              product_name: string
+              quantity: number
+              reviewed_by: string | null
+              status: Database["public"]["Enums"]["order_status"]
+              transaction_id: string | null
+              updated_at: string | null
+              user_email: string
+              user_id: string
+              user_name: string | null
+            }
+            SetofOptions: {
+              from: "*"
+              to: "product_orders"
+              isOneToOne: true
+              isSetofReturn: false
+            }
+          }
       process_payment_completion: {
         Args: {
           p_api_response: Json
@@ -1456,6 +1665,14 @@ export type Database = {
       }
       try_assign_voucher: {
         Args: { p_game: string; p_order_id: string; p_package_id: string }
+        Returns: Json
+      }
+      validate_coupon: {
+        Args: {
+          p_coupon_code: string
+          p_order_amount: number
+          p_product_category?: string
+        }
         Returns: Json
       }
     }
