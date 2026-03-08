@@ -133,6 +133,35 @@ export const submitCreditRequest = async (data: {
   return await response.json();
 };
 
+// Feedback submission
+export const submitChatFeedback = async (data: {
+  message_id: string;
+  session_id: string;
+  user_message?: string;
+  bot_response?: string;
+  rating: 'helpful' | 'not_helpful';
+  comment?: string;
+}): Promise<{ success: boolean; message: string }> => {
+  try {
+    const response = await fetch(EDGE_FUNCTION_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': API_KEY,
+      },
+      body: JSON.stringify({
+        action: 'submit-feedback',
+        ...data,
+      }),
+    });
+    return await response.json();
+  } catch {
+    return { success: false, message: 'Failed to submit feedback' };
+  }
+};
+
+export { getSessionId };
+
 // Keep backward compat export
 export const sendMessageToWebhook = async (
   message: string,
