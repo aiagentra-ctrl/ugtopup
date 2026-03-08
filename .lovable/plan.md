@@ -1,96 +1,84 @@
 
-# Dynamic Website with Advanced Admin Panel
+
+# Refer & Earn Page — Unified Referral + Offers Page
 
 ## Overview
-Make the entire website content dynamic and admin-controlled by creating two new admin sections and supporting database tables. The existing "Products (New)" page (GameProductPrices) will remain completely untouched.
 
-## What Changes
+Merge the existing separate `/referrals` and `/rewards` pages into a single, comprehensive **"Refer & Earn"** page at `/refer-earn`. This page combines referral sharing (with social share buttons), referral progress tracking, available offers, and user coupons in one clean interface.
 
-### Phase 1: Database Setup
+No database changes needed — all data already exists in `referrals`, `coupons`, `reward_milestones`, `offers`, and `referral_settings` tables.
 
-**New table: `dynamic_products`** - stores products displayed on the homepage
-- `id`, `title`, `description`, `image_url`, `link`, `category` (topup/voucher/subscription/design), `price`, `discount_price`, `features` (jsonb array), `tags` (text array), `plans` (jsonb array), `display_order`, `is_active`, `created_at`, `updated_at`
+## File Changes
 
-**New table: `product_categories`** - dynamic categories
-- `id`, `name`, `slug`, `display_order`, `is_active`, `created_at`, `updated_at`
+### New File: `src/pages/ReferAndEarn.tsx`
 
-**New table: `offers`** - dynamic offer/deal sections
-- `id`, `title`, `subtitle`, `description`, `image_url`, `offer_type` (flash_sale/limited_time/daily_deal/discount_bundle), `timer_enabled`, `timer_type` (hours/days/both/none), `timer_end_date`, `product_link`, `custom_icon_url`, `display_order`, `is_active`, `show_on_homepage`, `show_on_product_page`, `created_at`, `updated_at`
+A single unified page with these sections:
 
-RLS: Public SELECT for active items, admin ALL for management.
+**1. Hero Section** — Gradient banner with "Refer & Earn" title and brief description.
 
-**Seed `dynamic_products`** with current hardcoded data from ProductTabs so nothing changes visually on day one.
+**2. Referral Link Card** — User's unique referral link with:
+- Copy button (from existing Referrals page)
+- Social share buttons: WhatsApp, Telegram, Facebook, Twitter — each pre-fills a share message like "Join this website and get special offers! Use my referral link: [link]"
+- Referral code display
 
-### Phase 2: Admin Panel - Product Update Page (new section)
+**3. Referral Stats** — 3 stat cards (Total Referred, Successful, Pending) — taken from existing Referrals page.
 
-Add a new sidebar menu item **"Product Update"** in AdminLayout.
+**4. Referral Milestone Progress** — Progress bars showing invite-based milestones. Since current milestones are order-based, we show: "You've referred X friends" with visual progress. Also show order-based milestone progress from Rewards page.
 
-New component: `src/components/admin/DynamicProductManager.tsx`
-- Full CRUD table listing all dynamic products
-- Inline editing with image upload (to `product-images` storage bucket)
-- Fields: title, description, image, link, category, price, discount price, features (add/remove chips), tags (add/remove), plans (JSON editor)
-- Product preview panel showing how it looks on the frontend
-- Search, filter by category, drag-to-reorder
+**5. Available Offers Section** — Fetches from:
+- Active `offers` (using `useOffers("all")`) — displayed as cards with title, description, discount badge, expiration, and "View Offer" link
+- User's available `coupons` — with copy button and discount display
+- Active `coupon_rules` with `rule_type = 'global_code'` — displayed as available promo codes
 
-New component: `src/components/admin/CategoryManager.tsx`
-- Add/rename/delete categories
-- Reorder categories via drag or arrows
-- Auto-updates category options across the product form
+Each offer/coupon card shows: title, discount value, expiration date, and action button.
 
-### Phase 3: Admin Panel - Offer Management Page (new section)
+**6. Referral History** — Collapsible list of referred users with status badges.
 
-Add a new sidebar menu item **"Offers"** in AdminLayout.
+### Modified: `src/App.tsx`
+- Add route `/refer-earn` → `<ProtectedRoute><ReferAndEarn /></ProtectedRoute>`
+- Keep existing `/referrals` and `/rewards` routes for backward compat
 
-New component: `src/components/admin/OfferManager.tsx`
-- List all offers with enable/disable toggle
-- Add new offer with form: title, subtitle, description, image upload, offer type selector, timer controls (enable/disable, type, end date), product link picker
-- Edit existing offers inline
-- Reorder offers
-- Toggle homepage/product page visibility
+### Modified: `src/components/AccountDropdown.tsx`
+- Add "Refer & Earn" menu item with Gift icon, linking to `/refer-earn`
 
-### Phase 4: Frontend - Make ProductTabs Dynamic
+### Modified: `src/components/Header.tsx` (if nav links exist)
+- Add "Refer & Earn" link in navigation
 
-Update `src/components/ProductTabs.tsx`:
-- Fetch products from `dynamic_products` table instead of hardcoded `productData`
-- Fetch categories from `product_categories` table for tab names
-- Keep the exact same visual layout, just swap data source
-- Real-time subscription so admin changes appear instantly
+## UI Design
 
-### Phase 5: Frontend - Make BestDeals/Offers Dynamic
+- Card-based layout, fully responsive
+- Social share buttons as colored icon buttons (WhatsApp green, Telegram blue, Facebook blue, Twitter/X black)
+- Progress bars using existing `Progress` component
+- Tabs for Available / Used / Expired coupons (reuse pattern from Rewards page)
+- Offer cards with gradient borders matching offer's `badge_color`
+- Animate-fade-in on sections
 
-Update `src/components/BestDeals.tsx`:
-- Fetch active homepage offers from `offers` table
-- Render offer blocks dynamically with optional countdown timers
-- Keep existing visual style, just make content admin-controlled
+## Data Fetching
 
-### What Will NOT Change
-- **"Products (New)" page** (`GameProductPrices` component) -- zero modifications
-- **Existing `ProductsList`** component -- untouched
-- **Game pricing system** (`game_product_prices` table) -- untouched
-- **Overall website design/layout** -- only data sources change
+All client-side, no new APIs needed:
+- `supabase.from("referrals").select("*").eq("referrer_id", user.id)`
+- `supabase.from("coupons").select("*").eq("user_id", user.id)`
+- `supabase.from("reward_milestones").select("*").eq("is_active", true)`
+- `supabase.from("referral_settings").select("*").limit(1).single()`
+- `useOffers("all")` for active offers
+- `supabase.from("coupon_rules").select("*").eq("is_active", true).eq("rule_type", "global_code")` for global promo codes
+- `supabase.from("product_orders").select("id", { count: "exact", head: true }).eq("user_id", user.id).eq("status", "completed")` for order count
 
-## Technical Details
+## Social Sharing
 
-### New Files
-- `src/components/admin/DynamicProductManager.tsx` - Product Update admin page
-- `src/components/admin/CategoryManager.tsx` - Category management
-- `src/components/admin/OfferManager.tsx` - Offer management admin page
-- `src/lib/dynamicProductApi.ts` - API functions for dynamic products/categories
-- `src/lib/offerApi.ts` - API functions for offers
-- `src/hooks/useDynamicProducts.ts` - Frontend hook with real-time subscriptions
-- `src/hooks/useOffers.ts` - Frontend hook for offers
+Use `window.open()` with platform-specific URLs:
+- WhatsApp: `https://wa.me/?text=...`
+- Telegram: `https://t.me/share/url?url=...&text=...`
+- Facebook: `https://www.facebook.com/sharer/sharer.php?u=...`
+- Twitter: `https://twitter.com/intent/tweet?text=...&url=...`
 
-### Modified Files
-- `src/components/admin/AdminLayout.tsx` - Add 3 new sidebar items (Product Update, Categories, Offers)
-- `src/pages/AdminPanel.tsx` - Add new section cases in switch
-- `src/components/ProductTabs.tsx` - Replace hardcoded data with database fetch
-- `src/components/BestDeals.tsx` - Replace hardcoded deals with database fetch
+## Admin Panel
 
-### New Storage Bucket
-- `product-images` (public) for product image uploads
+Already fully controlled — existing admin pages handle:
+- `ReferralManager.tsx` — enable/disable referral program, set discounts
+- `RewardMilestoneManager.tsx` — manage order milestones
+- `OfferManager.tsx` — manage offers
+- `CouponRulesManager.tsx` — manage global coupon codes
 
-### Database Migration
-- Create `dynamic_products`, `product_categories`, `offers` tables
-- Create `product-images` storage bucket
-- RLS policies for all new tables
-- Seed initial data from current hardcoded products
+No admin changes needed.
+
