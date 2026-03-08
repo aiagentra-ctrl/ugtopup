@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -8,7 +8,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { Plus, Pencil, Trash2, Search, Image, X, ArrowUp, ArrowDown } from "lucide-react";
+import { Plus, Pencil, Trash2, Search, Image, X, ArrowUp, ArrowDown, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import {
   fetchDynamicProducts,
@@ -84,6 +84,15 @@ export function DynamicProductManager() {
   };
 
   useEffect(() => { load(); }, []);
+
+  // Detect duplicate image URLs
+  const duplicateImageUrls = useMemo(() => {
+    const urlCount: Record<string, number> = {};
+    products.forEach((p) => {
+      if (p.image_url) urlCount[p.image_url] = (urlCount[p.image_url] || 0) + 1;
+    });
+    return new Set(Object.entries(urlCount).filter(([, c]) => c > 1).map(([url]) => url));
+  }, [products]);
 
   const filtered = products.filter((p) => {
     const matchSearch = p.title.toLowerCase().includes(search.toLowerCase());
@@ -242,6 +251,11 @@ export function DynamicProductManager() {
                 <div className="flex items-center gap-2">
                   <h3 className="font-semibold truncate">{p.title}</h3>
                   {!p.is_active && <Badge variant="secondary">Inactive</Badge>}
+                  {p.image_url && duplicateImageUrls.has(p.image_url) && (
+                    <Badge variant="destructive" className="gap-1 text-[10px]">
+                      <AlertTriangle className="h-3 w-3" /> Duplicate Image
+                    </Badge>
+                  )}
                 </div>
                 <p className="text-sm text-muted-foreground truncate">
                   {p.product_categories?.name || "No category"} • {p.link || "No link"}
