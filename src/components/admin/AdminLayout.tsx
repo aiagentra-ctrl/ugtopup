@@ -28,6 +28,7 @@ import {
   Wrench,
   BookOpen,
   ThumbsUp,
+  PieChart,
 } from "lucide-react";
 import {
   Sidebar,
@@ -82,6 +83,7 @@ const menuItems = [
   { id: "maintenance-log", title: "Maintenance Log", icon: Wrench },
   { id: "system-health", title: "System Health", icon: HeartPulse },
   { id: "db-management", title: "DB Management", icon: Database },
+  { id: "advanced-analytics", title: "Advanced Analytics", icon: PieChart },
 ];
 
 // Bottom nav items for mobile quick access

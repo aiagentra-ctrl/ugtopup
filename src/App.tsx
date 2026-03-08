@@ -53,6 +53,7 @@ import SupportTickets from "./pages/SupportTickets";
 import Wishlist from "./pages/Wishlist";
 import Subscriptions from "./pages/Subscriptions";
 import { AnnouncementBanner } from "./components/announcements/AnnouncementBanner";
+import { PageTrackingProvider } from "./components/PageTrackingProvider";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -80,6 +81,7 @@ const App = () => (
       <BrowserRouter>
         <AuthProvider>
           <Suspense fallback={<LoadingScreen />}>
+            <PageTrackingProvider>
             <AnnouncementBanner />
             <Routes>
               <Route path="/" element={<Index />} />
@@ -202,6 +204,7 @@ const App = () => (
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
+          </PageTrackingProvider>
           </Suspense>
           <ChatWidget />
           <NotificationPermissionModal />

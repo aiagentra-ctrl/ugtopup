@@ -37,6 +37,7 @@ import { UserAnalytics } from "@/components/admin/UserAnalytics";
 import { MaintenanceLog } from "@/components/admin/MaintenanceLog";
 import { DatabaseManagement } from "@/components/admin/DatabaseManagement";
 import { SystemHealthMonitor } from "@/components/admin/SystemHealthMonitor";
+import { AdvancedAnalytics } from "@/components/admin/AdvancedAnalytics";
 import { checkAdminAccess } from "@/lib/adminApi";
 import { useAdminPushNotifications } from "@/hooks/useAdminPushNotifications";
 import { toast } from "sonner";
@@ -169,6 +170,8 @@ const AdminPanel = () => {
         return <SystemHealthMonitor />;
       case "db-management":
         return <DatabaseManagement />;
+      case "advanced-analytics":
+        return <AdvancedAnalytics />;
       default:
         return <EnhancedDashboard />;
     }

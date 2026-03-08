@@ -1,92 +1,96 @@
 
-
-# Advanced Analytics Dashboard
+# Dynamic Website with Advanced Admin Panel
 
 ## Overview
+Make the entire website content dynamic and admin-controlled by creating two new admin sections and supporting database tables. The existing "Products (New)" page (GameProductPrices) will remain completely untouched.
 
-Create a new "Advanced Analytics" admin section with page view tracking, visitor session tracking, traffic source detection, and retention analysis. This requires new database tables for tracking, a client-side hook to record page views/sessions, and a comprehensive dashboard component.
+## What Changes
 
-## Database Changes (1 migration)
+### Phase 1: Database Setup
 
-### New table: `page_views`
-- `id` uuid PK
-- `session_id` text NOT NULL
-- `user_id` uuid (nullable, for logged-in users)
-- `page_path` text NOT NULL
-- `page_title` text
-- `referrer` text
-- `traffic_source` text DEFAULT 'direct' (google, referral, direct, social)
-- `user_agent` text
-- `created_at` timestamptz DEFAULT now()
-- RLS: admin SELECT only, anyone can INSERT
+**New table: `dynamic_products`** - stores products displayed on the homepage
+- `id`, `title`, `description`, `image_url`, `link`, `category` (topup/voucher/subscription/design), `price`, `discount_price`, `features` (jsonb array), `tags` (text array), `plans` (jsonb array), `display_order`, `is_active`, `created_at`, `updated_at`
 
-### New table: `visitor_sessions`
-- `id` uuid PK
-- `session_id` text UNIQUE NOT NULL
-- `user_id` uuid (nullable)
-- `traffic_source` text DEFAULT 'direct'
-- `referrer` text
-- `started_at` timestamptz DEFAULT now()
-- `last_active_at` timestamptz DEFAULT now()
-- `page_count` integer DEFAULT 1
-- `is_bounce` boolean DEFAULT true (updated when page_count > 1)
-- RLS: admin SELECT only, anyone can INSERT/UPDATE own session
+**New table: `product_categories`** - dynamic categories
+- `id`, `name`, `slug`, `display_order`, `is_active`, `created_at`, `updated_at`
 
-## Client-Side Tracking: `src/hooks/usePageTracking.ts`
+**New table: `offers`** - dynamic offer/deal sections
+- `id`, `title`, `subtitle`, `description`, `image_url`, `offer_type` (flash_sale/limited_time/daily_deal/discount_bundle), `timer_enabled`, `timer_type` (hours/days/both/none), `timer_end_date`, `product_link`, `custom_icon_url`, `display_order`, `is_active`, `show_on_homepage`, `show_on_product_page`, `created_at`, `updated_at`
 
-A hook used in App.tsx that:
-1. On route change, generates/reuses a session ID (sessionStorage)
-2. Detects traffic source from `document.referrer` and URL params (utm_source, etc.)
-3. Inserts a row into `page_views`
-4. Upserts `visitor_sessions` (increment page_count, update last_active_at, set is_bounce=false if page_count > 1)
+RLS: Public SELECT for active items, admin ALL for management.
 
-Lightweight -- fires on each navigation via react-router's `useLocation`.
+**Seed `dynamic_products`** with current hardcoded data from ProductTabs so nothing changes visually on day one.
 
-## New Component: `src/components/admin/AdvancedAnalytics.tsx`
+### Phase 2: Admin Panel - Product Update Page (new section)
 
-Tabbed dashboard with 4 sections:
+Add a new sidebar menu item **"Product Update"** in AdminLayout.
 
-### Traffic Sources Tab
-- Pie chart: distribution of traffic sources (direct, google, social, referral)
-- Table of top referrers with visit counts
-- Date range filter (today, 7d, 30d)
+New component: `src/components/admin/DynamicProductManager.tsx`
+- Full CRUD table listing all dynamic products
+- Inline editing with image upload (to `product-images` storage bucket)
+- Fields: title, description, image, link, category, price, discount price, features (add/remove chips), tags (add/remove), plans (JSON editor)
+- Product preview panel showing how it looks on the frontend
+- Search, filter by category, drag-to-reorder
 
-### Page Views Tab
-- Line chart: daily page views over selected period
-- Top pages table with view counts
-- Product page vs homepage breakdown
+New component: `src/components/admin/CategoryManager.tsx`
+- Add/rename/delete categories
+- Reorder categories via drag or arrows
+- Auto-updates category options across the product form
 
-### Visitor Behavior Tab
-- Cards: total sessions, avg pages/session, bounce rate, avg duration estimate
-- Bar chart: sessions by day
-- New vs returning visitor breakdown (by user_id presence)
+### Phase 3: Admin Panel - Offer Management Page (new section)
 
-### Retention Tab
-- Monthly cohort: new users vs returning users (from profiles + orders data)
-- Active users per month chart
-- Churned users (had orders before, none in last 30d)
-- Retention rate percentage over 6 months
+Add a new sidebar menu item **"Offers"** in AdminLayout.
 
-### Real-Time Widget (top of page)
-- Count of sessions active in last 5 minutes (from visitor_sessions.last_active_at)
-- Currently viewed pages
+New component: `src/components/admin/OfferManager.tsx`
+- List all offers with enable/disable toggle
+- Add new offer with form: title, subtitle, description, image upload, offer type selector, timer controls (enable/disable, type, end date), product link picker
+- Edit existing offers inline
+- Reorder offers
+- Toggle homepage/product page visibility
 
-## File Changes
+### Phase 4: Frontend - Make ProductTabs Dynamic
 
-| File | Action |
-|------|--------|
-| Migration SQL | Create `page_views` + `visitor_sessions` tables with RLS |
-| `src/hooks/usePageTracking.ts` | New -- client-side tracking hook |
-| `src/App.tsx` | Add `usePageTracking()` call |
-| `src/components/admin/AdvancedAnalytics.tsx` | New dashboard component |
-| `src/components/admin/AdminLayout.tsx` | Add menu item |
-| `src/pages/AdminPanel.tsx` | Add route case |
+Update `src/components/ProductTabs.tsx`:
+- Fetch products from `dynamic_products` table instead of hardcoded `productData`
+- Fetch categories from `product_categories` table for tab names
+- Keep the exact same visual layout, just swap data source
+- Real-time subscription so admin changes appear instantly
 
-## Implementation Order
+### Phase 5: Frontend - Make BestDeals/Offers Dynamic
 
-1. Migration: create tables + RLS policies
-2. Build usePageTracking hook
-3. Wire hook into App.tsx
-4. Build AdvancedAnalytics component
-5. Add to AdminLayout + AdminPanel
+Update `src/components/BestDeals.tsx`:
+- Fetch active homepage offers from `offers` table
+- Render offer blocks dynamically with optional countdown timers
+- Keep existing visual style, just make content admin-controlled
 
+### What Will NOT Change
+- **"Products (New)" page** (`GameProductPrices` component) -- zero modifications
+- **Existing `ProductsList`** component -- untouched
+- **Game pricing system** (`game_product_prices` table) -- untouched
+- **Overall website design/layout** -- only data sources change
+
+## Technical Details
+
+### New Files
+- `src/components/admin/DynamicProductManager.tsx` - Product Update admin page
+- `src/components/admin/CategoryManager.tsx` - Category management
+- `src/components/admin/OfferManager.tsx` - Offer management admin page
+- `src/lib/dynamicProductApi.ts` - API functions for dynamic products/categories
+- `src/lib/offerApi.ts` - API functions for offers
+- `src/hooks/useDynamicProducts.ts` - Frontend hook with real-time subscriptions
+- `src/hooks/useOffers.ts` - Frontend hook for offers
+
+### Modified Files
+- `src/components/admin/AdminLayout.tsx` - Add 3 new sidebar items (Product Update, Categories, Offers)
+- `src/pages/AdminPanel.tsx` - Add new section cases in switch
+- `src/components/ProductTabs.tsx` - Replace hardcoded data with database fetch
+- `src/components/BestDeals.tsx` - Replace hardcoded deals with database fetch
+
+### New Storage Bucket
+- `product-images` (public) for product image uploads
+
+### Database Migration
+- Create `dynamic_products`, `product_categories`, `offers` tables
+- Create `product-images` storage bucket
+- RLS policies for all new tables
+- Seed initial data from current hardcoded products
