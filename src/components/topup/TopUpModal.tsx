@@ -33,12 +33,9 @@ export const TopUpModal = ({ open, onOpenChange, onSuccess }: TopUpModalProps) =
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (file.size > 3 * 1024 * 1024) {
-        toast.error("File size must be less than 3MB");
-        return;
-      }
-      if (!['image/png', 'image/jpeg', 'image/jpg'].includes(file.type)) {
-        toast.error("Only PNG and JPG files are allowed");
+      const validation = validateFileUpload(file, 'image', 3);
+      if (!validation.valid) {
+        toast.error(validation.error);
         return;
       }
       setScreenshot(file);
