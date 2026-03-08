@@ -1,96 +1,110 @@
 
-# Dynamic Website with Advanced Admin Panel
+
+# Mobile Admin App with Real-Time Notifications
 
 ## Overview
-Make the entire website content dynamic and admin-controlled by creating two new admin sections and supporting database tables. The existing "Products (New)" page (GameProductPrices) will remain completely untouched.
 
-## What Changes
+The admin panel already has mobile-responsive layout (hamburger menu, Sheet sidebar) and the app is a PWA. Rather than building a separate app, we'll create a dedicated **Admin PWA experience** with a mobile-optimized admin route, admin-specific push notifications, and an install prompt within the admin panel.
 
-### Phase 1: Database Setup
+## Current State
 
-**New table: `dynamic_products`** - stores products displayed on the homepage
-- `id`, `title`, `description`, `image_url`, `link`, `category` (topup/voucher/subscription/design), `price`, `discount_price`, `features` (jsonb array), `tags` (text array), `plans` (jsonb array), `display_order`, `is_active`, `created_at`, `updated_at`
+- **AdminLayout** already has mobile support via Sheet sidebar (hamburger menu on `lg:hidden`)
+- **PWA** is configured via `vite-plugin-pwa` with service worker push support
+- **Push notifications** work for users via `usePushNotifications` hook + `push_subscriptions` table
+- **Service worker** (`sw-push.js`) handles push events and click-to-navigate
+- Admin panel is at `/#/admin` (HashRouter)
 
-**New table: `product_categories`** - dynamic categories
-- `id`, `name`, `slug`, `display_order`, `is_active`, `created_at`, `updated_at`
+## Plan
 
-**New table: `offers`** - dynamic offer/deal sections
-- `id`, `title`, `subtitle`, `description`, `image_url`, `offer_type` (flash_sale/limited_time/daily_deal/discount_bundle), `timer_enabled`, `timer_type` (hours/days/both/none), `timer_end_date`, `product_link`, `custom_icon_url`, `display_order`, `is_active`, `show_on_homepage`, `show_on_product_page`, `created_at`, `updated_at`
+### 1. Admin Push Notification Triggers (Database)
 
-RLS: Public SELECT for active items, admin ALL for management.
+Create triggers that fire when admin-relevant events occur, sending push notifications to all admin users:
 
-**Seed `dynamic_products`** with current hardcoded data from ProductTabs so nothing changes visually on day one.
+**New DB function: `notify_admins_push`** — looks up all users with admin roles, finds their push subscriptions, and invokes `send-push-notification` for each.
 
-### Phase 2: Admin Panel - Product Update Page (new section)
+**New triggers on:**
+- `product_orders` INSERT → "New order received: [order_number]" with url `/#/admin` (orders section)
+- `payment_requests` INSERT → "New credit request from [email]" with url `/#/admin` (payments section)
+- `liana_orders` UPDATE when status = 'failed' → "API order failed: [error]" with url `/#/admin` (ml-monitoring section)
 
-Add a new sidebar menu item **"Product Update"** in AdminLayout.
+**Migration SQL:**
+- Create `notify_admins_on_new_order()` trigger function
+- Create `notify_admins_on_credit_request()` trigger function  
+- Create `notify_admins_on_api_failure()` trigger function
+- Attach triggers to respective tables
 
-New component: `src/components/admin/DynamicProductManager.tsx`
-- Full CRUD table listing all dynamic products
-- Inline editing with image upload (to `product-images` storage bucket)
-- Fields: title, description, image, link, category, price, discount price, features (add/remove chips), tags (add/remove), plans (JSON editor)
-- Product preview panel showing how it looks on the frontend
-- Search, filter by category, drag-to-reorder
+### 2. Admin Push Subscription (Frontend)
 
-New component: `src/components/admin/CategoryManager.tsx`
-- Add/rename/delete categories
-- Reorder categories via drag or arrows
-- Auto-updates category options across the product form
+**New file: `src/hooks/useAdminPushNotifications.ts`**
 
-### Phase 3: Admin Panel - Offer Management Page (new section)
+Similar to `usePushNotifications` but specifically for admin users. When an admin logs into the admin panel, auto-subscribe them to push notifications if not already subscribed. Reuses the existing `push_subscriptions` table and `send-push-notification` edge function.
 
-Add a new sidebar menu item **"Offers"** in AdminLayout.
+**Modify: `src/pages/AdminPanel.tsx`**
 
-New component: `src/components/admin/OfferManager.tsx`
-- List all offers with enable/disable toggle
-- Add new offer with form: title, subtitle, description, image upload, offer type selector, timer controls (enable/disable, type, end date), product link picker
-- Edit existing offers inline
-- Reorder offers
-- Toggle homepage/product page visibility
+- Import and call `useAdminPushNotifications()` to auto-subscribe admins on panel load
+- Add a notification permission prompt if not yet granted
 
-### Phase 4: Frontend - Make ProductTabs Dynamic
+### 3. Mobile-Optimized Admin Experience
 
-Update `src/components/ProductTabs.tsx`:
-- Fetch products from `dynamic_products` table instead of hardcoded `productData`
-- Fetch categories from `product_categories` table for tab names
-- Keep the exact same visual layout, just swap data source
-- Real-time subscription so admin changes appear instantly
+**Modify: `src/components/admin/AdminLayout.tsx`**
 
-### Phase 5: Frontend - Make BestDeals/Offers Dynamic
+- Add bottom navigation bar for mobile (visible on `lg:hidden`) with quick-access icons for Dashboard, Orders, Payments, Notifications
+- Make the top header more compact on mobile
+- Add pull-to-refresh gesture support via a refresh button
 
-Update `src/components/BestDeals.tsx`:
-- Fetch active homepage offers from `offers` table
-- Render offer blocks dynamically with optional countdown timers
-- Keep existing visual style, just make content admin-controlled
+**Modify: `src/components/admin/EnhancedDashboard.tsx`**
 
-### What Will NOT Change
-- **"Products (New)" page** (`GameProductPrices` component) -- zero modifications
-- **Existing `ProductsList`** component -- untouched
-- **Game pricing system** (`game_product_prices` table) -- untouched
-- **Overall website design/layout** -- only data sources change
+- Make stat cards stack in a 2-column grid on mobile
+- Ensure charts are touch-friendly with proper sizing
 
-## Technical Details
+### 4. Admin App Download Section
+
+**New file: `src/components/admin/AdminAppDownload.tsx`**
+
+A card/section in the admin panel that:
+- Detects if the app is already installed (via `usePWAInstall` hook)
+- Shows "Install Admin App" button that triggers PWA install prompt
+- Shows platform-specific instructions (iOS: Add to Home Screen, Android: auto-install)
+- Displays app features list
+
+**Modify: `src/components/admin/AdminLayout.tsx`**
+
+- Add "Admin App" menu item to sidebar
+
+**Modify: `src/pages/AdminPanel.tsx`**
+
+- Add `admin-app` section routing
+
+### 5. Deep-Link Notification Actions
+
+**Modify: `public/sw-push.js`**
+
+- Already handles `data.url` for click navigation — admin notifications will include the correct hash route (e.g., `/#/admin`)
+- Add admin-specific action handling: parse section from URL params to auto-navigate to the right admin section
+
+**Modify: `src/pages/AdminPanel.tsx`**
+
+- Read URL query params on load (e.g., `?section=orders`) and auto-set `activeSection`
+
+### 6. Send Push Notification Edge Function Update
+
+**Modify: `supabase/functions/send-push-notification/index.ts`**
+
+- Add support for sending to multiple users by accepting `user_ids` array (for admin broadcast)
+- Or create a new lightweight function `notify-admins` that queries admin user_ids and loops
+
+## Files Summary
 
 ### New Files
-- `src/components/admin/DynamicProductManager.tsx` - Product Update admin page
-- `src/components/admin/CategoryManager.tsx` - Category management
-- `src/components/admin/OfferManager.tsx` - Offer management admin page
-- `src/lib/dynamicProductApi.ts` - API functions for dynamic products/categories
-- `src/lib/offerApi.ts` - API functions for offers
-- `src/hooks/useDynamicProducts.ts` - Frontend hook with real-time subscriptions
-- `src/hooks/useOffers.ts` - Frontend hook for offers
+- `src/hooks/useAdminPushNotifications.ts` — Admin auto-subscribe hook
+- `src/components/admin/AdminAppDownload.tsx` — PWA install section for admin
 
 ### Modified Files
-- `src/components/admin/AdminLayout.tsx` - Add 3 new sidebar items (Product Update, Categories, Offers)
-- `src/pages/AdminPanel.tsx` - Add new section cases in switch
-- `src/components/ProductTabs.tsx` - Replace hardcoded data with database fetch
-- `src/components/BestDeals.tsx` - Replace hardcoded deals with database fetch
-
-### New Storage Bucket
-- `product-images` (public) for product image uploads
+- `src/components/admin/AdminLayout.tsx` — Bottom nav bar for mobile, new menu item
+- `src/pages/AdminPanel.tsx` — Admin push subscription, deep-link section routing, new section
+- `public/sw-push.js` — Admin section deep-link support
 
 ### Database Migration
-- Create `dynamic_products`, `product_categories`, `offers` tables
-- Create `product-images` storage bucket
-- RLS policies for all new tables
-- Seed initial data from current hardcoded products
+- New trigger functions for admin push notifications on orders, credit requests, API failures
+- Triggers attached to `product_orders`, `payment_requests`, `liana_orders`
+
