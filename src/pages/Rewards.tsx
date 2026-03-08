@@ -79,7 +79,9 @@ const Rewards = () => {
     <div className="flex items-center justify-between p-4 rounded-xl border border-border bg-card/50 gap-3">
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 mb-1">
-          <span className="font-bold text-lg text-primary">{coupon.discount_percent}% OFF</span>
+          <span className="font-bold text-lg text-primary">
+            {coupon.discount_type === 'fixed' ? `₹${coupon.discount_value} OFF` : `${coupon.discount_value || coupon.discount_percent}% OFF`}
+          </span>
           <Badge variant="outline" className="text-xs">{sourceLabel(coupon.source)}</Badge>
           {coupon.is_used && <Badge variant="secondary" className="text-xs">Used</Badge>}
         </div>
