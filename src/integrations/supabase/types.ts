@@ -910,6 +910,50 @@ export type Database = {
         }
         Relationships: []
       }
+      voucher_codes: {
+        Row: {
+          added_at: string
+          code: string
+          game: string
+          id: string
+          order_id: string | null
+          package_id: string | null
+          product_name: string
+          status: string
+          used_at: string | null
+        }
+        Insert: {
+          added_at?: string
+          code: string
+          game: string
+          id?: string
+          order_id?: string | null
+          package_id?: string | null
+          product_name: string
+          status?: string
+          used_at?: string | null
+        }
+        Update: {
+          added_at?: string
+          code?: string
+          game?: string
+          id?: string
+          order_id?: string | null
+          package_id?: string | null
+          product_name?: string
+          status?: string
+          used_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "voucher_codes_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "product_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       admin_dashboard_stats: {
@@ -936,6 +980,10 @@ export type Database = {
       approve_payment_request: {
         Args: { admin_remarks_text?: string; request_id: string }
         Returns: Json
+      }
+      assign_voucher_code: {
+        Args: { p_game: string; p_order_id: string; p_package_id: string }
+        Returns: string
       }
       cancel_order: {
         Args: { cancellation_reason_text: string; order_id: string }
@@ -1068,6 +1116,10 @@ export type Database = {
       refresh_dashboard_stats: { Args: never; Returns: undefined }
       reject_payment_request: {
         Args: { admin_remarks_text: string; request_id: string }
+        Returns: Json
+      }
+      try_assign_voucher: {
+        Args: { p_game: string; p_order_id: string; p_package_id: string }
         Returns: Json
       }
     }
