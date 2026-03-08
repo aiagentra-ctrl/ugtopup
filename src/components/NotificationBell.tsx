@@ -71,19 +71,19 @@ export const NotificationBell = () => {
     <div className="relative" ref={dropdownRef}>
       <button
         onClick={handleToggle}
-        className="relative flex items-center justify-center h-10 w-10 bg-black border border-white/10 rounded-xl hover:border-primary/50 transition-colors"
+        className="relative flex items-center justify-center h-8 w-8 sm:h-10 sm:w-10 bg-black border border-white/10 rounded-lg sm:rounded-xl hover:border-primary/50 transition-colors"
         aria-label="Notifications"
       >
-        <Bell className="h-5 w-5 text-white/70" />
+        <Bell className="h-4 w-4 sm:h-5 sm:w-5 text-white/70" />
         {unreadCount > 0 && (
-          <span className="absolute -top-1 -right-1 flex items-center justify-center min-w-[18px] h-[18px] px-1 text-[10px] font-bold text-white bg-red-500 rounded-full leading-none">
+          <span className="absolute -top-1 -right-1 flex items-center justify-center min-w-[16px] h-[16px] sm:min-w-[18px] sm:h-[18px] px-0.5 sm:px-1 text-[9px] sm:text-[10px] font-bold text-white bg-red-500 rounded-full leading-none">
             {unreadCount > 99 ? '99+' : unreadCount}
           </span>
         )}
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 top-12 w-80 bg-card border border-border rounded-xl shadow-xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+        <div className="absolute right-0 top-10 sm:top-12 w-72 sm:w-80 bg-card border border-border rounded-xl shadow-xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
           <div className="flex items-center justify-between px-4 py-3 border-b border-border">
             <h3 className="text-sm font-semibold text-foreground">Notifications</h3>
             {unreadCount > 0 && (

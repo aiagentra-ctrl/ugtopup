@@ -11,11 +11,13 @@ export const GameCard = ({ image, title }: GameCardProps) => {
           <img
             src={image}
             alt={title}
+            loading="lazy"
+            decoding="async"
             className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-110"
           />
         </div>
       </div>
-      <p className="mt-3 text-center text-sm font-medium text-foreground">
+      <p className="mt-2 sm:mt-3 text-center text-xs sm:text-sm font-medium text-foreground line-clamp-1">
         {title}
       </p>
     </div>

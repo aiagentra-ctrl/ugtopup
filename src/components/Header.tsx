@@ -102,7 +102,7 @@ export const Header = () => {
   return (
     <header className="sticky top-0 z-50 bg-black border-b border-white/5">
       <div className="container mx-auto px-4">
-        <div className="flex h-16 md:h-20 items-center justify-between gap-4">
+        <div className="flex h-14 sm:h-16 md:h-20 items-center justify-between gap-2 sm:gap-4">
           {/* Logo */}
           <Link to="/" className="flex items-center py-2">
             <img 
@@ -114,12 +114,12 @@ export const Header = () => {
           </Link>
 
           {/* Right Section */}
-          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-1.5 sm:gap-3">
             {isAuthenticated ? (
               <>
                 {/* Credit Balance - Visible on all devices */}
-                <div className="flex items-center gap-2 bg-black/60 border border-white/10 rounded-xl px-3 py-1.5 sm:px-4 sm:py-2">
-                  <span className="text-xs sm:text-sm font-semibold text-white">
+                <div className="flex items-center bg-black/60 border border-white/10 rounded-lg sm:rounded-xl px-2 py-1 sm:px-4 sm:py-2">
+                  <span className="text-[11px] sm:text-sm font-semibold text-white whitespace-nowrap">
                     {balance || 0} Cr.
                   </span>
                 </div>
@@ -127,10 +127,10 @@ export const Header = () => {
                 {/* Add Credit Button */}
                 <Button
                   size="icon"
-                  className="neon-button h-10 w-10 rounded-xl"
+                  className="neon-button h-8 w-8 sm:h-10 sm:w-10 rounded-lg sm:rounded-xl"
                   onClick={() => setTopUpModalOpen(true)}
                 >
-                  <Plus className="h-5 w-5" />
+                  <Plus className="h-4 w-4 sm:h-5 sm:w-5" />
                 </Button>
 
                 {/* Notification Bell */}
@@ -170,8 +170,8 @@ export const Header = () => {
                 {/* User Profile Icon - Mobile */}
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <button className="sm:hidden flex items-center justify-center h-10 w-10 bg-black border border-white/10 rounded-xl hover:border-primary/50 transition-colors">
-                      <span className="text-sm font-medium text-white">
+                    <button className="sm:hidden flex items-center justify-center h-8 w-8 bg-black border border-white/10 rounded-lg hover:border-primary/50 transition-colors">
+                      <span className="text-xs font-medium text-white">
                         {user?.email?.charAt(0).toUpperCase()}
                       </span>
                     </button>
@@ -215,10 +215,10 @@ export const Header = () => {
             <Button
               variant="ghost"
               size="icon"
-              className="h-10 w-10 text-white/60 hover:text-white hover:bg-white/5"
+              className="h-8 w-8 sm:h-10 sm:w-10 text-white/60 hover:text-white hover:bg-white/5"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             >
-              <Menu className="h-6 w-6" />
+              <Menu className="h-5 w-5 sm:h-6 sm:w-6" />
             </Button>
           </div>
         </div>

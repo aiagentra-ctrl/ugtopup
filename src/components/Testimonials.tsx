@@ -44,9 +44,9 @@ export const Testimonials = () => {
   }, []);
 
   return (
-    <section className="py-16 bg-muted/30">
-      <div className="container mx-auto px-4">
-        <h2 className="mb-12 text-center text-3xl font-bold md:text-4xl">
+    <section className="py-10 sm:py-16 bg-muted/30">
+      <div className="container mx-auto px-3 sm:px-4">
+        <h2 className="mb-8 sm:mb-12 text-center text-2xl font-bold sm:text-3xl md:text-4xl">
           CUSTOMER REVIEWS
         </h2>
 
@@ -59,16 +59,16 @@ export const Testimonials = () => {
                   index === currentIndex ? "opacity-100" : "absolute opacity-0"
                 }`}
               >
-                <div className="glass-card rounded-2xl p-8 md:p-12">
+                <div className="glass-card rounded-xl sm:rounded-2xl p-5 sm:p-8 md:p-12">
                   <div className="flex items-center gap-4 mb-4">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/20 text-primary text-xl font-bold">
+                    <div className="flex h-10 w-10 sm:h-12 sm:w-12 items-center justify-center rounded-full bg-primary/20 text-primary text-lg sm:text-xl font-bold">
                       {testimonial.name.charAt(0).toUpperCase()}
                     </div>
-                    <p className="font-bold text-lg text-primary">
+                    <p className="font-bold text-base sm:text-lg text-primary">
                       {testimonial.name}
                     </p>
                   </div>
-                  <p className="text-lg leading-relaxed text-foreground">
+                  <p className="text-sm sm:text-lg leading-relaxed text-foreground">
                     "{testimonial.feedback}"
                   </p>
                 </div>

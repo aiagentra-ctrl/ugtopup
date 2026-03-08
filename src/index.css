@@ -439,12 +439,40 @@ All colors MUST be HSL.
     animation: selection-pulse 2s ease-in-out infinite;
   }
   
-  /* Mobile-First Touch Targets */
+  /* Mobile-First Touch Targets & Performance */
   @media (max-width: 640px) {
     input[type="text"],
-    input[type="tel"] {
+    input[type="tel"],
+    input[type="email"],
+    input[type="password"],
+    input[type="number"],
+    select,
+    textarea {
       font-size: 16px !important;
     }
+  }
+
+  /* Prevent content shift on mobile */
+  .contain-layout {
+    contain: layout;
+  }
+
+  /* Hardware-accelerated scrolling */
+  .smooth-scroll {
+    -webkit-overflow-scrolling: touch;
+    scroll-behavior: smooth;
+  }
+
+  /* Prevent tap highlight on mobile */
+  @media (hover: none) {
+    * {
+      -webkit-tap-highlight-color: transparent;
+    }
+  }
+
+  /* Optimize images */
+  img {
+    content-visibility: auto;
   }
 }
 

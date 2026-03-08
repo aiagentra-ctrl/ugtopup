@@ -14,7 +14,7 @@ const Index = () => {
       
       <main>
         {/* Hero Section */}
-        <section className="container mx-auto px-4 pt-8 pb-4">
+        <section className="container mx-auto px-2 sm:px-4 pt-4 sm:pt-8 pb-2 sm:pb-4">
           <HeroBanner />
         </section>
 

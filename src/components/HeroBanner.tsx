@@ -71,7 +71,7 @@ export const HeroBanner = () => {
   }
 
   return (
-    <div className="relative w-full max-w-7xl mx-auto mb-8 overflow-hidden rounded-2xl shadow-2xl animate-fade-in">
+    <div className="relative w-full max-w-7xl mx-auto mb-4 sm:mb-8 overflow-hidden rounded-xl sm:rounded-2xl shadow-2xl animate-fade-in">
       {/* 16:9 Aspect Ratio Container */}
       <AspectRatio ratio={16 / 9} className="relative w-full bg-black">
         <div className="relative h-full w-full">
