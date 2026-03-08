@@ -61,6 +61,7 @@ const menuItems = [
   { id: "offers", title: "Offers", icon: Gift },
   { id: "chatbot", title: "AI Chatbot", icon: Bot },
   { id: "vouchers", title: "Voucher Inventory", icon: Ticket },
+  { id: "ml-monitoring", title: "API Monitoring", icon: Activity },
 ];
 
 function AdminSidebar({ 

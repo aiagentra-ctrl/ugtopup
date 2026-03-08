@@ -10,6 +10,10 @@ const LIANA_API_BASE_URL = 'https://lianastore.in/wp-json/ar2/v1';
 interface ProcessMLOrderRequest {
   order_id?: string;
   action?: string;
+  user_id?: string;
+  zone_id?: string;
+  package_name?: string;
+  quantity?: number;
 }
 
 interface LianaVerifyResponse {
@@ -89,6 +93,36 @@ function getLianaHeaders(apiKey: string, apiSecret: string) {
   };
 }
 
+// Retry wrapper for API calls — retries on network errors only (not 4xx)
+async function fetchWithRetry(
+  url: string,
+  options: RequestInit,
+  maxRetries = 2,
+  delayMs = 1000
+): Promise<Response> {
+  let lastError: Error | null = null;
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      const response = await fetch(url, options);
+      // Don't retry on 4xx errors — only on network/5xx
+      if (response.status >= 400 && response.status < 500) {
+        return response;
+      }
+      if (response.ok || attempt === maxRetries) {
+        return response;
+      }
+      console.warn(`API returned ${response.status}, retry ${attempt + 1}/${maxRetries}...`);
+    } catch (err) {
+      lastError = err instanceof Error ? err : new Error(String(err));
+      if (attempt < maxRetries) {
+        console.warn(`Network error on attempt ${attempt + 1}, retrying in ${delayMs}ms...`, lastError.message);
+        await new Promise(r => setTimeout(r, delayMs));
+      }
+    }
+  }
+  throw lastError || new Error('API request failed after retries');
+}
+
 // Fetch Liana wallet balance
 async function fetchWalletBalance(apiKey: string, apiSecret: string): Promise<any> {
   const headers = getLianaHeaders(apiKey, apiSecret);
@@ -138,7 +172,6 @@ async function handleWalletLogs(supabaseAdmin: any) {
     );
   }
 
-  // Calculate summary
   const today = new Date().toISOString().split('T')[0];
   const todayLogs = (data || []).filter((l: any) => l.created_at?.startsWith(today));
   const coinsUsedToday = todayLogs
@@ -194,6 +227,66 @@ async function logWalletActivity(
   }
 }
 
+// Handle IGN verification without placing order
+async function handleVerifyIgn(
+  userId: string,
+  zoneId: string,
+  packageName: string,
+  quantity: number | undefined,
+  lianaApiKey: string,
+  lianaApiSecret: string
+) {
+  // Resolve variation ID
+  const variationId = resolveVariationId(packageName, quantity);
+  if (!variationId) {
+    return new Response(
+      JSON.stringify({ success: false, error: `Unknown package: ${packageName}` }),
+      { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  }
+
+  const apiHeaders = getLianaHeaders(lianaApiKey, lianaApiSecret);
+  const verifyPayload = { variation_id: variationId, uid: userId, zone_id: zoneId };
+  console.log('Verify-IGN payload:', JSON.stringify(verifyPayload));
+
+  try {
+    const verifyResponse = await fetchWithRetry(`${LIANA_API_BASE_URL}/ign/verify`, {
+      method: 'POST',
+      headers: apiHeaders,
+      body: JSON.stringify(verifyPayload),
+    });
+
+    const verifyText = await verifyResponse.text();
+    console.log('Verify-IGN raw response:', verifyText);
+
+    let verifyData: LianaVerifyResponse;
+    try { verifyData = JSON.parse(verifyText); } catch { verifyData = { status: 'error', message: verifyText }; }
+
+    const isVerified = verifyData.status === 'success' && verifyData.verified === true;
+
+    if (!verifyResponse.ok || !isVerified) {
+      const errorMessage = verifyData.message || verifyData.error || 'Player verification failed';
+      return new Response(
+        JSON.stringify({ success: false, error: errorMessage, api_response: verifyData }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const ign = verifyData.display || userId;
+    return new Response(
+      JSON.stringify({ success: true, ign, display: verifyData.display, variation_id: variationId }),
+      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  } catch (err) {
+    const errorMessage = err instanceof Error ? err.message : 'Connection failed';
+    console.error('Verify-IGN error:', errorMessage);
+    return new Response(
+      JSON.stringify({ success: false, error: errorMessage }),
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  }
+}
+
 // Process ML order
 async function handleProcessOrder(
   orderId: string,
@@ -236,6 +329,8 @@ async function handleProcessOrder(
   const zoneId = productDetails.zoneId || productDetails.zone_id;
   const purchaseQuantity = productDetails.purchase_quantity || 1;
   const packageName = order.package_name;
+  const skipVerification = productDetails.skip_verification === true;
+  const verifiedIgn = productDetails.verified_ign || null;
 
   if (!userId || !zoneId) {
     return new Response(
@@ -260,6 +355,11 @@ async function handleProcessOrder(
     );
   }
 
+  // Validate variation_id if frontend sent one
+  if (productDetails.variation_id && productDetails.variation_id !== lianaProductId) {
+    console.warn(`Variation ID mismatch! Frontend: ${productDetails.variation_id}, Resolved: ${lianaProductId}. Using resolved.`);
+  }
+
   // Check wallet balance BEFORE processing
   console.log('Checking Liana wallet balance before order...');
   const balanceData = await fetchWalletBalance(lianaApiKey, lianaApiSecret);
@@ -271,7 +371,6 @@ async function handleProcessOrder(
     balanceBefore = parseFloat(balanceData.balance);
     console.log(`Liana wallet balance: ${balanceBefore} coins`);
 
-    // Log the pre-order balance check
     await logWalletActivity(supabaseAdmin, {
       order_id: orderId,
       order_number: order.order_number,
@@ -281,8 +380,6 @@ async function handleProcessOrder(
       api_response: balanceData,
     });
 
-    // Use a minimum threshold — reject if balance is critically low
-    // Liana deducts coins based on product cost, so we check > 0
     if (balanceBefore <= 0) {
       await logWalletActivity(supabaseAdmin, {
         order_id: orderId,
@@ -303,7 +400,6 @@ async function handleProcessOrder(
       );
     }
   } else {
-    // Balance check failed but we proceed cautiously — log the error
     console.warn('Could not verify wallet balance, proceeding with order...');
     await logWalletActivity(supabaseAdmin, {
       order_id: orderId,
@@ -344,7 +440,8 @@ async function handleProcessOrder(
         user_id: userId,
         zone_id: zoneId,
         status: 'processing',
-        api_request_sent: false
+        api_request_sent: false,
+        ign: verifiedIgn,
       })
       .select()
       .single();
@@ -370,72 +467,82 @@ async function handleProcessOrder(
   const apiHeaders = getLianaHeaders(lianaApiKey, lianaApiSecret);
 
   try {
-    // Step 1: Verify player ID
-    console.log(`Verifying player: uid=${userId}, zone_id=${zoneId}, variation_id=${lianaProductId}`);
+    let ign = verifiedIgn;
 
-    await supabaseAdmin
-      .from('liana_orders')
-      .update({ verification_sent_at: new Date().toISOString() })
-      .eq('id', lianaOrderId);
-
-    const verifyPayload = { variation_id: lianaProductId, uid: userId, zone_id: zoneId };
-    console.log('Verify payload:', JSON.stringify(verifyPayload));
-
-    const verifyResponse = await fetch(`${LIANA_API_BASE_URL}/ign/verify`, {
-      method: 'POST',
-      headers: apiHeaders,
-      body: JSON.stringify(verifyPayload),
-    });
-
-    const verifyText = await verifyResponse.text();
-    console.log('Verify raw response:', verifyText);
-
-    let verifyData: LianaVerifyResponse;
-    try { verifyData = JSON.parse(verifyText); } catch { verifyData = { status: 'error', message: verifyText }; }
-
-    await supabaseAdmin
-      .from('liana_orders')
-      .update({ verification_response: verifyData, verification_completed_at: new Date().toISOString() })
-      .eq('id', lianaOrderId);
-
-    const isVerified = verifyData.status === 'success' && verifyData.verified === true;
-
-    if (!verifyResponse.ok || !isVerified) {
-      const errorMessage = verifyData.message || verifyData.error || 'Player verification failed';
-      console.error('Player verification failed:', errorMessage);
-
+    // Step 1: Verify player ID (skip if already verified pre-order)
+    if (skipVerification && verifiedIgn) {
+      console.log(`Skipping verification — IGN already verified: ${verifiedIgn}`);
       await supabaseAdmin.from('liana_orders').update({
-        status: 'failed', error_message: `Verification failed: ${errorMessage}`,
-        api_response: verifyData, updated_at: new Date().toISOString()
+        verification_response: { skipped: true, pre_verified_ign: verifiedIgn },
+        verification_completed_at: new Date().toISOString()
       }).eq('id', lianaOrderId);
+    } else {
+      console.log(`Verifying player: uid=${userId}, zone_id=${zoneId}, variation_id=${lianaProductId}`);
 
-      await supabaseAdmin.from('product_orders').update({
-        status: 'canceled', failed_at: new Date().toISOString(),
-        failure_reason: `Verification failed: ${errorMessage}`, updated_at: new Date().toISOString()
-      }).eq('id', orderId);
+      await supabaseAdmin
+        .from('liana_orders')
+        .update({ verification_sent_at: new Date().toISOString() })
+        .eq('id', lianaOrderId);
 
-      await logWalletActivity(supabaseAdmin, {
-        order_id: orderId,
-        liana_order_id: lianaOrderId,
-        order_number: order.order_number,
-        action: 'order_failed',
-        balance_before: balanceBefore,
-        api_status: 'verification_failed',
-        api_response: verifyData,
-        error_message: errorMessage,
+      const verifyPayload = { variation_id: lianaProductId, uid: userId, zone_id: zoneId };
+      console.log('Verify payload:', JSON.stringify(verifyPayload));
+
+      const verifyResponse = await fetchWithRetry(`${LIANA_API_BASE_URL}/ign/verify`, {
+        method: 'POST',
+        headers: apiHeaders,
+        body: JSON.stringify(verifyPayload),
       });
 
-      return new Response(
-        JSON.stringify({ success: false, error: errorMessage, stage: 'verification' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      const verifyText = await verifyResponse.text();
+      console.log('Verify raw response:', verifyText);
+
+      let verifyData: LianaVerifyResponse;
+      try { verifyData = JSON.parse(verifyText); } catch { verifyData = { status: 'error', message: verifyText }; }
+
+      await supabaseAdmin
+        .from('liana_orders')
+        .update({ verification_response: verifyData, verification_completed_at: new Date().toISOString() })
+        .eq('id', lianaOrderId);
+
+      const isVerified = verifyData.status === 'success' && verifyData.verified === true;
+
+      if (!verifyResponse.ok || !isVerified) {
+        const errorMessage = verifyData.message || verifyData.error || 'Player verification failed';
+        console.error('Player verification failed:', errorMessage);
+
+        await supabaseAdmin.from('liana_orders').update({
+          status: 'failed', error_message: `Verification failed: ${errorMessage}`,
+          api_response: verifyData, updated_at: new Date().toISOString()
+        }).eq('id', lianaOrderId);
+
+        await supabaseAdmin.from('product_orders').update({
+          status: 'canceled', failed_at: new Date().toISOString(),
+          failure_reason: `Verification failed: ${errorMessage}`, updated_at: new Date().toISOString()
+        }).eq('id', orderId);
+
+        await logWalletActivity(supabaseAdmin, {
+          order_id: orderId,
+          liana_order_id: lianaOrderId,
+          order_number: order.order_number,
+          action: 'order_failed',
+          balance_before: balanceBefore,
+          api_status: 'verification_failed',
+          api_response: verifyData,
+          error_message: errorMessage,
+        });
+
+        return new Response(
+          JSON.stringify({ success: false, error: errorMessage, stage: 'verification' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      ign = verifyData.display || userId;
+      await supabaseAdmin.from('liana_orders').update({ ign }).eq('id', lianaOrderId);
+      console.log(`Player verified: IGN = ${ign}`);
     }
 
-    const ign = verifyData.display || userId;
-    await supabaseAdmin.from('liana_orders').update({ ign }).eq('id', lianaOrderId);
-    console.log(`Player verified: IGN = ${ign}`);
-
-    // Step 2: Create order
+    // Step 2: Create order (with retry)
     console.log(`Creating order: variation_id=${lianaProductId}, qty=${purchaseQuantity}`);
 
     await supabaseAdmin.from('liana_orders')
@@ -452,7 +559,7 @@ async function handleProcessOrder(
 
     console.log('Order payload:', JSON.stringify(orderPayload));
 
-    const orderResponse = await fetch(`${LIANA_API_BASE_URL}/orders`, {
+    const orderResponse = await fetchWithRetry(`${LIANA_API_BASE_URL}/orders`, {
       method: 'POST',
       headers: apiHeaders,
       body: JSON.stringify(orderPayload),
@@ -478,7 +585,6 @@ async function handleProcessOrder(
         api_response: orderData, updated_at: new Date().toISOString()
       }).eq('id', lianaOrderId);
 
-      // For insufficient funds, keep as pending so admin can retry after top-up
       const newStatus = isInsufficientFunds ? 'pending' : 'canceled';
       await supabaseAdmin.from('product_orders').update({
         status: newStatus,
@@ -509,7 +615,7 @@ async function handleProcessOrder(
       );
     }
 
-    // Success — capture balance_after from response
+    // Success
     const transactionId = orderData.order_id || orderData.transaction_id || '';
     const balanceAfter = orderData.balance_after !== undefined ? parseFloat(String(orderData.balance_after)) : undefined;
     const coinsUsed = (balanceBefore !== undefined && balanceAfter !== undefined) 
@@ -532,7 +638,6 @@ async function handleProcessOrder(
       }
     }).eq('id', orderId);
 
-    // Log successful order with coin details
     await logWalletActivity(supabaseAdmin, {
       order_id: orderId,
       liana_order_id: lianaOrderId,
@@ -550,7 +655,7 @@ async function handleProcessOrder(
     return new Response(
       JSON.stringify({
         success: true, message: 'Diamonds delivered successfully!',
-        ign, transaction_id: transactionId,
+        ign: ign || userId, transaction_id: transactionId,
         wallet_balance_after: balanceAfter,
         coins_used: coinsUsed,
       }),
@@ -630,6 +735,17 @@ Deno.serve(async (req) => {
 
     if (action === 'check-balance') {
       return await handleBalanceCheck(lianaApiKey, lianaApiSecret);
+    }
+
+    if (action === 'verify-ign') {
+      const { user_id, zone_id, package_name, quantity } = body;
+      if (!user_id || !zone_id || !package_name) {
+        return new Response(
+          JSON.stringify({ success: false, error: 'user_id, zone_id, and package_name are required' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      return await handleVerifyIgn(user_id, zone_id, package_name, quantity, lianaApiKey, lianaApiSecret);
     }
 
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);

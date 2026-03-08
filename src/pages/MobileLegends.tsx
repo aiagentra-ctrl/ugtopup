@@ -3,9 +3,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { MLProductHeader } from "@/components/ml/MLProductHeader";
 import { MLUserInputForm } from "@/components/ml/MLUserInputForm";
 import { MLPackageSelector, type MLPackage } from "@/components/ml/MLPackageSelector";
-
-// Non-API packages that go through normal order management (no Liana API)
-const NON_API_PACKAGES = new Set(['55 Diamonds', '110 Diamonds', '165 Diamonds', '275 Diamonds', '565 Diamonds']);
+import { MLIgnVerification } from "@/components/ml/MLIgnVerification";
 import { MLOrderReview } from "@/components/ml/MLOrderReview";
 import { MLSuccessModal } from "@/components/ml/MLSuccessModal";
 import { Button } from "@/components/ui/button";
@@ -16,6 +14,9 @@ import { requestDeduplicator } from "@/lib/requestDeduplicator";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
+
+// Non-API packages that go through normal order management (no Liana API)
+const NON_API_PACKAGES = new Set(['55 Diamonds', '110 Diamonds', '165 Diamonds', '275 Diamonds', '565 Diamonds']);
 
 const MobileLegends = () => {
   const { user, refreshProfile } = useAuth();
@@ -36,6 +37,16 @@ const MobileLegends = () => {
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
   const [currentOrderId, setCurrentOrderId] = useState("");
 
+  // IGN verification state
+  const [ignVerification, setIgnVerification] = useState<{
+    show: boolean;
+    loading: boolean;
+    ign: string;
+    error: string | null;
+    variationId: number | null;
+  }>({ show: false, loading: false, ign: "", error: null, variationId: null });
+  const [verifiedIgn, setVerifiedIgn] = useState<string | null>(null);
+
   const totalPrice = selectedPackage ? selectedPackage.price * purchaseQuantity : 0;
   const totalItems = selectedPackage ? selectedPackage.quantity * purchaseQuantity : 0;
 
@@ -47,21 +58,65 @@ const MobileLegends = () => {
   const handlePackageSelect = (pkg: MLPackage) => {
     setSelectedPackage(pkg);
     setPurchaseQuantity(1);
+    setVerifiedIgn(null); // Reset verification when package changes
   };
 
   const validateForm = (): boolean => {
     const newErrors: { userId?: string; zoneId?: string } = {};
-    
     if (!formData.userId || formData.userId.trim() === "") {
       newErrors.userId = "User ID is required";
     }
-    
     if (!formData.zoneId || formData.zoneId.trim() === "") {
       newErrors.zoneId = "Zone ID is required";
     }
-    
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
+  };
+
+  const verifyIgn = async () => {
+    if (!selectedPackage) return;
+
+    setIgnVerification({ show: true, loading: true, ign: "", error: null, variationId: null });
+
+    try {
+      const { data, error } = await supabase.functions.invoke("process-ml-order", {
+        body: {
+          action: "verify-ign",
+          user_id: formData.userId.trim(),
+          zone_id: formData.zoneId.trim(),
+          package_name: selectedPackage.name,
+          quantity: selectedPackage.quantity,
+        },
+      });
+
+      if (error) throw new Error(error.message);
+
+      if (data?.success) {
+        setIgnVerification({
+          show: true,
+          loading: false,
+          ign: data.ign,
+          error: null,
+          variationId: data.variation_id,
+        });
+      } else {
+        setIgnVerification({
+          show: true,
+          loading: false,
+          ign: "",
+          error: data?.error || "Verification failed. Please check your Game ID and Zone ID.",
+          variationId: null,
+        });
+      }
+    } catch (err: any) {
+      setIgnVerification({
+        show: true,
+        loading: false,
+        ign: "",
+        error: err.message || "Failed to verify account. Please try again.",
+        variationId: null,
+      });
+    }
   };
 
   const handleBuyNow = async () => {
@@ -70,18 +125,38 @@ const MobileLegends = () => {
       navigate("/login");
       return;
     }
-
     if (!validateForm()) {
       toast.error("Please fill in all required fields correctly");
       return;
     }
-
     if (!selectedPackage) {
       toast.error("Please select a package");
       return;
     }
 
-    // Check balance from DB before opening review
+    // For API packages, verify IGN first
+    const isApiPackage = !NON_API_PACKAGES.has(selectedPackage.name);
+    if (isApiPackage) {
+      await verifyIgn();
+    } else {
+      // Non-API packages skip verification, go straight to balance check
+      await proceedToOrder();
+    }
+  };
+
+  const handleIgnConfirm = async () => {
+    setVerifiedIgn(ignVerification.ign);
+    setIgnVerification((prev) => ({ ...prev, show: false }));
+    await proceedToOrder();
+  };
+
+  const handleIgnCancel = () => {
+    setIgnVerification({ show: false, loading: false, ign: "", error: null, variationId: null });
+  };
+
+  const proceedToOrder = async () => {
+    if (!selectedPackage) return;
+    
     const { ok, balance } = await ensureSufficientBalance(totalPrice);
     if (!ok) {
       toast.error(`Insufficient credits. You have ₹${balance}, but need ₹${totalPrice}. Please top up.`);
@@ -100,7 +175,6 @@ const MobileLegends = () => {
     setIsSubmitting(true);
     
     try {
-      // Step 1: Create the order (deducts credits)
       const order = await requestDeduplicator.dedupe(
         `place_order:${user.id}:${selectedPackage.name}:${purchaseQuantity}`,
         async () => {
@@ -119,16 +193,17 @@ const MobileLegends = () => {
               purchase_quantity: purchaseQuantity,
               unit_price: selectedPackage.price,
               unit_quantity: selectedPackage.quantity,
+              verified_ign: verifiedIgn || undefined,
+              skip_verification: !!verifiedIgn,
+              variation_id: ignVerification.variationId || undefined,
             },
           });
         }
       );
 
-      // Step 2: Check if this is an API package or non-API package
       const isApiPackage = !NON_API_PACKAGES.has(selectedPackage.name);
 
       if (isApiPackage) {
-        // Automatically process via Liana API
         toast.info("Processing your order...");
         
         const { data: apiResult, error: apiError } = await supabase.functions.invoke('process-ml-order', {
@@ -150,7 +225,6 @@ const MobileLegends = () => {
           toast.warning(`Order placed. ${apiResult?.error || 'Processing in progress...'}`);
         }
       } else {
-        // Non-API package - goes through normal order management
         await refreshProfile();
         setShowReviewModal(false);
         setShowSuccessModal(true);
@@ -171,21 +245,15 @@ const MobileLegends = () => {
     setSelectedPackage(null);
     setCurrentOrderId("");
     setPurchaseQuantity(1);
+    setVerifiedIgn(null);
+    setIgnVerification({ show: false, loading: false, ign: "", error: null, variationId: null });
   };
 
   const getButtonText = () => {
-    if (isPlacingOrder) {
-      return "Processing...";
-    }
-    if (!formData.userId || formData.userId.trim() === "") {
-      return "Enter User ID";
-    }
-    if (!formData.zoneId || formData.zoneId.trim() === "") {
-      return "Enter Zone ID";
-    }
-    if (!selectedPackage) {
-      return "Select Package First";
-    }
+    if (isPlacingOrder) return "Processing...";
+    if (!formData.userId || formData.userId.trim() === "") return "Enter User ID";
+    if (!formData.zoneId || formData.zoneId.trim() === "") return "Enter Zone ID";
+    if (!selectedPackage) return "Select Package First";
     return `Buy Now - ₹${totalPrice.toLocaleString()}`;
   };
 
@@ -242,6 +310,20 @@ const MobileLegends = () => {
         </div>
       </div>
 
+      {/* IGN Verification Overlay */}
+      {ignVerification.show && (
+        <MLIgnVerification
+          ign={ignVerification.ign}
+          userId={formData.userId}
+          zoneId={formData.zoneId}
+          isLoading={ignVerification.loading}
+          error={ignVerification.error}
+          onConfirm={handleIgnConfirm}
+          onCancel={handleIgnCancel}
+          onRetry={verifyIgn}
+        />
+      )}
+
       {user && selectedPackage && (
         <MLOrderReview
           isOpen={showReviewModal}
@@ -267,6 +349,7 @@ const MobileLegends = () => {
         onClose={() => setShowSuccessModal(false)}
         orderId={currentOrderId}
         onTopUpAgain={handleTopUpAgain}
+        ign={verifiedIgn}
       />
     </div>
   );

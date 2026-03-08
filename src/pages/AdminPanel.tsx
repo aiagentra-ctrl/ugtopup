@@ -101,6 +101,8 @@ const AdminPanel = () => {
         return <ChatbotSettings />;
       case "vouchers":
         return <VoucherInventory />;
+      case "ml-monitoring":
+        return <MLApiMonitoring />;
       default:
         return <EnhancedDashboard />;
     }
