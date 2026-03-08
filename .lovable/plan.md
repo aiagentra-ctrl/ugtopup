@@ -1,96 +1,58 @@
 
-# Dynamic Website with Advanced Admin Panel
+
+# New Products Page + Product Recommendation Engine
 
 ## Overview
-Make the entire website content dynamic and admin-controlled by creating two new admin sections and supporting database tables. The existing "Products (New)" page (GameProductPrices) will remain completely untouched.
 
-## What Changes
+Create a `/products` page with full catalog, search, filtering, and sorting. Add a `Recommendations.tsx` component powered by `product_orders` data. Add inactive user re-engagement via notifications. Homepage remains untouched.
 
-### Phase 1: Database Setup
+## New Files
 
-**New table: `dynamic_products`** - stores products displayed on the homepage
-- `id`, `title`, `description`, `image_url`, `link`, `category` (topup/voucher/subscription/design), `price`, `discount_price`, `features` (jsonb array), `tags` (text array), `plans` (jsonb array), `display_order`, `is_active`, `created_at`, `updated_at`
+### 1. `src/pages/Products.tsx`
+- Full catalog page with Header/Footer
+- Search bar (filters by product title)
+- Category filter tabs (reuses `useDynamicProducts` data)
+- Sort dropdown: Name A-Z, Price Low-High, Price High-Low, Newest
+- Responsive grid layout (2 cols mobile, 3 tablet, 4-5 desktop)
+- Uses existing `ProductCard` component for each product
+- "Trending Now" section at top using `Recommendations` component
 
-**New table: `product_categories`** - dynamic categories
-- `id`, `name`, `slug`, `display_order`, `is_active`, `created_at`, `updated_at`
+### 2. `src/components/Recommendations.tsx`
+- Reusable component accepting props: `type` ("frequently_bought" | "trending" | "popular"), optional `currentProductCategory`
+- Fetches from `product_orders` table to calculate:
+  - **Trending**: Most ordered products in the last 7 days (group by `product_name`, count orders)
+  - **Frequently Bought Together**: For a given product category, find other categories users also ordered (co-purchase analysis from same `user_id`)
+  - **Popular**: All-time most ordered products
+- Displays as horizontal scrollable card row with product images from `dynamic_products` or `game_product_prices`
+- Falls back gracefully if no order data exists
 
-**New table: `offers`** - dynamic offer/deal sections
-- `id`, `title`, `subtitle`, `description`, `image_url`, `offer_type` (flash_sale/limited_time/daily_deal/discount_bundle), `timer_enabled`, `timer_type` (hours/days/both/none), `timer_end_date`, `product_link`, `custom_icon_url`, `display_order`, `is_active`, `show_on_homepage`, `show_on_product_page`, `created_at`, `updated_at`
+### 3. `src/hooks/useRecommendations.ts`
+- Hook that queries `product_orders` for recommendation data
+- `useTrending()`: SELECT product_name, product_category, COUNT(*) FROM product_orders WHERE created_at > now() - interval '7 days' GROUP BY product_name, product_category ORDER BY count DESC LIMIT 8
+- `useFrequentlyBoughtTogether(category)`: Find users who ordered in this category, then find their other top categories
+- Caches with react-query (staleTime 30 min)
 
-RLS: Public SELECT for active items, admin ALL for management.
+## Modified Files
 
-**Seed `dynamic_products`** with current hardcoded data from ProductTabs so nothing changes visually on day one.
+### `src/App.tsx`
+- Add `import Products from "./pages/Products"`
+- Add route: `<Route path="/products" element={<Products />} />`
 
-### Phase 2: Admin Panel - Product Update Page (new section)
+### `src/components/Header.tsx`
+- Add "Products" link in navigation (both desktop and mobile menu)
 
-Add a new sidebar menu item **"Product Update"** in AdminLayout.
+## No Database Changes Required
+- All recommendation queries use existing `product_orders` table (read-only)
+- Product data comes from existing `dynamic_products` + `product_categories`
 
-New component: `src/components/admin/DynamicProductManager.tsx`
-- Full CRUD table listing all dynamic products
-- Inline editing with image upload (to `product-images` storage bucket)
-- Fields: title, description, image, link, category, price, discount price, features (add/remove chips), tags (add/remove), plans (JSON editor)
-- Product preview panel showing how it looks on the frontend
-- Search, filter by category, drag-to-reorder
+## User Re-engagement
+- Add a section in `Recommendations.tsx` that can be rendered on the Dashboard page for returning users
+- The inactive user notification system (automated campaigns) is already seeded as a feature flag (`automated_campaigns`) — the actual cron edge function would be a separate task
 
-New component: `src/components/admin/CategoryManager.tsx`
-- Add/rename/delete categories
-- Reorder categories via drag or arrows
-- Auto-updates category options across the product form
+## Implementation Order
+1. Create `useRecommendations.ts` hook
+2. Create `Recommendations.tsx` component
+3. Create `Products.tsx` page
+4. Update `App.tsx` with route
+5. Add navigation link in `Header.tsx`
 
-### Phase 3: Admin Panel - Offer Management Page (new section)
-
-Add a new sidebar menu item **"Offers"** in AdminLayout.
-
-New component: `src/components/admin/OfferManager.tsx`
-- List all offers with enable/disable toggle
-- Add new offer with form: title, subtitle, description, image upload, offer type selector, timer controls (enable/disable, type, end date), product link picker
-- Edit existing offers inline
-- Reorder offers
-- Toggle homepage/product page visibility
-
-### Phase 4: Frontend - Make ProductTabs Dynamic
-
-Update `src/components/ProductTabs.tsx`:
-- Fetch products from `dynamic_products` table instead of hardcoded `productData`
-- Fetch categories from `product_categories` table for tab names
-- Keep the exact same visual layout, just swap data source
-- Real-time subscription so admin changes appear instantly
-
-### Phase 5: Frontend - Make BestDeals/Offers Dynamic
-
-Update `src/components/BestDeals.tsx`:
-- Fetch active homepage offers from `offers` table
-- Render offer blocks dynamically with optional countdown timers
-- Keep existing visual style, just make content admin-controlled
-
-### What Will NOT Change
-- **"Products (New)" page** (`GameProductPrices` component) -- zero modifications
-- **Existing `ProductsList`** component -- untouched
-- **Game pricing system** (`game_product_prices` table) -- untouched
-- **Overall website design/layout** -- only data sources change
-
-## Technical Details
-
-### New Files
-- `src/components/admin/DynamicProductManager.tsx` - Product Update admin page
-- `src/components/admin/CategoryManager.tsx` - Category management
-- `src/components/admin/OfferManager.tsx` - Offer management admin page
-- `src/lib/dynamicProductApi.ts` - API functions for dynamic products/categories
-- `src/lib/offerApi.ts` - API functions for offers
-- `src/hooks/useDynamicProducts.ts` - Frontend hook with real-time subscriptions
-- `src/hooks/useOffers.ts` - Frontend hook for offers
-
-### Modified Files
-- `src/components/admin/AdminLayout.tsx` - Add 3 new sidebar items (Product Update, Categories, Offers)
-- `src/pages/AdminPanel.tsx` - Add new section cases in switch
-- `src/components/ProductTabs.tsx` - Replace hardcoded data with database fetch
-- `src/components/BestDeals.tsx` - Replace hardcoded deals with database fetch
-
-### New Storage Bucket
-- `product-images` (public) for product image uploads
-
-### Database Migration
-- Create `dynamic_products`, `product_categories`, `offers` tables
-- Create `product-images` storage bucket
-- RLS policies for all new tables
-- Seed initial data from current hardcoded products
