@@ -15,7 +15,11 @@ export interface DynamicProduct {
   plans: any[];
   display_order: number;
   is_active: boolean;
+  offer_id: string | null;
+  offer_badge_text: string | null;
+  offer_badge_color: string | null;
   product_categories?: { id: string; name: string; slug: string } | null;
+  offers?: { id: string; badge_text: string | null; badge_color: string | null; badge_text_color: string | null; animation_type: string | null; design_template: string } | null;
 }
 
 export interface ProductCategory {
@@ -36,7 +40,7 @@ export function useDynamicProducts() {
       const [prodRes, catRes] = await Promise.all([
         supabase
           .from("dynamic_products")
-          .select("*, product_categories(id, name, slug)")
+          .select("*, product_categories(id, name, slug), offers(id, badge_text, badge_color, badge_text_color, animation_type, design_template)")
           .eq("is_active", true)
           .order("display_order"),
         supabase
