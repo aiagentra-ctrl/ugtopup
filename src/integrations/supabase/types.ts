@@ -1048,6 +1048,42 @@ export type Database = {
         }
         Relationships: []
       }
+      page_views: {
+        Row: {
+          created_at: string
+          id: string
+          page_path: string
+          page_title: string | null
+          referrer: string | null
+          session_id: string
+          traffic_source: string
+          user_agent: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          page_path: string
+          page_title?: string | null
+          referrer?: string | null
+          session_id: string
+          traffic_source?: string
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          page_path?: string
+          page_title?: string | null
+          referrer?: string | null
+          session_id?: string
+          traffic_source?: string
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       payment_request_history: {
         Row: {
           changed_at: string | null
@@ -1907,6 +1943,42 @@ export type Database = {
           id?: string
           role?: Database["public"]["Enums"]["app_role"]
           user_id?: string
+        }
+        Relationships: []
+      }
+      visitor_sessions: {
+        Row: {
+          id: string
+          is_bounce: boolean
+          last_active_at: string
+          page_count: number
+          referrer: string | null
+          session_id: string
+          started_at: string
+          traffic_source: string
+          user_id: string | null
+        }
+        Insert: {
+          id?: string
+          is_bounce?: boolean
+          last_active_at?: string
+          page_count?: number
+          referrer?: string | null
+          session_id: string
+          started_at?: string
+          traffic_source?: string
+          user_id?: string | null
+        }
+        Update: {
+          id?: string
+          is_bounce?: boolean
+          last_active_at?: string
+          page_count?: number
+          referrer?: string | null
+          session_id?: string
+          started_at?: string
+          traffic_source?: string
+          user_id?: string | null
         }
         Relationships: []
       }
