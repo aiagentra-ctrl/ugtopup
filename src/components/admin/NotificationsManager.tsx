@@ -21,6 +21,7 @@ import {
   getNotificationStats,
   uploadNotificationImage,
   deleteNotificationImage,
+  resolveUsernamesToEmails,
 } from '@/lib/notificationApi';
 import { format } from 'date-fns';
 
@@ -38,7 +39,8 @@ const NotificationsManager = () => {
   const [formTitle, setFormTitle] = useState('');
   const [formMessage, setFormMessage] = useState('');
   const [formTargetType, setFormTargetType] = useState<'all' | 'specific'>('all');
-  const [formTargetEmails, setFormTargetEmails] = useState('');
+  const [formTargetInput, setFormTargetInput] = useState('');
+  const [formTargetMode, setFormTargetMode] = useState<'email' | 'username'>('email');
   const [formNotificationType, setFormNotificationType] = useState<'admin' | 'general'>('admin');
   const [formImageFile, setFormImageFile] = useState<File | null>(null);
   const [formImagePreview, setFormImagePreview] = useState<string | null>(null);
@@ -50,10 +52,9 @@ const NotificationsManager = () => {
       const data = await fetchAllNotifications();
       setNotifications(data);
 
-      // Load stats for each notification
       const statsMap: Record<string, NotificationStats> = {};
       await Promise.all(
-        data.map(async (n) => {
+        data.slice(0, 20).map(async (n) => {
           statsMap[n.id] = await getNotificationStats(n.id);
         })
       );
@@ -85,7 +86,8 @@ const NotificationsManager = () => {
     setFormTitle('');
     setFormMessage('');
     setFormTargetType('all');
-    setFormTargetEmails('');
+    setFormTargetInput('');
+    setFormTargetMode('email');
     setFormNotificationType('admin');
     setFormImageFile(null);
     setFormImagePreview(null);
@@ -103,7 +105,8 @@ const NotificationsManager = () => {
     setFormTitle(notification.title);
     setFormMessage(notification.message);
     setFormTargetType(notification.target_type);
-    setFormTargetEmails(notification.target_emails?.join(', ') || '');
+    setFormTargetInput(notification.target_emails?.join(', ') || '');
+    setFormTargetMode('email');
     setFormNotificationType(notification.notification_type || 'admin');
     setExistingImageUrl(notification.image_url);
     setFormImagePreview(notification.image_url);
@@ -130,8 +133,8 @@ const NotificationsManager = () => {
       return;
     }
 
-    if (formTargetType === 'specific' && !formTargetEmails.trim()) {
-      toast({ title: 'Error', description: 'Please enter target emails', variant: 'destructive' });
+    if (formTargetType === 'specific' && !formTargetInput.trim()) {
+      toast({ title: 'Error', description: 'Please enter target users', variant: 'destructive' });
       return;
     }
 
@@ -139,18 +142,27 @@ const NotificationsManager = () => {
     try {
       let imageUrl = existingImageUrl;
 
-      // Upload new image if selected
       if (formImageFile) {
         imageUrl = await uploadNotificationImage(formImageFile);
-        // Delete old image if replacing
         if (existingImageUrl && editingNotification) {
           await deleteNotificationImage(existingImageUrl);
         }
       }
 
-      const targetEmails = formTargetType === 'specific'
-        ? formTargetEmails.split(',').map(e => e.trim()).filter(e => e)
-        : null;
+      let targetEmails: string[] | null = null;
+      if (formTargetType === 'specific') {
+        const inputs = formTargetInput.split(',').map(e => e.trim()).filter(e => e);
+        if (formTargetMode === 'username') {
+          targetEmails = await resolveUsernamesToEmails(inputs);
+          if (targetEmails.length === 0) {
+            toast({ title: 'Error', description: 'No users found with those usernames', variant: 'destructive' });
+            setSubmitting(false);
+            return;
+          }
+        } else {
+          targetEmails = inputs;
+        }
+      }
 
       if (editingNotification) {
         await updateNotification(editingNotification.id, {
@@ -285,7 +297,7 @@ const NotificationsManager = () => {
                       </div>
                       <div className="flex flex-col gap-1 items-end">
                         <Badge variant={notification.notification_type === 'admin' ? 'default' : 'secondary'}>
-                          {notification.notification_type === 'admin' ? 'Admin' : 'General'}
+                          {notification.notification_type === 'admin' ? 'Admin' : 'System'}
                         </Badge>
                         <Badge variant={notification.target_type === 'all' ? 'outline' : 'secondary'}>
                           {notification.target_type === 'all' ? (
@@ -364,21 +376,21 @@ const NotificationsManager = () => {
                   <SelectItem value="admin">
                     <div className="flex items-center gap-2">
                       <Shield className="h-4 w-4" />
-                      Admin Notification
+                      Admin Message
                     </div>
                   </SelectItem>
                   <SelectItem value="general">
                     <div className="flex items-center gap-2">
                       <Megaphone className="h-4 w-4" />
-                      General Notification
+                      System / General
                     </div>
                   </SelectItem>
                 </SelectContent>
               </Select>
               <p className="text-xs text-muted-foreground">
                 {formNotificationType === 'admin' 
-                  ? 'Admin notifications appear in the "Admin" tab for users'
-                  : 'General notifications appear in the "General" tab for users'}
+                  ? 'Shows in "Admin" tab — use for direct messages, announcements'
+                  : 'Shows in "System" tab — use for order updates, offers, rewards'}
               </p>
             </div>
 
@@ -434,15 +446,42 @@ const NotificationsManager = () => {
             </div>
 
             {formTargetType === 'specific' && (
-              <div className="space-y-2">
-                <Label htmlFor="emails">Enter user emails (comma separated)</Label>
-                <Textarea
-                  id="emails"
-                  placeholder="user1@email.com, user2@email.com"
-                  value={formTargetEmails}
-                  onChange={(e) => setFormTargetEmails(e.target.value)}
-                  rows={2}
-                />
+              <div className="space-y-3">
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    variant={formTargetMode === 'email' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setFormTargetMode('email')}
+                  >
+                    By Email
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={formTargetMode === 'username' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setFormTargetMode('username')}
+                  >
+                    By Username
+                  </Button>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="targets">
+                    {formTargetMode === 'email' ? 'Enter emails (comma separated)' : 'Enter usernames (comma separated)'}
+                  </Label>
+                  <Textarea
+                    id="targets"
+                    placeholder={formTargetMode === 'email' ? 'user1@email.com, user2@email.com' : 'user1, user2, user3'}
+                    value={formTargetInput}
+                    onChange={(e) => setFormTargetInput(e.target.value)}
+                    rows={2}
+                  />
+                  {formTargetMode === 'username' && (
+                    <p className="text-xs text-muted-foreground">
+                      Usernames will be resolved to emails before sending
+                    </p>
+                  )}
+                </div>
               </div>
             )}
           </div>

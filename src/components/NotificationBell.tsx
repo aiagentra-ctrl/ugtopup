@@ -1,10 +1,11 @@
 import { useState, useRef, useEffect } from 'react';
-import { Bell } from 'lucide-react';
+import { Bell, CheckCheck } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useUnreadNotifications } from '@/hooks/useUnreadNotifications';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { formatDistanceToNow } from 'date-fns';
+import { markAllNotificationsAsRead } from '@/lib/notificationApi';
 
 interface NotificationItem {
   id: string;
@@ -15,15 +16,17 @@ interface NotificationItem {
     title: string;
     message: string;
     image_url: string | null;
+    notification_type: string;
   };
 }
 
 export const NotificationBell = () => {
   const { user } = useAuth();
-  const { unreadCount } = useUnreadNotifications();
+  const { unreadCount, refetch } = useUnreadNotifications();
   const [isOpen, setIsOpen] = useState(false);
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [loading, setLoading] = useState(false);
+  const [markingAll, setMarkingAll] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   // Close dropdown on outside click
@@ -42,10 +45,10 @@ export const NotificationBell = () => {
     setLoading(true);
     const { data } = await supabase
       .from('user_notifications')
-      .select('id, notification_id, is_read, created_at, notification:notifications(title, message, image_url)')
+      .select('id, notification_id, is_read, created_at, notification:notifications(title, message, image_url, notification_type)')
       .eq('user_id', user.id)
       .order('created_at', { ascending: false })
-      .limit(5);
+      .limit(6);
     setNotifications((data as unknown as NotificationItem[]) || []);
     setLoading(false);
   };
@@ -60,11 +63,30 @@ export const NotificationBell = () => {
       .from('user_notifications')
       .update({ is_read: true, read_at: new Date().toISOString() })
       .eq('id', id);
+    refetch();
   };
 
   const handleNotificationClick = (item: NotificationItem) => {
     if (!item.is_read) markAsRead(item.id);
     setIsOpen(false);
+  };
+
+  const handleMarkAllRead = async () => {
+    setMarkingAll(true);
+    try {
+      await markAllNotificationsAsRead();
+      setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
+      refetch();
+    } catch (e) {
+      console.error('Failed to mark all read:', e);
+    } finally {
+      setMarkingAll(false);
+    }
+  };
+
+  const getTypeIcon = (type: string) => {
+    if (type === 'admin') return '🔔';
+    return '📢';
   };
 
   return (
@@ -76,7 +98,7 @@ export const NotificationBell = () => {
       >
         <Bell className="h-4 w-4 sm:h-5 sm:w-5 text-white/70" />
         {unreadCount > 0 && (
-          <span className="absolute -top-1 -right-1 flex items-center justify-center min-w-[16px] h-[16px] sm:min-w-[18px] sm:h-[18px] px-0.5 sm:px-1 text-[9px] sm:text-[10px] font-bold text-white bg-red-500 rounded-full leading-none">
+          <span className="absolute -top-1 -right-1 flex items-center justify-center min-w-[16px] h-[16px] sm:min-w-[18px] sm:h-[18px] px-0.5 sm:px-1 text-[9px] sm:text-[10px] font-bold text-white bg-red-500 rounded-full leading-none animate-pulse">
             {unreadCount > 99 ? '99+' : unreadCount}
           </span>
         )}
@@ -86,12 +108,26 @@ export const NotificationBell = () => {
         <div className="absolute right-0 top-10 sm:top-12 w-72 sm:w-80 bg-card border border-border rounded-xl shadow-xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
           <div className="flex items-center justify-between px-4 py-3 border-b border-border">
             <h3 className="text-sm font-semibold text-foreground">Notifications</h3>
-            {unreadCount > 0 && (
-              <span className="text-xs text-muted-foreground">{unreadCount} unread</span>
-            )}
+            <div className="flex items-center gap-2">
+              {unreadCount > 0 && (
+                <button
+                  onClick={handleMarkAllRead}
+                  disabled={markingAll}
+                  className="flex items-center gap-1 text-[10px] font-medium text-primary hover:text-primary/80 transition-colors disabled:opacity-50"
+                >
+                  <CheckCheck className="h-3 w-3" />
+                  Mark all read
+                </button>
+              )}
+              {unreadCount > 0 && (
+                <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded-full">
+                  {unreadCount}
+                </span>
+              )}
+            </div>
           </div>
 
-          <div className="max-h-72 overflow-y-auto">
+          <div className="max-h-80 overflow-y-auto">
             {loading ? (
               <div className="px-4 py-6 text-center text-sm text-muted-foreground">Loading...</div>
             ) : notifications.length === 0 ? (
@@ -112,6 +148,7 @@ export const NotificationBell = () => {
                     )}
                     <div className={!item.is_read ? '' : 'pl-5'}>
                       <p className="text-sm font-medium text-foreground line-clamp-1">
+                        <span className="mr-1">{getTypeIcon(item.notification?.notification_type)}</span>
                         {item.notification?.title || 'Notification'}
                       </p>
                       <p className="text-xs text-muted-foreground line-clamp-2 mt-0.5">

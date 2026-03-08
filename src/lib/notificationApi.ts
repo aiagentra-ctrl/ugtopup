@@ -142,10 +142,14 @@ export const fetchUserNotifications = async (notificationType?: 'admin' | 'gener
 };
 
 export const markNotificationAsRead = async (userNotificationId: string): Promise<void> => {
+  const { data: userData } = await supabase.auth.getUser();
+  if (!userData?.user?.id) return;
+
   const { error } = await supabase
     .from('user_notifications')
     .update({ is_read: true, read_at: new Date().toISOString() })
-    .eq('id', userNotificationId);
+    .eq('id', userNotificationId)
+    .eq('user_id', userData.user.id);
 
   if (error) throw error;
 };
@@ -154,23 +158,28 @@ export const markAllNotificationsAsRead = async (notificationType?: 'admin' | 'g
   const { data: userData } = await supabase.auth.getUser();
   if (!userData?.user?.id) return;
 
-  // If filtering by type, we need to get the notification IDs first
   if (notificationType) {
-    const { data: notifications } = await supabase
-      .from('notifications')
-      .select('id')
-      .eq('notification_type', notificationType);
-    
-    if (notifications && notifications.length > 0) {
-      const notificationIds = notifications.map(n => n.id);
-      const { error } = await supabase
-        .from('user_notifications')
-        .update({ is_read: true, read_at: new Date().toISOString() })
-        .eq('user_id', userData.user.id)
-        .eq('is_read', false)
-        .in('notification_id', notificationIds);
+    // Fetch user's own unread notifications with join to filter by type
+    const { data: unreadNotifs } = await supabase
+      .from('user_notifications')
+      .select('id, notification:notifications(notification_type)')
+      .eq('user_id', userData.user.id)
+      .eq('is_read', false);
 
-      if (error) throw error;
+    if (unreadNotifs && unreadNotifs.length > 0) {
+      const idsToMark = unreadNotifs
+        .filter(un => (un.notification as any)?.notification_type === notificationType)
+        .map(un => un.id);
+
+      if (idsToMark.length > 0) {
+        const { error } = await supabase
+          .from('user_notifications')
+          .update({ is_read: true, read_at: new Date().toISOString() })
+          .eq('user_id', userData.user.id)
+          .in('id', idsToMark);
+
+        if (error) throw error;
+      }
     }
   } else {
     const { error } = await supabase
@@ -195,6 +204,17 @@ export const getUnreadCount = async (): Promise<number> => {
 
   if (error) throw error;
   return count || 0;
+};
+
+// Resolve usernames to emails for targeting
+export const resolveUsernamesToEmails = async (usernames: string[]): Promise<string[]> => {
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('email, username')
+    .in('username', usernames);
+
+  if (error) throw error;
+  return (data || []).map(p => p.email);
 };
 
 // Storage functions

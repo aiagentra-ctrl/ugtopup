@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Bell, CheckCheck, ArrowLeft, Shield, Megaphone } from 'lucide-react';
+import { Bell, CheckCheck, ArrowLeft, Shield, Megaphone, Package, CreditCard, Gift, AlertTriangle } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
+import { useUnreadNotifications } from '@/hooks/useUnreadNotifications';
 import {
   UserNotification,
   fetchUserNotifications,
@@ -18,9 +19,19 @@ import { format } from 'date-fns';
 import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
 
+const getNotificationIcon = (title: string) => {
+  const t = title.toLowerCase();
+  if (t.includes('order')) return <Package className="h-4 w-4 text-blue-500" />;
+  if (t.includes('credit') || t.includes('payment') || t.includes('wallet')) return <CreditCard className="h-4 w-4 text-green-500" />;
+  if (t.includes('reward') || t.includes('milestone') || t.includes('coupon') || t.includes('referral')) return <Gift className="h-4 w-4 text-yellow-500" />;
+  if (t.includes('fail') || t.includes('error') || t.includes('alert')) return <AlertTriangle className="h-4 w-4 text-red-500" />;
+  return <Bell className="h-4 w-4 text-primary" />;
+};
+
 const UserNotifications = () => {
   const { toast } = useToast();
   const { user } = useAuth();
+  const { refetch: refetchUnread } = useUnreadNotifications();
   const [adminNotifications, setAdminNotifications] = useState<UserNotification[]>([]);
   const [generalNotifications, setGeneralNotifications] = useState<UserNotification[]>([]);
   const [loading, setLoading] = useState(true);
@@ -59,6 +70,7 @@ const UserNotifications = () => {
           },
           () => {
             loadNotifications();
+            refetchUnread();
           }
         )
         .subscribe();
@@ -79,6 +91,7 @@ const UserNotifications = () => {
       
       setAdminNotifications(updateList);
       setGeneralNotifications(updateList);
+      refetchUnread();
     } catch (error) {
       console.error('Error marking as read:', error);
     }
@@ -95,6 +108,7 @@ const UserNotifications = () => {
       } else {
         setGeneralNotifications(markAllRead);
       }
+      refetchUnread();
       toast({ title: 'Success', description: 'All notifications marked as read' });
     } catch (error) {
       console.error('Error marking all as read:', error);
@@ -114,24 +128,28 @@ const UserNotifications = () => {
       <Card
         key={userNotification.id}
         className={`cursor-pointer transition-all hover:shadow-md ${
-          !userNotification.is_read ? 'border-primary/50 bg-primary/5' : ''
+          !userNotification.is_read ? 'border-primary/50 bg-primary/5' : 'opacity-80'
         }`}
         onClick={() => handleMarkAsRead(userNotification)}
       >
         <CardContent className="p-4">
           <div className="flex gap-4">
-            {notification.image_url && (
+            {notification.image_url ? (
               <img
                 src={notification.image_url}
                 alt=""
-                className="w-16 h-16 sm:w-20 sm:h-20 object-cover rounded-lg shrink-0"
+                className="w-14 h-14 sm:w-16 sm:h-16 object-cover rounded-lg shrink-0"
               />
+            ) : (
+              <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-lg bg-muted flex items-center justify-center shrink-0">
+                {getNotificationIcon(notification.title)}
+              </div>
             )}
             <div className="flex-1 min-w-0">
               <div className="flex items-start justify-between gap-2">
                 <h3 className="font-semibold flex items-center gap-2 text-sm sm:text-base">
                   {!userNotification.is_read && (
-                    <span className="w-2 h-2 bg-primary rounded-full shrink-0" />
+                    <span className="w-2 h-2 bg-primary rounded-full shrink-0 animate-pulse" />
                   )}
                   {notification.title}
                 </h3>
@@ -168,8 +186,8 @@ const UserNotifications = () => {
         </h3>
         <p className="text-muted-foreground text-sm">
           {type === 'admin' 
-            ? 'No notifications from admin yet. Check back later!' 
-            : 'No system notifications at the moment.'}
+            ? 'Messages from admin will appear here.' 
+            : 'Order updates, payment confirmations and rewards will appear here.'}
         </p>
       </CardContent>
     </Card>
@@ -181,7 +199,7 @@ const UserNotifications = () => {
         <Card key={i} className="animate-pulse">
           <CardContent className="p-4">
             <div className="flex gap-4">
-              <div className="w-16 h-16 bg-muted rounded-lg shrink-0" />
+              <div className="w-14 h-14 bg-muted rounded-lg shrink-0" />
               <div className="flex-1">
                 <div className="h-5 bg-muted rounded w-1/3 mb-2" />
                 <div className="h-4 bg-muted rounded w-2/3 mb-2" />
@@ -212,7 +230,7 @@ const UserNotifications = () => {
               Your Notifications
             </h1>
             <p className="text-muted-foreground text-sm">
-              {totalUnread > 0 ? `${totalUnread} unread notification${totalUnread > 1 ? 's' : ''}` : 'All caught up!'}
+              {totalUnread > 0 ? `${totalUnread} unread notification${totalUnread > 1 ? 's' : ''}` : 'All caught up! 🎉'}
             </p>
           </div>
         </div>
@@ -223,18 +241,18 @@ const UserNotifications = () => {
             <TabsList className="grid w-full sm:w-auto grid-cols-2 h-auto">
               <TabsTrigger value="admin" className="gap-2 py-2.5 px-4">
                 <Shield className="h-4 w-4" />
-                <span className="hidden sm:inline">Admin</span>
+                <span>Admin</span>
                 {adminNotifications.filter(n => !n.is_read).length > 0 && (
-                  <Badge variant="destructive" className="ml-1 h-5 w-5 p-0 flex items-center justify-center text-xs">
+                  <Badge variant="destructive" className="ml-1 h-5 min-w-[20px] p-0 flex items-center justify-center text-xs">
                     {adminNotifications.filter(n => !n.is_read).length}
                   </Badge>
                 )}
               </TabsTrigger>
               <TabsTrigger value="general" className="gap-2 py-2.5 px-4">
                 <Megaphone className="h-4 w-4" />
-                <span className="hidden sm:inline">General</span>
+                <span>System</span>
                 {generalNotifications.filter(n => !n.is_read).length > 0 && (
-                  <Badge variant="destructive" className="ml-1 h-5 w-5 p-0 flex items-center justify-center text-xs">
+                  <Badge variant="destructive" className="ml-1 h-5 min-w-[20px] p-0 flex items-center justify-center text-xs">
                     {generalNotifications.filter(n => !n.is_read).length}
                   </Badge>
                 )}
@@ -249,12 +267,13 @@ const UserNotifications = () => {
                 className="gap-2 w-full sm:w-auto"
               >
                 <CheckCheck className="h-4 w-4" />
-                Mark All Read
+                Mark All Read ({unreadCount})
               </Button>
             )}
           </div>
 
           <TabsContent value="admin" className="mt-0">
+            <p className="text-xs text-muted-foreground mb-3">Messages and announcements from admin</p>
             {loading ? (
               renderLoadingSkeleton()
             ) : adminNotifications.length === 0 ? (
@@ -267,6 +286,7 @@ const UserNotifications = () => {
           </TabsContent>
 
           <TabsContent value="general" className="mt-0">
+            <p className="text-xs text-muted-foreground mb-3">Order updates, payment confirmations, rewards & offers</p>
             {loading ? (
               renderLoadingSkeleton()
             ) : generalNotifications.length === 0 ? (
