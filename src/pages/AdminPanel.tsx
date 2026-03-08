@@ -36,6 +36,7 @@ import { AnnouncementManager } from "@/components/admin/AnnouncementManager";
 import { UserAnalytics } from "@/components/admin/UserAnalytics";
 import { MaintenanceLog } from "@/components/admin/MaintenanceLog";
 import { DatabaseManagement } from "@/components/admin/DatabaseManagement";
+import { SystemHealthMonitor } from "@/components/admin/SystemHealthMonitor";
 import { checkAdminAccess } from "@/lib/adminApi";
 import { useAdminPushNotifications } from "@/hooks/useAdminPushNotifications";
 import { toast } from "sonner";
