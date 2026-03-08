@@ -21,6 +21,7 @@ import {
   Smartphone,
   Trophy,
   UserPlus,
+  HeartPulse,
 } from "lucide-react";
 import {
   Sidebar,
