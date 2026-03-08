@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Gift, Ticket, Trophy, Copy, Check, Clock, CheckCircle2 } from "lucide-react";
+import { Gift, Ticket, Trophy, Copy, Check, Clock, CheckCircle2, ShoppingBag, Award } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 
@@ -75,106 +75,150 @@ const Rewards = () => {
     }
   };
 
-  const CouponCard = ({ coupon }: { coupon: Coupon }) => (
-    <div className="flex items-center justify-between p-4 rounded-xl border border-border bg-card/50 gap-3">
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2 mb-1">
-          <span className="font-bold text-lg text-primary">
-            {coupon.discount_type === 'fixed' ? `₹${coupon.discount_value} OFF` : `${coupon.discount_value || coupon.discount_percent}% OFF`}
-          </span>
-          <Badge variant="outline" className="text-xs">{sourceLabel(coupon.source)}</Badge>
-          {coupon.is_used && <Badge variant="secondary" className="text-xs">Used</Badge>}
-        </div>
-        <p className="font-mono text-sm text-foreground tracking-wider">{coupon.code}</p>
-        <p className="text-xs text-muted-foreground mt-1">
-          {coupon.is_used
-            ? `Used on ${format(new Date(coupon.used_at!), "MMM d, yyyy")}`
-            : new Date(coupon.expires_at) <= new Date()
-              ? "Expired"
-              : `Expires ${format(new Date(coupon.expires_at), "MMM d, yyyy")}`}
-        </p>
-      </div>
-      {!coupon.is_used && new Date(coupon.expires_at) > new Date() && (
-        <Button size="sm" variant="outline" onClick={() => handleCopy(coupon.code, coupon.id)}>
-          {copiedId === coupon.id ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-        </Button>
-      )}
-    </div>
-  );
-
   return (
     <div className="min-h-screen bg-background">
       <Header />
-      <main className="container mx-auto px-4 py-8 max-w-4xl">
-        <div className="mb-8 animate-fade-in">
-          <h1 className="text-3xl font-bold text-foreground mb-2 flex items-center gap-2">
-            <Gift className="h-8 w-8 text-primary" /> Rewards & Coupons
+      <main className="container mx-auto px-4 py-8 max-w-4xl space-y-6">
+        {/* Page Header */}
+        <div className="animate-fade-in">
+          <h1 className="text-2xl md:text-3xl font-bold text-foreground mb-1 flex items-center gap-2">
+            <Gift className="h-7 w-7 text-primary" /> Rewards & Coupons
           </h1>
-          <p className="text-muted-foreground">Earn coupons by completing orders and referring friends</p>
+          <p className="text-sm text-muted-foreground">Earn coupons by completing orders and referring friends</p>
         </div>
 
-        {/* Milestone Progress */}
-        <Card className="mb-6 bg-card border-border">
-          <CardHeader>
+        {/* Summary Stats */}
+        <div className="grid grid-cols-3 gap-3 animate-fade-in">
+          <Card className="border-border">
+            <CardContent className="p-4 flex flex-col items-center text-center">
+              <ShoppingBag className="h-5 w-5 text-primary mb-1" />
+              <p className="text-2xl font-bold text-primary">{completedOrders}</p>
+              <p className="text-[11px] text-muted-foreground">Orders Done</p>
+            </CardContent>
+          </Card>
+          <Card className="border-border">
+            <CardContent className="p-4 flex flex-col items-center text-center">
+              <Ticket className="h-5 w-5 text-primary mb-1" />
+              <p className="text-2xl font-bold text-primary">{availableCoupons.length}</p>
+              <p className="text-[11px] text-muted-foreground">Coupons Ready</p>
+            </CardContent>
+          </Card>
+          <Card className="border-border">
+            <CardContent className="p-4 flex flex-col items-center text-center">
+              <Award className="h-5 w-5 text-primary mb-1" />
+              <p className="text-2xl font-bold text-primary">{usedCoupons.length}</p>
+              <p className="text-[11px] text-muted-foreground">Coupons Used</p>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Visual Milestone Stepper */}
+        <Card className="border-border animate-fade-in">
+          <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-lg">
               <Trophy className="h-5 w-5 text-primary" /> Milestone Progress
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-sm text-muted-foreground mb-4">
-              You've completed <span className="font-bold text-primary">{completedOrders}</span> orders
-            </p>
-            <div className="space-y-3">
-              {milestones.map((m) => {
-                const reached = completedOrders >= m.order_count;
-                const progress = Math.min((completedOrders / m.order_count) * 100, 100);
-                return (
-                  <div key={m.id} className="space-y-1">
-                    <div className="flex items-center justify-between text-sm">
-                      <span className={reached ? "text-primary font-medium" : "text-muted-foreground"}>
-                        {reached ? <CheckCircle2 className="inline h-4 w-4 mr-1" /> : <Clock className="inline h-4 w-4 mr-1" />}
-                        {m.order_count} orders → {m.discount_percent}% OFF
-                      </span>
-                      <span className="text-xs text-muted-foreground">{completedOrders}/{m.order_count}</span>
+            {milestones.length === 0 && !loading ? (
+              <p className="text-sm text-muted-foreground text-center py-4">No milestones configured yet.</p>
+            ) : (
+              <div className="relative">
+                {milestones.map((m, idx) => {
+                  const reached = completedOrders >= m.order_count;
+                  const isLast = idx === milestones.length - 1;
+                  return (
+                    <div key={m.id} className="flex items-start gap-4 relative">
+                      {/* Vertical connector line */}
+                      {!isLast && (
+                        <div className="absolute left-[15px] top-[32px] w-[2px] h-[calc(100%-16px)] bg-border" />
+                      )}
+                      {/* Step circle */}
+                      <div className={`relative z-10 flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold border-2 ${
+                        reached
+                          ? "bg-primary border-primary text-primary-foreground"
+                          : "bg-muted border-border text-muted-foreground"
+                      }`}>
+                        {reached ? <CheckCircle2 className="h-4 w-4" /> : idx + 1}
+                      </div>
+                      {/* Content */}
+                      <div className={`flex-1 pb-6 ${reached ? "" : "opacity-60"}`}>
+                        <div className="flex items-center gap-2 mb-0.5">
+                          <span className="font-semibold text-sm text-foreground">
+                            {m.order_count} Orders
+                          </span>
+                          <Badge variant={reached ? "default" : "outline"} className="text-[10px]">
+                            {m.discount_percent}% OFF
+                          </Badge>
+                          {reached && <Badge variant="secondary" className="text-[10px]">Unlocked</Badge>}
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          {reached
+                            ? "Coupon rewarded! Check your coupons below."
+                            : `${m.order_count - completedOrders} more order${m.order_count - completedOrders > 1 ? "s" : ""} to unlock`}
+                        </p>
+                      </div>
                     </div>
-                    <div className="h-2 rounded-full bg-muted overflow-hidden">
-                      <div
-                        className={`h-full rounded-full transition-all ${reached ? "bg-primary" : "bg-primary/40"}`}
-                        style={{ width: `${progress}%` }}
-                      />
-                    </div>
-                  </div>
-                );
-              })}
-              {milestones.length === 0 && !loading && (
-                <p className="text-sm text-muted-foreground">No milestones configured yet.</p>
-              )}
-            </div>
+                  );
+                })}
+              </div>
+            )}
           </CardContent>
         </Card>
 
-        {/* Coupons Tabs */}
+        {/* Coupons Tabs with Ticket-Style Cards */}
         <Tabs defaultValue="available" className="animate-fade-in">
           <TabsList className="w-full grid grid-cols-3">
             <TabsTrigger value="available">Available ({availableCoupons.length})</TabsTrigger>
             <TabsTrigger value="used">Used ({usedCoupons.length})</TabsTrigger>
             <TabsTrigger value="expired">Expired ({expiredCoupons.length})</TabsTrigger>
           </TabsList>
-          <TabsContent value="available" className="space-y-3 mt-4">
-            {availableCoupons.length === 0 ? (
-              <p className="text-center text-muted-foreground py-8">No available coupons. Keep ordering to earn rewards!</p>
-            ) : availableCoupons.map(c => <CouponCard key={c.id} coupon={c} />)}
-          </TabsContent>
-          <TabsContent value="used" className="space-y-3 mt-4">
-            {usedCoupons.length === 0 ? (
-              <p className="text-center text-muted-foreground py-8">No used coupons yet.</p>
-            ) : usedCoupons.map(c => <CouponCard key={c.id} coupon={c} />)}
-          </TabsContent>
-          <TabsContent value="expired" className="space-y-3 mt-4">
-            {expiredCoupons.length === 0 ? (
-              <p className="text-center text-muted-foreground py-8">No expired coupons.</p>
-            ) : expiredCoupons.map(c => <CouponCard key={c.id} coupon={c} />)}
-          </TabsContent>
+
+          {[
+            { key: "available", items: availableCoupons, empty: "No available coupons. Keep ordering to earn rewards!" },
+            { key: "used", items: usedCoupons, empty: "No used coupons yet." },
+            { key: "expired", items: expiredCoupons, empty: "No expired coupons." },
+          ].map(tab => (
+            <TabsContent key={tab.key} value={tab.key} className="space-y-3 mt-4">
+              {tab.items.length === 0 ? (
+                <div className="text-center py-10">
+                  <Ticket className="h-10 w-10 mx-auto text-muted-foreground/40 mb-2" />
+                  <p className="text-sm text-muted-foreground">{tab.empty}</p>
+                </div>
+              ) : tab.items.map(c => (
+                <div key={c.id} className="flex items-stretch rounded-xl border border-border overflow-hidden bg-card">
+                  {/* Left accent strip */}
+                  <div className={`w-2 flex-shrink-0 ${
+                    c.is_used ? "bg-muted" : new Date(c.expires_at) <= new Date() ? "bg-destructive/40" : "bg-primary"
+                  }`} />
+                  {/* Content */}
+                  <div className="flex items-center justify-between flex-1 p-4 gap-3">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="font-bold text-lg text-primary">
+                          {c.discount_type === 'fixed' ? `₹${c.discount_value} OFF` : `${c.discount_value || c.discount_percent}% OFF`}
+                        </span>
+                        <Badge variant="outline" className="text-[10px]">{sourceLabel(c.source)}</Badge>
+                      </div>
+                      <p className="font-mono text-sm text-foreground tracking-wider">{c.code}</p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {c.is_used
+                          ? `Used on ${format(new Date(c.used_at!), "MMM d, yyyy")}`
+                          : new Date(c.expires_at) <= new Date()
+                            ? "Expired"
+                            : `Expires ${format(new Date(c.expires_at), "MMM d, yyyy")}`}
+                      </p>
+                    </div>
+                    {!c.is_used && new Date(c.expires_at) > new Date() && (
+                      <Button size="sm" variant="outline" onClick={() => handleCopy(c.code, c.id)}>
+                        {copiedId === c.id ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </TabsContent>
+          ))}
         </Tabs>
       </main>
     </div>

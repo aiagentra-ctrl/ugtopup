@@ -7,12 +7,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Users, Copy, Check, Gift, UserPlus, Clock, CheckCircle2,
   Trophy, Ticket, ExternalLink, Share2, MessageCircle, Send,
-  ChevronDown, ChevronUp,
+  ChevronDown, ChevronUp, ArrowRight, ShoppingBag,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { format } from "date-fns";
@@ -83,7 +82,7 @@ const ReferAndEarn = () => {
     ? `${window.location.origin}/#/signup?ref=${profile.referral_code}`
     : "";
 
-  const shareMessage = `🎮 Join UGTOPUPS and get special offers on game top-ups! Use my referral link: ${referralLink}`;
+  const shareMessage = `Join UGTOPUPS and get special offers on game top-ups! Use my referral link: ${referralLink}`;
 
   useEffect(() => {
     if (!user?.id) return;
@@ -98,7 +97,6 @@ const ReferAndEarn = () => {
         supabase.from("coupon_rules").select("id,name,coupon_code,discount_type,discount_value,expires_at").eq("is_active", true).eq("rule_type", "global_code"),
       ]);
 
-      // Fetch referee profiles
       const refs = (refRes.data || []) as any[];
       if (refs.length > 0) {
         const ids = refs.map((r: any) => r.referee_id);
@@ -135,8 +133,6 @@ const ReferAndEarn = () => {
 
   const shareWhatsApp = () => window.open(`https://wa.me/?text=${encodeURIComponent(shareMessage)}`, "_blank");
   const shareTelegram = () => window.open(`https://t.me/share/url?url=${encodeURIComponent(referralLink)}&text=${encodeURIComponent(shareMessage)}`, "_blank");
-  const shareFacebook = () => window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(referralLink)}`, "_blank");
-  const shareTwitter = () => window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(shareMessage)}`, "_blank");
 
   const totalReferred = referrals.length;
   const successfulReferrals = referrals.filter(r => r.status === "completed").length;
@@ -158,189 +154,195 @@ const ReferAndEarn = () => {
   const discountDisplay = (type: string, value: number, percent?: number) =>
     type === "fixed" ? `₹${value} OFF` : `${value || percent}% OFF`;
 
+  const steps = [
+    { icon: Share2, title: "Share Link", desc: "Send your referral link to friends" },
+    { icon: UserPlus, title: "Friend Joins", desc: "They sign up and place an order" },
+    { icon: Gift, title: "Both Earn", desc: "You both get discount coupons!" },
+  ];
+
   return (
     <div className="min-h-screen bg-background">
       <Header />
       <main className="container mx-auto px-4 py-6 max-w-4xl space-y-6">
 
-        {/* Hero */}
-        <div className="rounded-2xl bg-gradient-to-r from-primary/20 via-primary/10 to-accent/20 border border-primary/20 p-6 md:p-8 animate-fade-in">
-          <div className="flex items-center gap-3 mb-2">
-            <Gift className="h-8 w-8 text-primary" />
-            <h1 className="text-2xl md:text-3xl font-bold text-foreground">Refer & Earn</h1>
-          </div>
-          <p className="text-muted-foreground text-sm md:text-base">
+        {/* Page Header */}
+        <div className="animate-fade-in">
+          <h1 className="text-2xl md:text-3xl font-bold text-foreground mb-1 flex items-center gap-2">
+            <Gift className="h-7 w-7 text-primary" /> Refer & Earn
+          </h1>
+          <p className="text-sm text-muted-foreground">
             Invite friends, earn coupons, and enjoy exclusive offers on every top-up!
           </p>
         </div>
 
-        {/* Referral Link + Share */}
-        <Card className="border-border bg-card animate-fade-in">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-lg flex items-center gap-2">
-              <Share2 className="h-5 w-5 text-primary" /> Share Your Referral Link
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex gap-2">
-              <Input value={referralLink} readOnly className="font-mono text-xs sm:text-sm bg-muted" />
-              <Button onClick={handleCopyLink} variant="outline" className="shrink-0">
-                {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-              </Button>
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Code: <span className="font-mono font-bold text-primary">{profile?.referral_code || "..."}</span>
-              {settings && (
-                <span className="ml-2">
-                  · You get <span className="text-primary font-semibold">{settings.referrer_discount_percent}% OFF</span>, friend gets <span className="text-primary font-semibold">{settings.referee_discount_percent}% OFF</span>
-                </span>
-              )}
-            </p>
-
-            {/* Social Share Buttons */}
-            <div className="flex flex-wrap gap-2">
-              <Button size="sm" className="bg-[#25D366] hover:bg-[#25D366]/90 text-white" onClick={shareWhatsApp}>
-                <MessageCircle className="h-4 w-4 mr-1.5" /> WhatsApp
-              </Button>
-              <Button size="sm" className="bg-[#0088cc] hover:bg-[#0088cc]/90 text-white" onClick={shareTelegram}>
-                <Send className="h-4 w-4 mr-1.5" /> Telegram
-              </Button>
-              <Button size="sm" className="bg-[#1877F2] hover:bg-[#1877F2]/90 text-white" onClick={shareFacebook}>
-                Facebook
-              </Button>
-              <Button size="sm" className="bg-foreground hover:bg-foreground/90 text-background" onClick={shareTwitter}>
-                X / Twitter
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Stats */}
-        <div className="grid grid-cols-3 gap-3 animate-fade-in">
-          <Card className="border-border bg-card">
-            <CardContent className="p-4 text-center">
-              <Users className="h-5 w-5 mx-auto mb-1 text-primary" />
-              <p className="text-2xl font-bold text-primary">{totalReferred}</p>
-              <p className="text-xs text-muted-foreground">Total Referred</p>
-            </CardContent>
-          </Card>
-          <Card className="border-border bg-card">
-            <CardContent className="p-4 text-center">
-              <CheckCircle2 className="h-5 w-5 mx-auto mb-1 text-green-500" />
-              <p className="text-2xl font-bold text-green-500">{successfulReferrals}</p>
-              <p className="text-xs text-muted-foreground">Successful</p>
-            </CardContent>
-          </Card>
-          <Card className="border-border bg-card">
-            <CardContent className="p-4 text-center">
-              <Clock className="h-5 w-5 mx-auto mb-1 text-yellow-500" />
-              <p className="text-2xl font-bold text-yellow-500">{pendingReferrals}</p>
-              <p className="text-xs text-muted-foreground">Pending</p>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Milestone Progress */}
-        <Card className="border-border bg-card animate-fade-in">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-lg flex items-center gap-2">
-              <Trophy className="h-5 w-5 text-primary" /> Reward Milestones
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground mb-4">
-              You've completed <span className="font-bold text-primary">{completedOrders}</span> orders
-            </p>
-            <div className="space-y-4">
-              {milestones.map(m => {
-                const reached = completedOrders >= m.order_count;
-                const progress = Math.min((completedOrders / m.order_count) * 100, 100);
-                return (
-                  <div key={m.id} className="space-y-1.5">
-                    <div className="flex items-center justify-between text-sm">
-                      <span className={reached ? "text-primary font-medium" : "text-muted-foreground"}>
-                        {reached ? <CheckCircle2 className="inline h-4 w-4 mr-1" /> : <Clock className="inline h-4 w-4 mr-1" />}
-                        {m.order_count} orders → {m.discount_percent}% OFF coupon
-                      </span>
-                      <span className="text-xs text-muted-foreground">{Math.min(completedOrders, m.order_count)}/{m.order_count}</span>
+        {/* How It Works - 3 Steps */}
+        <Card className="border-border animate-fade-in">
+          <CardContent className="p-5">
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-4">How it works</p>
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-0">
+              {steps.map((step, i) => (
+                <div key={i} className="flex items-center gap-3 flex-1">
+                  <div className="flex items-center gap-3 flex-1">
+                    <div className="flex-shrink-0 w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                      <step.icon className="h-5 w-5 text-primary" />
                     </div>
-                    <Progress value={progress} className="h-2" />
+                    <div className="min-w-0">
+                      <p className="font-semibold text-sm text-foreground">{step.title}</p>
+                      <p className="text-[11px] text-muted-foreground leading-tight">{step.desc}</p>
+                    </div>
                   </div>
-                );
-              })}
-              {milestones.length === 0 && !loading && (
-                <p className="text-sm text-muted-foreground text-center py-4">No milestones configured yet.</p>
-              )}
+                  {i < steps.length - 1 && (
+                    <ArrowRight className="hidden sm:block h-4 w-4 text-muted-foreground flex-shrink-0 mx-2" />
+                  )}
+                </div>
+              ))}
             </div>
           </CardContent>
         </Card>
 
-        {/* Available Offers */}
-        <Card className="border-border bg-card animate-fade-in">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-lg flex items-center gap-2">
-              <Ticket className="h-5 w-5 text-primary" /> Available Offers
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {/* Active offers from DB */}
-            {offers.length > 0 && offers.map(offer => (
-              <div key={offer.id} className="flex items-center justify-between p-3 rounded-xl border border-border bg-background/50">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-0.5">
-                    <span className="font-semibold text-foreground text-sm">{offer.title}</span>
-                    {offer.badge_text && (
-                      <Badge className="text-xs" style={{ backgroundColor: offer.badge_color || undefined, color: offer.badge_text_color || undefined }}>
-                        {offer.badge_text}
-                      </Badge>
-                    )}
-                  </div>
-                  {offer.subtitle && <p className="text-xs text-muted-foreground">{offer.subtitle}</p>}
-                  {offer.timer_end_date && (
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      Expires {format(new Date(offer.timer_end_date), "MMM d, yyyy")}
-                    </p>
-                  )}
-                </div>
-                {offer.product_link && (
-                  <Button size="sm" variant="outline" asChild>
-                    <Link to={offer.product_link}><ExternalLink className="h-3.5 w-3.5" /></Link>
-                  </Button>
+        {/* Share Section */}
+        <Card className="border-primary/30 bg-primary/5 animate-fade-in">
+          <CardContent className="p-5 space-y-3">
+            <p className="font-semibold text-foreground text-sm">Your Referral Link</p>
+            <div className="flex gap-2">
+              <Input value={referralLink} readOnly className="font-mono text-xs bg-background" />
+              <Button onClick={handleCopyLink} className="shrink-0 gap-2">
+                {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                {copied ? "Copied" : "Copy"}
+              </Button>
+            </div>
+            <div className="flex items-center justify-between">
+              <p className="text-xs text-muted-foreground">
+                Code: <span className="font-mono font-bold text-primary">{profile?.referral_code || "..."}</span>
+                {settings && (
+                  <span className="ml-2">
+                    · You get <span className="text-primary font-semibold">{settings.referrer_discount_percent}%</span>, friend gets <span className="text-primary font-semibold">{settings.referee_discount_percent}%</span>
+                  </span>
                 )}
-              </div>
-            ))}
-
-            {/* Global promo codes */}
-            {globalCodes.map(gc => (
-              <div key={gc.id} className="flex items-center justify-between p-3 rounded-xl border border-primary/20 bg-primary/5">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-0.5">
-                    <span className="font-semibold text-foreground text-sm">{gc.name}</span>
-                    <Badge variant="outline" className="text-xs text-primary border-primary/30">
-                      {discountDisplay(gc.discount_type, gc.discount_value)}
-                    </Badge>
-                  </div>
-                  <p className="font-mono text-xs text-primary tracking-wider">{gc.coupon_code}</p>
-                  {gc.expires_at && (
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      Expires {format(new Date(gc.expires_at), "MMM d, yyyy")}
-                    </p>
-                  )}
-                </div>
-                <Button size="sm" variant="outline" onClick={() => handleCopyCode(gc.coupon_code!, gc.id)}>
-                  {copiedId === gc.id ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+              </p>
+              <div className="flex gap-1.5">
+                <Button size="icon" variant="ghost" className="h-8 w-8 rounded-full" onClick={shareWhatsApp}>
+                  <MessageCircle className="h-4 w-4" />
+                </Button>
+                <Button size="icon" variant="ghost" className="h-8 w-8 rounded-full" onClick={shareTelegram}>
+                  <Send className="h-4 w-4" />
                 </Button>
               </div>
-            ))}
-
-            {offers.length === 0 && globalCodes.length === 0 && !offersLoading && (
-              <p className="text-sm text-muted-foreground text-center py-4">No active offers right now. Check back soon!</p>
-            )}
+            </div>
           </CardContent>
         </Card>
 
-        {/* My Coupons */}
-        <Card className="border-border bg-card animate-fade-in">
+        {/* Stats Row */}
+        <div className="flex items-center gap-3 flex-wrap animate-fade-in">
+          <Badge variant="outline" className="py-2 px-4 text-sm gap-1.5">
+            <Users className="h-3.5 w-3.5" /> {totalReferred} Referred
+          </Badge>
+          <Badge variant="outline" className="py-2 px-4 text-sm gap-1.5 text-green-600 border-green-200">
+            <CheckCircle2 className="h-3.5 w-3.5" /> {successfulReferrals} Successful
+          </Badge>
+          <Badge variant="outline" className="py-2 px-4 text-sm gap-1.5 text-yellow-600 border-yellow-200">
+            <Clock className="h-3.5 w-3.5" /> {pendingReferrals} Pending
+          </Badge>
+          <Badge variant="outline" className="py-2 px-4 text-sm gap-1.5">
+            <ShoppingBag className="h-3.5 w-3.5" /> {completedOrders} Orders
+          </Badge>
+        </div>
+
+        {/* Milestone Stepper */}
+        {milestones.length > 0 && (
+          <Card className="border-border animate-fade-in">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Trophy className="h-5 w-5 text-primary" /> Reward Milestones
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="relative">
+                {milestones.map((m, idx) => {
+                  const reached = completedOrders >= m.order_count;
+                  const isLast = idx === milestones.length - 1;
+                  return (
+                    <div key={m.id} className="flex items-start gap-4 relative">
+                      {!isLast && (
+                        <div className="absolute left-[15px] top-[32px] w-[2px] h-[calc(100%-16px)] bg-border" />
+                      )}
+                      <div className={`relative z-10 flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold border-2 ${
+                        reached
+                          ? "bg-primary border-primary text-primary-foreground"
+                          : "bg-muted border-border text-muted-foreground"
+                      }`}>
+                        {reached ? <CheckCircle2 className="h-4 w-4" /> : idx + 1}
+                      </div>
+                      <div className={`flex-1 pb-6 ${reached ? "" : "opacity-60"}`}>
+                        <div className="flex items-center gap-2 mb-0.5">
+                          <span className="font-semibold text-sm text-foreground">{m.order_count} Orders</span>
+                          <Badge variant={reached ? "default" : "outline"} className="text-[10px]">{m.discount_percent}% OFF</Badge>
+                          {reached && <Badge variant="secondary" className="text-[10px]">Unlocked</Badge>}
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          {reached ? "Coupon rewarded!" : `${m.order_count - completedOrders} more to unlock`}
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Available Offers */}
+        {(offers.length > 0 || globalCodes.length > 0) && (
+          <Card className="border-border animate-fade-in">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Ticket className="h-5 w-5 text-primary" /> Available Offers
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {offers.map(offer => (
+                <div key={offer.id} className="flex items-center justify-between p-3 rounded-xl border border-border bg-background/50">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-0.5">
+                      <span className="font-semibold text-foreground text-sm">{offer.title}</span>
+                      {offer.badge_text && (
+                        <Badge className="text-xs" style={{ backgroundColor: offer.badge_color || undefined, color: offer.badge_text_color || undefined }}>
+                          {offer.badge_text}
+                        </Badge>
+                      )}
+                    </div>
+                    {offer.subtitle && <p className="text-xs text-muted-foreground">{offer.subtitle}</p>}
+                  </div>
+                  {offer.product_link && (
+                    <Button size="sm" variant="outline" asChild>
+                      <Link to={offer.product_link}><ExternalLink className="h-3.5 w-3.5" /></Link>
+                    </Button>
+                  )}
+                </div>
+              ))}
+
+              {globalCodes.map(gc => (
+                <div key={gc.id} className="flex items-center justify-between p-3 rounded-xl border border-primary/20 bg-primary/5">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-0.5">
+                      <span className="font-semibold text-foreground text-sm">{gc.name}</span>
+                      <Badge variant="outline" className="text-xs text-primary border-primary/30">
+                        {discountDisplay(gc.discount_type, gc.discount_value)}
+                      </Badge>
+                    </div>
+                    <p className="font-mono text-xs text-primary tracking-wider">{gc.coupon_code}</p>
+                  </div>
+                  <Button size="sm" variant="outline" onClick={() => handleCopyCode(gc.coupon_code!, gc.id)}>
+                    {copiedId === gc.id ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+                  </Button>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* My Coupons - Ticket Style */}
+        <Card className="border-border animate-fade-in">
           <CardHeader className="pb-3">
             <CardTitle className="text-lg flex items-center gap-2">
               <Gift className="h-5 w-5 text-primary" /> My Coupons
@@ -360,31 +362,38 @@ const ReferAndEarn = () => {
               ].map(tab => (
                 <TabsContent key={tab.key} value={tab.key} className="space-y-3 mt-4">
                   {tab.items.length === 0 ? (
-                    <p className="text-center text-muted-foreground py-6 text-sm">{tab.empty}</p>
+                    <div className="text-center py-10">
+                      <Ticket className="h-10 w-10 mx-auto text-muted-foreground/40 mb-2" />
+                      <p className="text-sm text-muted-foreground">{tab.empty}</p>
+                    </div>
                   ) : tab.items.map(c => (
-                    <div key={c.id} className="flex items-center justify-between p-3 rounded-xl border border-border bg-background/50">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-0.5">
-                          <span className="font-bold text-primary text-sm">
-                            {discountDisplay(c.discount_type, c.discount_value, c.discount_percent)}
-                          </span>
-                          <Badge variant="outline" className="text-[10px]">{sourceLabel(c.source)}</Badge>
-                          {c.is_used && <Badge variant="secondary" className="text-[10px]">Used</Badge>}
+                    <div key={c.id} className="flex items-stretch rounded-xl border border-border overflow-hidden bg-card">
+                      <div className={`w-2 flex-shrink-0 ${
+                        c.is_used ? "bg-muted" : new Date(c.expires_at) <= new Date() ? "bg-destructive/40" : "bg-primary"
+                      }`} />
+                      <div className="flex items-center justify-between flex-1 p-3 gap-3">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-0.5">
+                            <span className="font-bold text-primary text-sm">
+                              {discountDisplay(c.discount_type, c.discount_value, c.discount_percent)}
+                            </span>
+                            <Badge variant="outline" className="text-[10px]">{sourceLabel(c.source)}</Badge>
+                          </div>
+                          <p className="font-mono text-xs text-foreground tracking-wider">{c.code}</p>
+                          <p className="text-[11px] text-muted-foreground mt-0.5">
+                            {c.is_used
+                              ? `Used on ${format(new Date(c.used_at!), "MMM d, yyyy")}`
+                              : new Date(c.expires_at) <= new Date()
+                                ? "Expired"
+                                : `Expires ${format(new Date(c.expires_at), "MMM d, yyyy")}`}
+                          </p>
                         </div>
-                        <p className="font-mono text-xs text-foreground tracking-wider">{c.code}</p>
-                        <p className="text-[11px] text-muted-foreground mt-0.5">
-                          {c.is_used
-                            ? `Used on ${format(new Date(c.used_at!), "MMM d, yyyy")}`
-                            : new Date(c.expires_at) <= new Date()
-                              ? "Expired"
-                              : `Expires ${format(new Date(c.expires_at), "MMM d, yyyy")}`}
-                        </p>
+                        {!c.is_used && new Date(c.expires_at) > new Date() && (
+                          <Button size="sm" variant="outline" onClick={() => handleCopyCode(c.code, c.id)}>
+                            {copiedId === c.id ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+                          </Button>
+                        )}
                       </div>
-                      {!c.is_used && new Date(c.expires_at) > new Date() && (
-                        <Button size="sm" variant="outline" onClick={() => handleCopyCode(c.code, c.id)}>
-                          {copiedId === c.id ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
-                        </Button>
-                      )}
                     </div>
                   ))}
                 </TabsContent>
@@ -394,7 +403,7 @@ const ReferAndEarn = () => {
         </Card>
 
         {/* Referral History — Collapsible */}
-        <Card className="border-border bg-card animate-fade-in">
+        <Card className="border-border animate-fade-in">
           <CardHeader className="pb-3 cursor-pointer" onClick={() => setHistoryOpen(!historyOpen)}>
             <CardTitle className="text-lg flex items-center justify-between">
               <span className="flex items-center gap-2">
@@ -408,7 +417,10 @@ const ReferAndEarn = () => {
               {loading ? (
                 <p className="text-center text-muted-foreground py-6 text-sm">Loading...</p>
               ) : referrals.length === 0 ? (
-                <p className="text-center text-muted-foreground py-6 text-sm">No referrals yet. Share your link to get started!</p>
+                <div className="text-center py-8">
+                  <UserPlus className="h-10 w-10 mx-auto text-muted-foreground/40 mb-2" />
+                  <p className="text-sm text-muted-foreground">No referrals yet. Share your link to get started!</p>
+                </div>
               ) : (
                 <div className="space-y-2">
                   {referrals.map(r => (
@@ -421,11 +433,11 @@ const ReferAndEarn = () => {
                           Joined {format(new Date(r.created_at), "MMM d, yyyy")}
                         </p>
                       </div>
-                      <Badge variant={r.status === "completed" ? "default" : "secondary"}>
+                      <Badge variant={r.status === "completed" ? "default" : "secondary"} className="gap-1">
                         {r.status === "completed" ? (
-                          <><CheckCircle2 className="h-3 w-3 mr-1" /> Rewarded</>
+                          <><CheckCircle2 className="h-3 w-3" /> Rewarded</>
                         ) : (
-                          <><Clock className="h-3 w-3 mr-1" /> Pending</>
+                          <><Clock className="h-3 w-3" /> Pending</>
                         )}
                       </Badge>
                     </div>
