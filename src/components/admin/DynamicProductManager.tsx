@@ -111,6 +111,9 @@ export function DynamicProductManager() {
       features: Array.isArray(p.features) ? p.features : [],
       tags: Array.isArray(p.tags) ? p.tags : [],
       is_active: p.is_active,
+      offer_id: (p as any).offer_id || "",
+      offer_badge_text: (p as any).offer_badge_text || "",
+      offer_badge_color: (p as any).offer_badge_color || "",
     });
     setDialogOpen(true);
   };
