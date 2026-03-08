@@ -60,6 +60,7 @@ const menuItems = [
   { id: "categories", title: "Categories", icon: FolderOpen },
   { id: "offers", title: "Offers", icon: Gift },
   { id: "chatbot", title: "AI Chatbot", icon: Bot },
+  { id: "vouchers", title: "Voucher Inventory", icon: Ticket },
 ];
 
 function AdminSidebar({ 

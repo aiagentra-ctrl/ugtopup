@@ -98,6 +98,8 @@ const AdminPanel = () => {
         return <OfferManager />;
       case "chatbot":
         return <ChatbotSettings />;
+      case "vouchers":
+        return <VoucherInventory />;
       default:
         return <EnhancedDashboard />;
     }
