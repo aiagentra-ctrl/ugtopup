@@ -11,6 +11,7 @@ import qrCode from "@/assets/ug-gaming-topup-qr.jpg";
 import { submitPaymentRequest } from "@/lib/creditApi";
 import { initiatePayment } from "@/lib/paymentApi";
 import { cn } from "@/lib/utils";
+import { validateFileUpload } from "@/lib/security";
 
 interface TopUpModalProps {
   open: boolean;
