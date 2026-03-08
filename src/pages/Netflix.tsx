@@ -104,6 +104,7 @@ const Netflix = () => {
     setSelectedPackage(null);
     setPurchaseQuantity(1);
     setOrderId("");
+    setVoucherCode(null);
   };
 
   const isFormComplete = isFormValid && selectedPackage !== null;
