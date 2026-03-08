@@ -2,7 +2,6 @@ import { useTrending, usePopular, useFrequentlyBoughtTogether } from "@/hooks/us
 import { useDynamicProducts } from "@/hooks/useDynamicProducts";
 import { ProductCard } from "@/components/ProductCard";
 import { TrendingUp, Flame, ShoppingBag } from "lucide-react";
-import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 
 interface RecommendationsProps {
   type: "trending" | "popular" | "frequently_bought";
