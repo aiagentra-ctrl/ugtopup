@@ -61,14 +61,14 @@ export const Testimonials = () => {
               >
                 <div className="glass-card rounded-xl sm:rounded-2xl p-5 sm:p-8 md:p-12">
                   <div className="flex items-center gap-4 mb-4">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/20 text-primary text-xl font-bold">
+                    <div className="flex h-10 w-10 sm:h-12 sm:w-12 items-center justify-center rounded-full bg-primary/20 text-primary text-lg sm:text-xl font-bold">
                       {testimonial.name.charAt(0).toUpperCase()}
                     </div>
-                    <p className="font-bold text-lg text-primary">
+                    <p className="font-bold text-base sm:text-lg text-primary">
                       {testimonial.name}
                     </p>
                   </div>
-                  <p className="text-lg leading-relaxed text-foreground">
+                  <p className="text-sm sm:text-lg leading-relaxed text-foreground">
                     "{testimonial.feedback}"
                   </p>
                 </div>
