@@ -1,7 +1,9 @@
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClient } from "@tanstack/react-query";
+import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
+import { createSyncStoragePersister } from "@tanstack/query-sync-storage-persister";
 import { HashRouter as BrowserRouter, Routes, Route } from "react-router-dom";
 import { Suspense } from "react";
 import { AuthProvider } from "./contexts/AuthContext";
@@ -10,6 +12,7 @@ import { AdminRoute } from "./components/AdminRoute";
 import { ChatWidget } from "./components/chat/ChatWidget";
 import { LoadingScreen } from "./components/LoadingScreen";
 import { NotificationPermissionModal } from "./components/NotificationPermissionModal";
+import { OfflineIndicator } from "./components/OfflineIndicator";
 import Index from "./pages/Index";
 import AdminPanel from "./pages/AdminPanel";
 import AdminLogin from "./pages/AdminLogin";
@@ -46,13 +49,48 @@ import ReferAndEarn from "./pages/ReferAndEarn";
 import ApiDocs from "./pages/ApiDocs";
 import NotFound from "./pages/NotFound";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      gcTime: 1000 * 60 * 60 * 24, // 24 hours — keep cached data for offline use
+      staleTime: 1000 * 60 * 5, // 5 minutes — reduce unnecessary refetches
+      retry: (failureCount) => {
+        // Don't retry when offline
+        if (!navigator.onLine) return false;
+        return failureCount < 2;
+      },
+      networkMode: "offlineFirst",
+    },
+    mutations: {
+      networkMode: "offlineFirst",
+    },
+  },
+});
+
+const persister = createSyncStoragePersister({
+  storage: window.localStorage,
+  key: "ugtopups-query-cache",
+  throttleTime: 1000,
+});
 
 const App = () => (
-  <QueryClientProvider client={queryClient}>
+  <PersistQueryClientProvider
+    client={queryClient}
+    persistOptions={{
+      persister,
+      maxAge: 1000 * 60 * 60 * 24, // 24 hours
+      dehydrateOptions: {
+        shouldDehydrateQuery: (query) => {
+          // Only persist successful queries with data
+          return query.state.status === "success" && query.state.data !== undefined;
+        },
+      },
+    }}
+  >
     <TooltipProvider>
       <Toaster />
       <Sonner />
+      <OfflineIndicator />
       <BrowserRouter>
         <AuthProvider>
           <Suspense fallback={<LoadingScreen />}>
@@ -150,7 +188,7 @@ const App = () => (
         </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>
-  </QueryClientProvider>
+  </PersistQueryClientProvider>
 );
 
 export default App;
