@@ -20,6 +20,7 @@ const Netflix = () => {
   const [showOrderReview, setShowOrderReview] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [orderId, setOrderId] = useState("");
+  const [voucherCode, setVoucherCode] = useState<string | null>(null);
   const { profile } = useAuth();
 
   const handleFormDataChange = (data: NetflixFormData | null, isValid: boolean) => {
