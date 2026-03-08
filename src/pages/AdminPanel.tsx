@@ -129,6 +129,8 @@ const AdminPanel = () => {
         return <OfferManager />;
       case "chatbot":
         return <ChatbotSettings />;
+      case "chatbot-docs":
+        return <ChatbotApiDocs />;
       case "vouchers":
         return <VoucherInventory />;
       case "ml-monitoring":
