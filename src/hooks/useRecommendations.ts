@@ -87,7 +87,7 @@ async function fetchFrequentlyBoughtTogether(category: string): Promise<Recommen
     .from("product_orders")
     .select("product_name, product_category")
     .in("user_id", userIds)
-    .neq("product_category", category)
+    .neq("product_category", category as any)
     .limit(500);
 
   if (err2) throw err2;
