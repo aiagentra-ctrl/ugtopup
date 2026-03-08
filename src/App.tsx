@@ -160,6 +160,14 @@ const App = () => (
                 </AdminRoute>
               } 
             />
+            <Route 
+              path="/developer" 
+              element={
+                <DeveloperRoute>
+                  <DeveloperPanel />
+                </DeveloperRoute>
+              } 
+            />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>

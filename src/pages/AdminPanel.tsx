@@ -140,6 +140,8 @@ const AdminPanel = () => {
         return <PromotionAnalytics />;
       case "chatbot-orders":
         return <ChatbotOrders />;
+      case "service-status":
+        return <ServiceStatus />;
       default:
         return <EnhancedDashboard />;
     }
