@@ -151,6 +151,30 @@ const App = () => (
                 </ProtectedRoute>
               } 
             />
+            <Route 
+              path="/support" 
+              element={
+                <ProtectedRoute>
+                  <SupportTickets />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/wishlist" 
+              element={
+                <ProtectedRoute>
+                  <Wishlist />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/subscriptions" 
+              element={
+                <ProtectedRoute>
+                  <Subscriptions />
+                </ProtectedRoute>
+              } 
+            />
             {/* Payment result pages */}
             <Route path="/payment/success" element={<PaymentSuccess />} />
             <Route path="/payment/cancel" element={<PaymentCancel />} />
