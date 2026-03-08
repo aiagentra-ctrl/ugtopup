@@ -46,6 +46,7 @@ import Referrals from "./pages/Referrals";
 import ReferAndEarn from "./pages/ReferAndEarn";
 import ApiDocs from "./pages/ApiDocs";
 import NotFound from "./pages/NotFound";
+import Products from "./pages/Products";
 import DeveloperPanel from "./pages/DeveloperPanel";
 import { DeveloperRoute } from "./components/DeveloperRoute";
 import SupportTickets from "./pages/SupportTickets";
