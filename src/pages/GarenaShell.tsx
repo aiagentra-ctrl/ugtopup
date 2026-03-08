@@ -217,6 +217,7 @@ const GarenaShell = () => {
         onClose={() => setIsSuccessOpen(false)}
         orderId={orderId}
         onTopUpAgain={handleTopUpAgain}
+        voucherCode={voucherCode}
       />
     </div>
   );

@@ -7,13 +7,16 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Copy } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { toast } from "sonner";
 
 interface GarenaSuccessModalProps {
   isOpen: boolean;
   onClose: () => void;
   orderId: string;
   onTopUpAgain: () => void;
+  voucherCode?: string | null;
 }
 
 export const GarenaSuccessModal = ({
@@ -21,6 +24,7 @@ export const GarenaSuccessModal = ({
   onClose,
   orderId,
   onTopUpAgain,
+  voucherCode,
 }: GarenaSuccessModalProps) => {
   const navigate = useNavigate();
 
@@ -32,6 +36,13 @@ export const GarenaSuccessModal = ({
   const handleTopUpAgain = () => {
     onTopUpAgain();
     onClose();
+  };
+
+  const handleCopyCode = () => {
+    if (voucherCode) {
+      navigator.clipboard.writeText(voucherCode);
+      toast.success("Voucher code copied!");
+    }
   };
 
   return (
@@ -58,7 +69,9 @@ export const GarenaSuccessModal = ({
           </DialogTitle>
           <DialogDescription className="text-center space-y-2 pt-4">
             <p className="text-base text-muted-foreground">
-              Your order has been placed successfully
+              {voucherCode
+                ? "Your voucher code has been delivered instantly!"
+                : "Your order has been placed successfully"}
             </p>
             <div className="flex items-center justify-center gap-2 pt-2">
               <span className="text-sm text-muted-foreground">Order ID:</span>
@@ -66,12 +79,27 @@ export const GarenaSuccessModal = ({
                 {orderId}
               </span>
             </div>
-            <div className="flex items-center justify-center gap-2 pt-2">
-              <span className="text-sm text-muted-foreground">Status:</span>
-              <span className="text-sm font-semibold text-green-500 bg-green-500/10 px-3 py-1 rounded">
-                Processing
-              </span>
-            </div>
+
+            {voucherCode ? (
+              <div className="mt-3 p-4 rounded-lg bg-green-500/10 border border-green-500/30 space-y-2">
+                <p className="text-sm text-muted-foreground">Your Voucher Code</p>
+                <div className="flex items-center justify-center gap-2">
+                  <code className="text-xl font-bold font-mono text-foreground tracking-widest">
+                    {voucherCode}
+                  </code>
+                  <Button size="icon" variant="ghost" className="h-8 w-8" onClick={handleCopyCode}>
+                    <Copy className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-center justify-center gap-2 pt-2">
+                <span className="text-sm text-muted-foreground">Status:</span>
+                <span className="text-sm font-semibold text-green-500 bg-green-500/10 px-3 py-1 rounded">
+                  Processing
+                </span>
+              </div>
+            )}
           </DialogDescription>
         </DialogHeader>
 
