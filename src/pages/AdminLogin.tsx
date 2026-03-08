@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { Mail, Lock, Eye, EyeOff, Shield } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { checkAdminAccess } from "@/lib/adminApi";
+import { checkLoginRate } from "@/lib/security";
 
 export default function AdminLogin() {
   const [email, setEmail] = useState("");
