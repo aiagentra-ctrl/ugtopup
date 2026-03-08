@@ -64,6 +64,7 @@ const menuItems = [
   { id: "referrals", title: "Referral Program", icon: UserPlus },
   { id: "coupon-rules", title: "Coupon Rules", icon: Ticket },
   { id: "promo-analytics", title: "Promo Analytics", icon: Activity },
+  { id: "chatbot-orders", title: "Chatbot Orders", icon: Bot },
 ];
 
 // Bottom nav items for mobile quick access
