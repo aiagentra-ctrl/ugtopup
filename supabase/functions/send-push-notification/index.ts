@@ -279,7 +279,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { user_id, notification_id } = await req.json();
+    const { user_id, notification_id, direct_payload } = await req.json();
 
     if (!user_id) {
       return new Response(
@@ -303,13 +303,19 @@ Deno.serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
-    // Get notification details
+    // Get notification details - either from direct_payload or notification_id
     let title = "UGTOPUPS";
     let body = "You have a new notification";
     let icon = "/icon-192x192.png";
     let url = "/notifications";
 
-    if (notification_id) {
+    if (direct_payload) {
+      // Direct payload from admin triggers - no DB lookup needed
+      title = direct_payload.title || title;
+      body = direct_payload.body || body;
+      icon = direct_payload.icon || icon;
+      url = direct_payload.url || url;
+    } else if (notification_id) {
       const { data: notification } = await supabase
         .from("notifications")
         .select("title, message, image_url")
