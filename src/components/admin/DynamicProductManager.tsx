@@ -85,6 +85,15 @@ export function DynamicProductManager() {
 
   useEffect(() => { load(); }, []);
 
+  // Detect duplicate image URLs
+  const duplicateImageUrls = useMemo(() => {
+    const urlCount: Record<string, number> = {};
+    products.forEach((p) => {
+      if (p.image_url) urlCount[p.image_url] = (urlCount[p.image_url] || 0) + 1;
+    });
+    return new Set(Object.entries(urlCount).filter(([, c]) => c > 1).map(([url]) => url));
+  }, [products]);
+
   const filtered = products.filter((p) => {
     const matchSearch = p.title.toLowerCase().includes(search.toLowerCase());
     const matchCat = filterCategory === "all" || p.category_id === filterCategory;
