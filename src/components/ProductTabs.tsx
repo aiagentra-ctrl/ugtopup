@@ -48,19 +48,21 @@ export const ProductTabs = () => {
   const defaultTab = categories[0]?.slug || "topup";
 
   return (
-    <section className="container mx-auto px-4 py-8">
+    <section className="container mx-auto px-3 sm:px-4 py-6 sm:py-8">
       <Tabs defaultValue={defaultTab} className="w-full">
-        <TabsList className="mb-10 flex justify-center items-center w-full bg-transparent p-2 h-auto gap-2 sm:gap-3 md:gap-4">
-          {categories.map((cat) => (
-            <TabsTrigger
-              key={cat.slug}
-              value={cat.slug}
-              className="rounded-lg px-4 py-3 sm:px-6 sm:py-3.5 md:px-8 min-w-[80px] sm:min-w-[110px] md:min-w-[130px] flex-shrink-0 text-xs sm:text-sm md:text-base font-medium tracking-wide uppercase transition-all duration-300 ease-out whitespace-nowrap bg-gradient-to-br from-neutral-800 to-neutral-900 text-neutral-300 border border-neutral-700 hover:scale-[1.03] hover:shadow-lg hover:border-neutral-600 data-[state=active]:bg-gradient-to-br data-[state=active]:from-red-500 data-[state=active]:to-red-400 data-[state=active]:text-white data-[state=active]:border-transparent data-[state=active]:shadow-xl data-[state=active]:shadow-red-500/40"
-            >
-              {cat.name}
-            </TabsTrigger>
-          ))}
-        </TabsList>
+        <div className="mb-6 sm:mb-10 -mx-3 sm:mx-0 px-3 sm:px-0 overflow-x-auto scrollbar-hide">
+          <TabsList className="flex justify-start sm:justify-center items-center w-max sm:w-full bg-transparent p-1 sm:p-2 h-auto gap-2 sm:gap-3 md:gap-4">
+            {categories.map((cat) => (
+              <TabsTrigger
+                key={cat.slug}
+                value={cat.slug}
+                className="rounded-lg px-3 py-2.5 sm:px-6 sm:py-3.5 md:px-8 min-w-[70px] sm:min-w-[110px] md:min-w-[130px] flex-shrink-0 text-[11px] sm:text-sm md:text-base font-medium tracking-wide uppercase transition-all duration-300 ease-out whitespace-nowrap bg-gradient-to-br from-neutral-800 to-neutral-900 text-neutral-300 border border-neutral-700 hover:scale-[1.03] hover:shadow-lg hover:border-neutral-600 data-[state=active]:bg-gradient-to-br data-[state=active]:from-red-500 data-[state=active]:to-red-400 data-[state=active]:text-white data-[state=active]:border-transparent data-[state=active]:shadow-xl data-[state=active]:shadow-red-500/40"
+              >
+                {cat.name}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </div>
 
         {categories.map((cat) => {
           const catProducts = products.filter(
