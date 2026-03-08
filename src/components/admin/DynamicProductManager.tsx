@@ -251,6 +251,11 @@ export function DynamicProductManager() {
                 <div className="flex items-center gap-2">
                   <h3 className="font-semibold truncate">{p.title}</h3>
                   {!p.is_active && <Badge variant="secondary">Inactive</Badge>}
+                  {p.image_url && duplicateImageUrls.has(p.image_url) && (
+                    <Badge variant="destructive" className="gap-1 text-[10px]">
+                      <AlertTriangle className="h-3 w-3" /> Duplicate Image
+                    </Badge>
+                  )}
                 </div>
                 <p className="text-sm text-muted-foreground truncate">
                   {p.product_categories?.name || "No category"} • {p.link || "No link"}
