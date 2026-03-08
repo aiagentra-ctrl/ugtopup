@@ -66,6 +66,41 @@ async function getSettings() {
   return data;
 }
 
+// ── RAG: Knowledge Base Search ──
+
+async function searchKnowledgeBase(message: string): Promise<string | null> {
+  const sb = supabaseAdmin();
+  const lowerMsg = message.toLowerCase();
+
+  // Extract meaningful keywords (3+ chars, skip stop words)
+  const stopWords = new Set(["the", "and", "for", "are", "but", "not", "you", "all", "can", "had", "her", "was", "one", "our", "out", "how", "what", "when", "where", "who", "why", "this", "that", "with", "have", "from", "will", "your", "about", "does"]);
+  const keywords = lowerMsg
+    .replace(/[^a-z0-9\s]/g, "")
+    .split(/\s+/)
+    .filter((w) => w.length >= 3 && !stopWords.has(w));
+
+  if (keywords.length === 0) return null;
+
+  // Build OR filter for ilike matching
+  const orFilters = keywords
+    .slice(0, 5)
+    .flatMap((kw) => [`title.ilike.%${kw}%`, `content.ilike.%${kw}%`])
+    .join(",");
+
+  const { data, error } = await sb
+    .from("knowledge_base")
+    .select("title, content, category")
+    .eq("is_active", true)
+    .or(orFilters)
+    .limit(5);
+
+  if (error || !data || data.length === 0) return null;
+
+  return data
+    .map((entry: any) => `[${entry.category.toUpperCase()}] ${entry.title}\n${entry.content}`)
+    .join("\n\n---\n\n");
+}
+
 async function searchProducts(message: string) {
   const sb = supabaseAdmin();
   const lowerMsg = message.toLowerCase();
@@ -164,11 +199,28 @@ async function callAI(
   message: string,
   settings: any,
   productContext?: string,
+  knowledgeContext?: string,
   conversationHistory?: ConversationMessage[]
 ): Promise<string> {
-  const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-  if (!LOVABLE_API_KEY) {
-    throw new Error("AI is not configured. LOVABLE_API_KEY missing.");
+  // Check for custom provider first
+  const isCustom = settings?.ai_provider === "custom" && settings?.custom_api_url;
+  
+  let apiUrl: string;
+  let apiKey: string;
+
+  if (isCustom) {
+    apiUrl = settings.custom_api_url;
+    const keyName = settings.custom_api_key_name || "CUSTOM_AI_API_KEY";
+    apiKey = Deno.env.get(keyName) || "";
+    if (!apiKey) {
+      throw new Error(`Custom AI API key not configured. Add secret: ${keyName}`);
+    }
+  } else {
+    apiUrl = "https://ai.gateway.lovable.dev/v1/chat/completions";
+    apiKey = Deno.env.get("LOVABLE_API_KEY") || "";
+    if (!apiKey) {
+      throw new Error("AI is not configured. LOVABLE_API_KEY missing.");
+    }
   }
 
   const model = settings?.ai_model || "google/gemini-3-flash-preview";
@@ -177,6 +229,12 @@ async function callAI(
     "You are UIQ, a helpful AI sales assistant for UGC-Topup. Help users with products, pricing, orders, and account questions.";
 
   let fullSystemPrompt = systemPrompt;
+
+  // Inject knowledge base context (RAG)
+  if (knowledgeContext) {
+    fullSystemPrompt += `\n\n--- KNOWLEDGE BASE ---\nThe following information comes from our knowledge base. Use it to provide accurate answers:\n\n${knowledgeContext}\n--- END KNOWLEDGE BASE ---`;
+  }
+
   if (productContext) {
     fullSystemPrompt += `\n\nRelevant product data from our database:\n${productContext}\n\nUse this data to answer the user's question accurately. Include the price and delivery time in your response. If a price says "See pricing on product page", tell the user to visit the product page for detailed pricing and provide the link.`;
   } else {
@@ -196,17 +254,14 @@ async function callAI(
 
   messages.push({ role: "user", content: message });
 
-  const response = await fetch(
-    "https://ai.gateway.lovable.dev/v1/chat/completions",
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ model, messages }),
-    }
-  );
+  const response = await fetch(apiUrl, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ model, messages }),
+  });
 
   if (!response.ok) {
     const errText = await response.text();
@@ -238,7 +293,6 @@ async function loadServerHistory(sessionId: string): Promise<ConversationMessage
 
   if (!data || data.length === 0) return [];
 
-  // Reverse so oldest first
   return data.reverse().map((r: any) => ({
     role: r.role as "user" | "assistant",
     content: r.message,
@@ -281,20 +335,22 @@ async function handleMessage(body: any) {
     );
   }
 
-  const products = await searchProducts(message);
+  // Run RAG search and product search in parallel
+  const [products, knowledgeContext] = await Promise.all([
+    searchProducts(message),
+    searchKnowledgeBase(message),
+  ]);
 
   // Determine conversation history source
   let conversationHistory: ConversationMessage[] | undefined;
 
   if (effectivePlatform !== "web" && session_id) {
-    // External platforms: load from server-side storage
     conversationHistory = await loadServerHistory(session_id);
   } else if (Array.isArray(history)) {
-    // Web: use client-sent history (backward compatible)
     conversationHistory = history as ConversationMessage[];
   }
 
-  // Store inbound user message (for all platforms with a session_id)
+  // Store inbound user message
   if (session_id) {
     await storeMessage(session_id, effectivePlatform, "user", message);
   }
@@ -307,10 +363,10 @@ async function handleMessage(body: any) {
       message,
       settings,
       productContext,
+      knowledgeContext || undefined,
       conversationHistory
     );
 
-    // Store assistant reply
     if (session_id) {
       await storeMessage(session_id, effectivePlatform, "assistant", aiReply);
     }
@@ -359,6 +415,49 @@ async function handleMessage(body: any) {
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
+}
+
+// ── Feedback Handler ──
+
+async function handleFeedback(body: any) {
+  const { message_id, session_id, user_message, bot_response, rating, comment } = body;
+
+  if (!message_id || !session_id || !rating) {
+    return new Response(
+      JSON.stringify({ error: "message_id, session_id, and rating are required" }),
+      { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
+
+  if (!["helpful", "not_helpful"].includes(rating)) {
+    return new Response(
+      JSON.stringify({ error: "rating must be 'helpful' or 'not_helpful'" }),
+      { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
+
+  const sb = supabaseAdmin();
+  const { error } = await sb.from("chatbot_feedback").insert({
+    message_id,
+    session_id,
+    user_message: user_message || null,
+    bot_response: bot_response || null,
+    rating,
+    comment: comment || null,
+  });
+
+  if (error) {
+    console.error("Feedback insert error:", error);
+    return new Response(
+      JSON.stringify({ error: "Failed to save feedback" }),
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
+
+  return new Response(
+    JSON.stringify({ success: true, message: "Feedback recorded. Thank you!", timestamp: new Date().toISOString() }),
+    { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+  );
 }
 
 async function handleOrderStatus(body: any) {
@@ -433,7 +532,6 @@ async function handleOrder(body: any) {
 
   const sb = supabaseAdmin();
 
-  // 1. Look up the package
   const { data: pkg } = await sb
     .from("game_product_prices")
     .select("*")
@@ -448,7 +546,6 @@ async function handleOrder(body: any) {
     );
   }
 
-  // 2. Look up user by email
   const { data: profile } = await sb
     .from("profiles")
     .select("id, email, username, balance")
@@ -464,7 +561,6 @@ async function handleOrder(body: any) {
 
   const price = Number(pkg.price);
 
-  // 3. Check balance
   if ((profile.balance || 0) < price) {
     return new Response(
       JSON.stringify({
@@ -479,11 +575,9 @@ async function handleOrder(body: any) {
     );
   }
 
-  // 4. Build product details
   const productDetails: any = { player_id: player_id || "" };
   if (zone_id) productDetails.zone_id = zone_id;
 
-  // Determine product category from game name
   const gameToCategoryMap: Record<string, string> = {
     freefire: "freefire", mobile_legends: "mobile_legends", pubg: "pubg",
     roblox: "roblox", netflix: "netflix", tiktok: "tiktok", youtube: "youtube",
@@ -491,17 +585,13 @@ async function handleOrder(body: any) {
   };
   const category = gameToCategoryMap[pkg.game] || pkg.game;
 
-  // 5. Place order using the atomic place_order function via service role
-  // We need to impersonate the user for the place_order RPC which uses auth.uid()
-  // Instead, insert directly with atomic balance check
   const orderNumber = (profile.username || email.split("@")[0]).toLowerCase() + "-" + Math.random().toString(36).slice(2, 5);
 
-  // Atomic: lock profile, check balance, deduct, insert order
   const { data: updatedProfile, error: deductErr } = await sb
     .from("profiles")
     .update({ balance: profile.balance - price })
     .eq("id", profile.id)
-    .gte("balance", price) // atomic check
+    .gte("balance", price)
     .select("balance")
     .single();
 
@@ -534,7 +624,6 @@ async function handleOrder(body: any) {
     .single();
 
   if (orderErr) {
-    // Refund credits on failure
     await sb.from("profiles").update({ balance: profile.balance }).eq("id", profile.id);
     console.error("Order insert error:", orderErr);
     return new Response(
@@ -543,7 +632,6 @@ async function handleOrder(body: any) {
     );
   }
 
-  // Log activity
   await sb.from("activity_logs").insert({
     actor_id: profile.id,
     actor_email: profile.email,
@@ -597,7 +685,6 @@ async function handleInitiatePayment(body: any) {
 
   const identifier = `UG${profile.id.slice(0, 4)}${Date.now().toString(36)}`;
 
-  // Insert payment transaction
   const { error: insertErr } = await sb
     .from("payment_transactions")
     .insert({
@@ -616,13 +703,11 @@ async function handleInitiatePayment(body: any) {
     );
   }
 
-  // Try API Nepal payment
   const mode = Deno.env.get("APINEPAL_MODE") || "test";
   const publicKey = Deno.env.get("APINEPAL_PUBLIC_KEY");
   const secretKey = Deno.env.get("APINEPAL_SECRET_KEY");
 
   if (!publicKey || !secretKey) {
-    // Return manual payment instructions
     return new Response(
       JSON.stringify({
         success: true,
@@ -863,6 +948,8 @@ Deno.serve(async (req) => {
         return await handleInitiatePayment(body);
       case "payment-status":
         return await handlePaymentStatus(body);
+      case "submit-feedback":
+        return await handleFeedback(body);
       case "cleanup-conversations":
         return await handleCleanupConversations();
       default:

@@ -170,6 +170,39 @@ export type Database = {
         }
         Relationships: []
       }
+      chatbot_feedback: {
+        Row: {
+          bot_response: string | null
+          comment: string | null
+          created_at: string
+          id: string
+          message_id: string
+          rating: string
+          session_id: string
+          user_message: string | null
+        }
+        Insert: {
+          bot_response?: string | null
+          comment?: string | null
+          created_at?: string
+          id?: string
+          message_id: string
+          rating: string
+          session_id: string
+          user_message?: string | null
+        }
+        Update: {
+          bot_response?: string | null
+          comment?: string | null
+          created_at?: string
+          id?: string
+          message_id?: string
+          rating?: string
+          session_id?: string
+          user_message?: string | null
+        }
+        Relationships: []
+      }
       chatbot_settings: {
         Row: {
           ai_model: string
@@ -182,6 +215,8 @@ export type Database = {
           button3_enabled: boolean | null
           button3_label: string | null
           created_at: string
+          custom_api_key_name: string | null
+          custom_api_url: string | null
           gmail_fallback_email: string | null
           gmail_fallback_enabled: boolean | null
           id: string
@@ -203,6 +238,8 @@ export type Database = {
           button3_enabled?: boolean | null
           button3_label?: string | null
           created_at?: string
+          custom_api_key_name?: string | null
+          custom_api_url?: string | null
           gmail_fallback_email?: string | null
           gmail_fallback_enabled?: boolean | null
           id?: string
@@ -224,6 +261,8 @@ export type Database = {
           button3_enabled?: boolean | null
           button3_label?: string | null
           created_at?: string
+          custom_api_key_name?: string | null
+          custom_api_url?: string | null
           gmail_fallback_email?: string | null
           gmail_fallback_enabled?: boolean | null
           id?: string
@@ -578,6 +617,39 @@ export type Database = {
           price?: number
           quantity?: number
           updated_at?: string | null
+        }
+        Relationships: []
+      }
+      knowledge_base: {
+        Row: {
+          category: string
+          content: string
+          created_at: string
+          id: string
+          is_active: boolean
+          tags: string[] | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          category?: string
+          content: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          tags?: string[] | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          category?: string
+          content?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          tags?: string[] | null
+          title?: string
+          updated_at?: string
         }
         Relationships: []
       }

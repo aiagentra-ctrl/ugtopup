@@ -28,6 +28,8 @@ import { RewardMilestoneManager } from "@/components/admin/RewardMilestoneManage
 import { ReferralManager } from "@/components/admin/ReferralManager";
 import { ChatbotOrders } from "@/components/admin/ChatbotOrders";
 import { ChatbotApiDocs } from "@/components/admin/ChatbotApiDocs";
+import { KnowledgeBaseManager } from "@/components/admin/KnowledgeBaseManager";
+import { ChatbotFeedback } from "@/components/admin/ChatbotFeedback";
 import { ServiceStatus } from "@/components/admin/ServiceStatus";
 import { TicketManager } from "@/components/admin/TicketManager";
 import { AnnouncementManager } from "@/components/admin/AnnouncementManager";
@@ -147,6 +149,10 @@ const AdminPanel = () => {
         return <PromotionAnalytics />;
       case "chatbot-orders":
         return <ChatbotOrders />;
+      case "knowledge-base":
+        return <KnowledgeBaseManager />;
+      case "chat-feedback":
+        return <ChatbotFeedback />;
       case "service-status":
         return <ServiceStatus />;
       case "tickets":

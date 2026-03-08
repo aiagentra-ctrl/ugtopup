@@ -61,9 +61,21 @@ export const ChatWidget = () => {
           {/* Messages Area */}
           <ScrollArea className="flex-1 px-4 py-4">
             <div className="space-y-4">
-              {messages.map((message) => (
-                <MessageBubble key={message.id} message={message} />
-              ))}
+              {messages.map((message, index) => {
+                // Find the previous user message for feedback context
+                let previousUserMessage: string | undefined;
+                if (message.sender === 'bot') {
+                  for (let i = index - 1; i >= 0; i--) {
+                    if (messages[i].sender === 'user') {
+                      previousUserMessage = messages[i].text;
+                      break;
+                    }
+                  }
+                }
+                return (
+                  <MessageBubble key={message.id} message={message} previousUserMessage={previousUserMessage} />
+                );
+              })}
 
               {/* Quick Reply Buttons */}
               {showQuickReplies && settings && (
