@@ -26,6 +26,7 @@ import { MLApiMonitoring } from "@/components/admin/MLApiMonitoring";
 import { AdminAppDownload } from "@/components/admin/AdminAppDownload";
 import { RewardMilestoneManager } from "@/components/admin/RewardMilestoneManager";
 import { ReferralManager } from "@/components/admin/ReferralManager";
+import { ChatbotOrders } from "@/components/admin/ChatbotOrders";
 import { checkAdminAccess } from "@/lib/adminApi";
 import { useAdminPushNotifications } from "@/hooks/useAdminPushNotifications";
 import { toast } from "sonner";
