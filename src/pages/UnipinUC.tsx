@@ -25,6 +25,7 @@ const UnipinUC = () => {
   const [isReviewOpen, setIsReviewOpen] = useState(false);
   const [isSuccessOpen, setIsSuccessOpen] = useState(false);
   const [orderId, setOrderId] = useState("");
+  const [voucherCode, setVoucherCode] = useState<string | null>(null);
 
   const handleFormDataChange = (data: UnipinFormData | null, isValid: boolean) => {
     setFormData(data);
