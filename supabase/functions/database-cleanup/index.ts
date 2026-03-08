@@ -35,7 +35,6 @@ Deno.serve(async (req) => {
       cutoff.setDate(cutoff.getDate() - notifSetting.setting_value);
       const cutoffStr = cutoff.toISOString();
 
-      // Get old notification IDs
       const { data: oldNotifs } = await supabase
         .from("notifications")
         .select("id")
@@ -43,17 +42,11 @@ Deno.serve(async (req) => {
 
       if (oldNotifs && oldNotifs.length > 0) {
         const ids = oldNotifs.map((n: any) => n.id);
-        // Delete user_notifications first
         await supabase
           .from("user_notifications")
           .delete()
           .in("notification_id", ids);
-        // Then delete notifications
-        const { count } = await supabase
-          .from("notifications")
-          .delete()
-          .in("id", ids)
-          .select("*", { count: "exact", head: true });
+        await supabase.from("notifications").delete().in("id", ids);
 
         summary.notifications = {
           affected: oldNotifs.length,
@@ -198,7 +191,26 @@ Deno.serve(async (req) => {
       };
     }
 
-    // 8. Log each cleanup action
+    // 8. Clean expired coupons
+    const couponSetting = getSetting("expired_coupon_retention_days");
+    if (couponSetting?.is_enabled) {
+      const cutoff = new Date();
+      cutoff.setDate(cutoff.getDate() - couponSetting.setting_value);
+
+      const { data: deleted } = await supabase
+        .from("coupons")
+        .delete()
+        .eq("is_used", false)
+        .lt("expires_at", cutoff.toISOString())
+        .select("id");
+
+      summary.expired_coupons = {
+        affected: deleted?.length || 0,
+        details: `Deleted ${deleted?.length || 0} expired unused coupons older than ${couponSetting.setting_value} days`,
+      };
+    }
+
+    // 9. Log each cleanup action
     const logEntries = Object.entries(summary).map(([type, data]) => ({
       cleanup_type: type,
       records_affected: data.affected,
@@ -209,7 +221,7 @@ Deno.serve(async (req) => {
       await supabase.from("cleanup_logs").insert(logEntries);
     }
 
-    // 9. Update last_run_at for all settings
+    // 10. Update last_run_at for all settings
     const now = new Date().toISOString();
     for (const s of settings || []) {
       if (s.is_enabled) {
@@ -219,6 +231,132 @@ Deno.serve(async (req) => {
           .eq("id", s.id);
       }
     }
+
+    // ========== ALERT GENERATION ==========
+
+    // Alert: Pending orders older than 2 hours
+    const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
+    const { count: stalePendingOrders } = await supabase
+      .from("product_orders")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "pending")
+      .lt("created_at", twoHoursAgo);
+
+    if (stalePendingOrders && stalePendingOrders > 0) {
+      await supabase.from("notifications").insert({
+        title: "⚠️ Stale Pending Orders",
+        message: `${stalePendingOrders} order(s) have been pending for over 2 hours and need attention.`,
+        target_type: "all",
+        notification_type: "admin",
+        is_active: true,
+      });
+    }
+
+    // Alert: Pending credit requests older than 1 hour
+    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+    const { count: staleCreditReqs } = await supabase
+      .from("payment_requests")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "pending")
+      .lt("created_at", oneHourAgo);
+
+    if (staleCreditReqs && staleCreditReqs > 0) {
+      await supabase.from("notifications").insert({
+        title: "💳 Pending Credit Requests",
+        message: `${staleCreditReqs} credit request(s) have been waiting for over 1 hour.`,
+        target_type: "all",
+        notification_type: "admin",
+        is_active: true,
+      });
+    }
+
+    // Alert: Too many failed orders today
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const { count: failedToday } = await supabase
+      .from("product_orders")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "canceled")
+      .gte("canceled_at", todayStart.toISOString());
+
+    if (failedToday && failedToday > 3) {
+      await supabase.from("notifications").insert({
+        title: "🔴 High Failed Orders",
+        message: `${failedToday} orders have failed/been canceled today. Please investigate.`,
+        target_type: "all",
+        notification_type: "admin",
+        is_active: true,
+      });
+    }
+
+    // ========== DAILY REPORT GENERATION ==========
+    const today = new Date().toISOString().split("T")[0];
+
+    const { count: todayOrders } = await supabase
+      .from("product_orders")
+      .select("id", { count: "exact", head: true })
+      .gte("created_at", todayStart.toISOString());
+
+    const { data: revenueData } = await supabase
+      .from("product_orders")
+      .select("price")
+      .gte("created_at", todayStart.toISOString())
+      .in("status", ["completed", "confirmed"]);
+
+    const todayRevenue = revenueData?.reduce((sum: number, o: any) => sum + (o.price || 0), 0) || 0;
+
+    const { count: todayCreditReqs } = await supabase
+      .from("payment_requests")
+      .select("id", { count: "exact", head: true })
+      .gte("created_at", todayStart.toISOString());
+
+    const { count: todayChatbot } = await supabase
+      .from("chatbot_conversations")
+      .select("id", { count: "exact", head: true })
+      .gte("created_at", todayStart.toISOString());
+
+    const { count: pendingOrders } = await supabase
+      .from("product_orders")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "pending");
+
+    const { count: activeUsers } = await supabase
+      .from("profiles")
+      .select("id", { count: "exact", head: true });
+
+    // Get record counts for database stats
+    const { count: totalOrders } = await supabase
+      .from("product_orders")
+      .select("id", { count: "exact", head: true });
+    const { count: totalArchived } = await supabase
+      .from("archived_orders")
+      .select("id", { count: "exact", head: true });
+    const { count: totalNotifs } = await supabase
+      .from("notifications")
+      .select("id", { count: "exact", head: true });
+    const { count: totalActivity } = await supabase
+      .from("activity_logs")
+      .select("id", { count: "exact", head: true });
+
+    await supabase.from("system_daily_reports").upsert(
+      {
+        report_date: today,
+        total_orders: todayOrders || 0,
+        total_revenue: todayRevenue,
+        total_credit_requests: todayCreditReqs || 0,
+        total_chatbot_interactions: todayChatbot || 0,
+        pending_orders: pendingOrders || 0,
+        failed_orders: failedToday || 0,
+        active_users: activeUsers || 0,
+        database_stats: {
+          total_orders: totalOrders || 0,
+          archived_orders: totalArchived || 0,
+          notifications: totalNotifs || 0,
+          activity_logs: totalActivity || 0,
+        },
+      },
+      { onConflict: "report_date" }
+    );
 
     return new Response(JSON.stringify({ success: true, summary }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

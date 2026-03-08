@@ -193,6 +193,7 @@ export function DatabaseManagement() {
     order_archive_days: "Order Archiving",
     offer_retention_days: "Expired Offers",
     chatbot_feedback_retention_days: "Chatbot Feedback",
+    expired_coupon_retention_days: "Expired Coupons",
   };
 
   if (loading) {

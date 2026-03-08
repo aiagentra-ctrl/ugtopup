@@ -1725,6 +1725,48 @@ export type Database = {
         }
         Relationships: []
       }
+      system_daily_reports: {
+        Row: {
+          active_users: number | null
+          created_at: string | null
+          database_stats: Json | null
+          failed_orders: number | null
+          id: string
+          pending_orders: number | null
+          report_date: string
+          total_chatbot_interactions: number | null
+          total_credit_requests: number | null
+          total_orders: number | null
+          total_revenue: number | null
+        }
+        Insert: {
+          active_users?: number | null
+          created_at?: string | null
+          database_stats?: Json | null
+          failed_orders?: number | null
+          id?: string
+          pending_orders?: number | null
+          report_date: string
+          total_chatbot_interactions?: number | null
+          total_credit_requests?: number | null
+          total_orders?: number | null
+          total_revenue?: number | null
+        }
+        Update: {
+          active_users?: number | null
+          created_at?: string | null
+          database_stats?: Json | null
+          failed_orders?: number | null
+          id?: string
+          pending_orders?: number | null
+          report_date?: string
+          total_chatbot_interactions?: number | null
+          total_credit_requests?: number | null
+          total_orders?: number | null
+          total_revenue?: number | null
+        }
+        Relationships: []
+      }
       ticket_messages: {
         Row: {
           created_at: string
