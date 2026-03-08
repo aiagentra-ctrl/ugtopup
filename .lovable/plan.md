@@ -1,186 +1,96 @@
-# Proper Push Notification System
 
-## Current State
+# Dynamic Website with Advanced Admin Panel
 
-The app already has:
+## Overview
+Make the entire website content dynamic and admin-controlled by creating two new admin sections and supporting database tables. The existing "Products (New)" page (GameProductPrices) will remain completely untouched.
 
-- `usePushNotifications` hook using browser `new Notification()` API (only works when tab is open)
-- `NotificationPermissionModal` that asks for permission on first login
-- `useUnreadNotifications` hook with real-time Supabase subscription
-- Header dropdown with "Notifications" link (no bell icon with badge)
-- Admin `NotificationsManager` for sending broadcast/targeted notifications
-- PWA configured via `vite-plugin-pwa` with Workbox
+## What Changes
 
-## Problem
+### Phase 1: Database Setup
 
-The current system uses the **Web Notification API** (`new Notification()`), which only works when the browser tab is active. For true push notifications that appear even when the tab/browser is closed, we need **Service Worker push notifications** via the Push API with VAPID keys.
+**New table: `dynamic_products`** - stores products displayed on the homepage
+- `id`, `title`, `description`, `image_url`, `link`, `category` (topup/voucher/subscription/design), `price`, `discount_price`, `features` (jsonb array), `tags` (text array), `plans` (jsonb array), `display_order`, `is_active`, `created_at`, `updated_at`
 
-## Plan
+**New table: `product_categories`** - dynamic categories
+- `id`, `name`, `slug`, `display_order`, `is_active`, `created_at`, `updated_at`
 
-### 1. Service Worker Push Handler
+**New table: `offers`** - dynamic offer/deal sections
+- `id`, `title`, `subtitle`, `description`, `image_url`, `offer_type` (flash_sale/limited_time/daily_deal/discount_bundle), `timer_enabled`, `timer_type` (hours/days/both/none), `timer_end_date`, `product_link`, `custom_icon_url`, `display_order`, `is_active`, `show_on_homepage`, `show_on_product_page`, `created_at`, `updated_at`
 
-Add a custom service worker file (`public/sw-push.js`) that handles `push` events and `notificationclick` events. The click handler will open the PWA or website URL using `clients.openWindow()`.
+RLS: Public SELECT for active items, admin ALL for management.
 
-Update `vite.config.ts` to inject this custom SW code via VitePWA's `injectManifest` or append it to the generated SW using `importScripts`.
+**Seed `dynamic_products`** with current hardcoded data from ProductTabs so nothing changes visually on day one.
 
-### 2. VAPID Key Setup
+### Phase 2: Admin Panel - Product Update Page (new section)
 
-Generate VAPID keys (public/private pair) for Web Push. Store the private key as a Supabase secret (`VAPID_PRIVATE_KEY`). Store the public key as `VITE_VAPID_PUBLIC_KEY` in the codebase (it's a publishable key).
+Add a new sidebar menu item **"Product Update"** in AdminLayout.
 
-### 3. Push Subscription Storage
+New component: `src/components/admin/DynamicProductManager.tsx`
+- Full CRUD table listing all dynamic products
+- Inline editing with image upload (to `product-images` storage bucket)
+- Fields: title, description, image, link, category, price, discount price, features (add/remove chips), tags (add/remove), plans (JSON editor)
+- Product preview panel showing how it looks on the frontend
+- Search, filter by category, drag-to-reorder
 
-**New migration**: Create a `push_subscriptions` table:
+New component: `src/components/admin/CategoryManager.tsx`
+- Add/rename/delete categories
+- Reorder categories via drag or arrows
+- Auto-updates category options across the product form
 
-- `id` uuid PK
-- `user_id` uuid NOT NULL (references profiles)
-- `endpoint` text NOT NULL
-- `p256dh` text NOT NULL
-- `auth` text NOT NULL
-- `created_at` timestamptz
-- `updated_at` timestamptz
-- UNIQUE(user_id, endpoint)
-- RLS: users can manage own subscriptions, admins can read all
+### Phase 3: Admin Panel - Offer Management Page (new section)
 
-### 4. Update `usePushNotifications` Hook
+Add a new sidebar menu item **"Offers"** in AdminLayout.
 
-After getting notification permission, register a push subscription using `serviceWorkerRegistration.pushManager.subscribe()` with the VAPID public key. Save the subscription (endpoint, keys) to the `push_subscriptions` table. Replace the `new Notification()` approach with service worker push.
+New component: `src/components/admin/OfferManager.tsx`
+- List all offers with enable/disable toggle
+- Add new offer with form: title, subtitle, description, image upload, offer type selector, timer controls (enable/disable, type, end date), product link picker
+- Edit existing offers inline
+- Reorder offers
+- Toggle homepage/product page visibility
 
-### 5. Edge Function: `send-push-notification`
+### Phase 4: Frontend - Make ProductTabs Dynamic
 
-New edge function that:
+Update `src/components/ProductTabs.tsx`:
+- Fetch products from `dynamic_products` table instead of hardcoded `productData`
+- Fetch categories from `product_categories` table for tab names
+- Keep the exact same visual layout, just swap data source
+- Real-time subscription so admin changes appear instantly
 
-- Accepts `user_id` or `notification_id`
-- Fetches push subscriptions for the target user(s)
-- Sends Web Push messages using the `web-push` protocol (VAPID signing with the private key)
-- Handles expired/invalid subscriptions (clean up)
+### Phase 5: Frontend - Make BestDeals/Offers Dynamic
 
-### 6. Database Trigger for Auto-Push
+Update `src/components/BestDeals.tsx`:
+- Fetch active homepage offers from `offers` table
+- Render offer blocks dynamically with optional countdown timers
+- Keep existing visual style, just make content admin-controlled
 
-Add a trigger on `user_notifications` INSERT that calls the edge function via `pg_net` (or use the existing Supabase realtime + edge function invocation pattern). When a notification is delivered to a user, the edge function sends a push to all their registered devices.
+### What Will NOT Change
+- **"Products (New)" page** (`GameProductPrices` component) -- zero modifications
+- **Existing `ProductsList`** component -- untouched
+- **Game pricing system** (`game_product_prices` table) -- untouched
+- **Overall website design/layout** -- only data sources change
 
-### 7. Bell Icon with Badge in Header
+## Technical Details
 
-Update `Header.tsx` to add a **Bell icon** next to the user menu with:
+### New Files
+- `src/components/admin/DynamicProductManager.tsx` - Product Update admin page
+- `src/components/admin/CategoryManager.tsx` - Category management
+- `src/components/admin/OfferManager.tsx` - Offer management admin page
+- `src/lib/dynamicProductApi.ts` - API functions for dynamic products/categories
+- `src/lib/offerApi.ts` - API functions for offers
+- `src/hooks/useDynamicProducts.ts` - Frontend hook with real-time subscriptions
+- `src/hooks/useOffers.ts` - Frontend hook for offers
 
-- Red dot/badge showing unread count (using `useUnreadNotifications`)
-- Clicking opens a dropdown showing recent notifications
-- "View all" link to `/notifications` page
-- Mark as read on click
+### Modified Files
+- `src/components/admin/AdminLayout.tsx` - Add 3 new sidebar items (Product Update, Categories, Offers)
+- `src/pages/AdminPanel.tsx` - Add new section cases in switch
+- `src/components/ProductTabs.tsx` - Replace hardcoded data with database fetch
+- `src/components/BestDeals.tsx` - Replace hardcoded deals with database fetch
 
-### 8. Update `NotificationPermissionModal`
+### New Storage Bucket
+- `product-images` (public) for product image uploads
 
-After permission is granted, subscribe to push and save the subscription to the database (instead of just setting localStorage).
-
-### Files Summary
-
-**New files:**
-
-- `public/sw-push.js` — Service worker push event handlers
-- `supabase/functions/send-push-notification/index.ts` — Edge function for Web Push delivery
-- Migration SQL — `push_subscriptions` table + trigger on `user_notifications`
-
-**Modified files:**
-
-- `vite.config.ts` — Add custom SW import and `navigateFallbackDenylist` for `/~oauth`
-- `src/hooks/usePushNotifications.ts` — Subscribe to Push API, save subscription to DB
-- `src/components/NotificationPermissionModal.tsx` — Trigger push subscription after permission
-- `src/components/Header.tsx` — Add bell icon with unread badge dropdown
-
-### Technical Details
-
-**Web Push flow:**
-
-1. User grants notification permission → browser creates push subscription with **Prompt — Implement Proper Push Notification System for Website**
-  Notifications are currently **not working properly**. When a notification arrives, users do not see it like notifications from email or other mobile apps. We need to implement a proper **push notification system**.
-  ---
-  ### 1. Mobile Push Notifications
-  When a notification is sent, users should see it on their **mobile device screen** even if the website tab is not open.
-  The notification should appear like normal app notifications.
-  Example uses:  
-  • Order updates  
-  • New offers  
-  • Payment confirmations  
-  • Account notifications.
-  ---
-  ### 2. Click Action Behavior
-  When the user taps the notification:
-  • It should open the **website directly**  
-  OR  
-  • If the user installed the **web app (PWA)**, it should open inside the app.
-  ---
-  ### 3. Notification Indicator
-  Add a **notification indicator** inside the website UI.
-  Features:
-  • A bell icon with a **colored dot or badge** showing unread notifications  
-  • When the user clicks the icon, it should show the list of notifications  
-  • Once opened, the notification should be marked as read.
-  ---
-  ### 4. Real-Time Notification System
-  Notifications should be sent in real time when events happen, such as:
-  • Order placed  
-  • Order delivered  
-  • Credit added  
-  • New promotional offers.
-  ---
-  ### 5. Admin Panel Control
-  Create a section in the admin panel where admins can:
-  • Send broadcast notifications  
-  • Send notifications to specific users  
-  • View notification history.
-  ---
-  ### 6. Final Goal
-  Create a **full push notification system** so that:
-  • Users receive notifications directly on their device screen  
-  • Clicking the notification opens the website or web app  
-  • The website shows a visual notification indicator  
-  • Notifications work reliably on mobile and desktop.**Prompt — Implement Proper Push Notification System for Website**
-  Notifications are currently **not working properly**. When a notification arrives, users do not see it like notifications from email or other mobile apps. We need to implement a proper **push notification system**.
-  ---
-  ### 1. Mobile Push Notifications
-  When a notification is sent, users should see it on their **mobile device screen** even if the website tab is not open.
-  The notification should appear like normal app notifications.
-  Example uses:  
-  • Order updates  
-  • New offers  
-  • Payment confirmations  
-  • Account notifications.
-  ---
-  ### 2. Click Action Behavior
-  When the user taps the notification:
-  • It should open the **website directly**  
-  OR  
-  • If the user installed the **web app (PWA)**, it should open inside the app.
-  ---
-  ### 3. Notification Indicator
-  Add a **notification indicator** inside the website UI.
-  Features:
-  • A bell icon with a **colored dot or badge** showing unread notifications  
-  • When the user clicks the icon, it should show the list of notifications  
-  • Once opened, the notification should be marked as read.
-  ---
-  ### 4. Real-Time Notification System
-  Notifications should be sent in real time when events happen, such as:
-  • Order placed  
-  • Order delivered  
-  • Credit added  
-  • New promotional offers.
-  ---
-  ### 5. Admin Panel Control
-  Create a section in the admin panel where admins can:
-  • Send broadcast notifications  
-  • Send notifications to specific users  
-  • View notification history.
-  ---
-  ### 6. Final Goal
-  Create a **full push notification system** so that:
-  • Users receive notifications directly on their device screen  
-  • Clicking the notification opens the website or web app  
-  • The website shows a visual notification indicator  
-  • Notifications work reliably on mobile and desktop. public key
-2. Subscription (endpoint + keys) saved to `push_subscriptions` table
-3. When `user_notifications` row is inserted (via existing triggers), a DB trigger calls `send-push-notification` edge function via `pg_net`
-4. Edge function reads subscription, signs payload with VAPID private key, POSTs to push endpoint
-5. Service worker receives `push` event, shows native notification
-6. User taps → `notificationclick` opens the PWA/website
-
-**VAPID key generation:** Will need to ask the user to provide or generate VAPID keys and store the private key as a Supabase secret.
+### Database Migration
+- Create `dynamic_products`, `product_categories`, `offers` tables
+- Create `product-images` storage bucket
+- RLS policies for all new tables
+- Seed initial data from current hardcoded products

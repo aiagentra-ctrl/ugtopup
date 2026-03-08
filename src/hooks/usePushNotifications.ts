@@ -6,18 +6,109 @@ export const usePushNotifications = () => {
   const { user } = useAuth();
   const [permission, setPermission] = useState<NotificationPermission>('default');
   const [isSupported, setIsSupported] = useState(false);
+  const [isSubscribed, setIsSubscribed] = useState(false);
 
-  // Check if notifications are supported
+  // Check if push notifications are supported
   useEffect(() => {
-    const supported = 'Notification' in window;
+    const supported = 'Notification' in window && 'serviceWorker' in navigator && 'PushManager' in window;
     setIsSupported(supported);
     
-    if (supported) {
+    if ('Notification' in window) {
       setPermission(Notification.permission);
     }
   }, []);
 
-  // Request notification permission
+  // Check existing subscription status
+  useEffect(() => {
+    if (!isSupported || !user?.id) return;
+
+    const checkSubscription = async () => {
+      try {
+        const registration = await navigator.serviceWorker.ready;
+        const subscription = await registration.pushManager.getSubscription();
+        setIsSubscribed(!!subscription);
+      } catch (error) {
+        console.error('[Push] Error checking subscription:', error);
+      }
+    };
+    
+    checkSubscription();
+  }, [isSupported, user?.id]);
+
+  // Fetch VAPID public key from edge function
+  const getVapidPublicKey = useCallback(async (): Promise<string | null> => {
+    try {
+      const { data, error } = await supabase.functions.invoke('get-vapid-key');
+      if (error) throw error;
+      return data?.publicKey || null;
+    } catch (error) {
+      console.error('[Push] Failed to fetch VAPID key:', error);
+      return null;
+    }
+  }, []);
+
+  // Subscribe to push notifications
+  const subscribeToPush = useCallback(async (): Promise<boolean> => {
+    if (!isSupported || !user?.id) return false;
+
+    try {
+      const vapidPublicKey = await getVapidPublicKey();
+      if (!vapidPublicKey) {
+        console.error('[Push] No VAPID public key available');
+        return false;
+      }
+
+      const registration = await navigator.serviceWorker.ready;
+
+      // Convert VAPID key to Uint8Array
+      const padding = '='.repeat((4 - (vapidPublicKey.length % 4)) % 4);
+      const base64 = (vapidPublicKey + padding).replace(/-/g, '+').replace(/_/g, '/');
+      const rawData = atob(base64);
+      const applicationServerKey = new Uint8Array(rawData.length);
+      for (let i = 0; i < rawData.length; i++) {
+        applicationServerKey[i] = rawData.charCodeAt(i);
+      }
+
+      // Subscribe via Push API
+      const subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey,
+      });
+
+      const subscriptionJson = subscription.toJSON();
+      const endpoint = subscriptionJson.endpoint!;
+      const p256dh = subscriptionJson.keys!.p256dh!;
+      const auth = subscriptionJson.keys!.auth!;
+
+      // Save to database (upsert by user_id + endpoint)
+      const { error } = await supabase
+        .from('push_subscriptions')
+        .upsert(
+          {
+            user_id: user.id,
+            endpoint,
+            p256dh,
+            auth,
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: 'user_id,endpoint' }
+        );
+
+      if (error) {
+        console.error('[Push] Failed to save subscription:', error);
+        return false;
+      }
+
+      console.log('[Push] Successfully subscribed to push notifications');
+      setIsSubscribed(true);
+      return true;
+    } catch (error) {
+      console.error('[Push] Subscription failed:', error);
+      return false;
+    }
+  }, [isSupported, user?.id, getVapidPublicKey]);
+
+  // Request notification permission and subscribe
   const requestPermission = useCallback(async (): Promise<NotificationPermission> => {
     if (!isSupported) {
       console.log('[Push] Notifications not supported');
@@ -28,92 +119,32 @@ export const usePushNotifications = () => {
       const result = await Notification.requestPermission();
       setPermission(result);
       console.log('[Push] Permission result:', result);
+
+      // If granted, automatically subscribe to push
+      if (result === 'granted') {
+        await subscribeToPush();
+      }
+
       return result;
     } catch (error) {
       console.error('[Push] Permission request failed:', error);
       return 'denied';
     }
-  }, [isSupported]);
+  }, [isSupported, subscribeToPush]);
 
-  // Show a browser notification
-  const showNotification = useCallback((title: string, body: string, icon?: string) => {
-    if (permission !== 'granted' || !isSupported) {
-      console.log('[Push] Cannot show notification - permission:', permission, 'supported:', isSupported);
-      return;
-    }
-
-    try {
-      const notification = new Notification(title, {
-        body,
-        icon: icon || '/icon-192x192.png',
-        badge: '/icon-192x192.png',
-        tag: `notification-${Date.now()}`,
-        requireInteraction: false,
-      });
-
-      // Auto-close after 5 seconds
-      setTimeout(() => notification.close(), 5000);
-
-      notification.onclick = () => {
-        window.focus();
-        notification.close();
-      };
-    } catch (error) {
-      console.error('[Push] Failed to show notification:', error);
-    }
-  }, [permission, isSupported]);
-
-  // Subscribe to real-time notification inserts
+  // Auto-subscribe if permission already granted but not subscribed
   useEffect(() => {
-    if (!user?.id || permission !== 'granted') return;
-
-    console.log('[Push] Subscribing to notifications for user:', user.id);
-
-    const channel = supabase
-      .channel(`push-notifications-${user.id}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'user_notifications',
-          filter: `user_id=eq.${user.id}`,
-        },
-        async (payload) => {
-          console.log('[Push] New notification received:', payload);
-
-          // Fetch the notification content
-          const { data, error } = await supabase
-            .from('notifications')
-            .select('title, message, image_url')
-            .eq('id', payload.new.notification_id)
-            .single();
-
-          if (error) {
-            console.error('[Push] Failed to fetch notification details:', error);
-            return;
-          }
-
-          if (data) {
-            showNotification(data.title, data.message, data.image_url || undefined);
-          }
-        }
-      )
-      .subscribe((status) => {
-        console.log('[Push] Subscription status:', status);
-      });
-
-    return () => {
-      console.log('[Push] Cleaning up subscription');
-      supabase.removeChannel(channel);
-    };
-  }, [user?.id, permission, showNotification]);
+    if (permission === 'granted' && !isSubscribed && user?.id && isSupported) {
+      subscribeToPush();
+    }
+  }, [permission, isSubscribed, user?.id, isSupported, subscribeToPush]);
 
   return {
     permission,
     isSupported,
     isEnabled: permission === 'granted',
+    isSubscribed,
     requestPermission,
-    showNotification,
+    subscribeToPush,
   };
 };
