@@ -419,6 +419,51 @@ export type Database = {
           },
         ]
       }
+      feature_flags: {
+        Row: {
+          category: string
+          created_at: string
+          depends_on: string | null
+          description: string | null
+          disabled_message: string | null
+          feature_key: string
+          feature_name: string
+          id: string
+          is_enabled: boolean
+          monthly_cost_note: string | null
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          category?: string
+          created_at?: string
+          depends_on?: string | null
+          description?: string | null
+          disabled_message?: string | null
+          feature_key: string
+          feature_name: string
+          id?: string
+          is_enabled?: boolean
+          monthly_cost_note?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          depends_on?: string | null
+          description?: string | null
+          disabled_message?: string | null
+          feature_key?: string
+          feature_name?: string
+          id?: string
+          is_enabled?: boolean
+          monthly_cost_note?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       game_product_prices: {
         Row: {
           created_at: string | null
@@ -1580,6 +1625,7 @@ export type Database = {
         Returns: boolean
       }
       is_admin: { Args: never; Returns: boolean }
+      is_developer: { Args: never; Returns: boolean }
       is_super_admin: { Args: never; Returns: boolean }
       place_order:
         | {
@@ -1719,7 +1765,7 @@ export type Database = {
         | "admin_action"
         | "system_action"
         | "order_created"
-      app_role: "admin" | "user" | "super_admin" | "sub_admin"
+      app_role: "admin" | "user" | "super_admin" | "sub_admin" | "developer"
       notification_target_type: "all" | "specific"
       order_status:
         | "pending"
@@ -1882,7 +1928,7 @@ export const Constants = {
         "system_action",
         "order_created",
       ],
-      app_role: ["admin", "user", "super_admin", "sub_admin"],
+      app_role: ["admin", "user", "super_admin", "sub_admin", "developer"],
       notification_target_type: ["all", "specific"],
       order_status: [
         "pending",

@@ -21,6 +21,7 @@ import {
   Smartphone,
   Trophy,
   UserPlus,
+  HeartPulse,
 } from "lucide-react";
 import {
   Sidebar,
@@ -65,6 +66,7 @@ const menuItems = [
   { id: "coupon-rules", title: "Coupon Rules", icon: Ticket },
   { id: "promo-analytics", title: "Promo Analytics", icon: Activity },
   { id: "chatbot-orders", title: "Chatbot Orders", icon: Bot },
+  { id: "service-status", title: "Service Status", icon: HeartPulse },
 ];
 
 // Bottom nav items for mobile quick access

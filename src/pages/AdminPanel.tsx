@@ -27,6 +27,7 @@ import { AdminAppDownload } from "@/components/admin/AdminAppDownload";
 import { RewardMilestoneManager } from "@/components/admin/RewardMilestoneManager";
 import { ReferralManager } from "@/components/admin/ReferralManager";
 import { ChatbotOrders } from "@/components/admin/ChatbotOrders";
+import { ServiceStatus } from "@/components/admin/ServiceStatus";
 import { checkAdminAccess } from "@/lib/adminApi";
 import { useAdminPushNotifications } from "@/hooks/useAdminPushNotifications";
 import { toast } from "sonner";
@@ -139,6 +140,8 @@ const AdminPanel = () => {
         return <PromotionAnalytics />;
       case "chatbot-orders":
         return <ChatbotOrders />;
+      case "service-status":
+        return <ServiceStatus />;
       default:
         return <EnhancedDashboard />;
     }
