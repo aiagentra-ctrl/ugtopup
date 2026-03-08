@@ -172,6 +172,7 @@ const Netflix = () => {
         onClose={() => setShowSuccessModal(false)}
         orderId={orderId}
         onSubscribeAgain={handleSubscribeAgain}
+        voucherCode={voucherCode}
       />
     </div>
   );
