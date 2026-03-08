@@ -176,6 +176,9 @@ export type Database = {
           image_url: string | null
           is_active: boolean
           link: string | null
+          offer_badge_color: string | null
+          offer_badge_text: string | null
+          offer_id: string | null
           plans: Json | null
           price: number | null
           tags: string[] | null
@@ -193,6 +196,9 @@ export type Database = {
           image_url?: string | null
           is_active?: boolean
           link?: string | null
+          offer_badge_color?: string | null
+          offer_badge_text?: string | null
+          offer_id?: string | null
           plans?: Json | null
           price?: number | null
           tags?: string[] | null
@@ -210,6 +216,9 @@ export type Database = {
           image_url?: string | null
           is_active?: boolean
           link?: string | null
+          offer_badge_color?: string | null
+          offer_badge_text?: string | null
+          offer_id?: string | null
           plans?: Json | null
           price?: number | null
           tags?: string[] | null
@@ -222,6 +231,13 @@ export type Database = {
             columns: ["category_id"]
             isOneToOne: false
             referencedRelation: "product_categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "dynamic_products_offer_id_fkey"
+            columns: ["offer_id"]
+            isOneToOne: false
+            referencedRelation: "offers"
             referencedColumns: ["id"]
           },
         ]
@@ -395,58 +411,82 @@ export type Database = {
       }
       offers: {
         Row: {
+          animation_type: string | null
+          background_gradient: string | null
+          badge_color: string | null
+          badge_text: string | null
+          badge_text_color: string | null
           created_at: string
           custom_icon_url: string | null
           description: string | null
+          design_template: string
           display_order: number
           id: string
           image_url: string | null
           is_active: boolean
           offer_type: string
           product_link: string | null
+          seasonal_theme: string | null
           show_on_homepage: boolean
           show_on_product_page: boolean
           subtitle: string | null
           timer_enabled: boolean
           timer_end_date: string | null
+          timer_start_date: string | null
           timer_type: string | null
           title: string
           updated_at: string
         }
         Insert: {
+          animation_type?: string | null
+          background_gradient?: string | null
+          badge_color?: string | null
+          badge_text?: string | null
+          badge_text_color?: string | null
           created_at?: string
           custom_icon_url?: string | null
           description?: string | null
+          design_template?: string
           display_order?: number
           id?: string
           image_url?: string | null
           is_active?: boolean
           offer_type?: string
           product_link?: string | null
+          seasonal_theme?: string | null
           show_on_homepage?: boolean
           show_on_product_page?: boolean
           subtitle?: string | null
           timer_enabled?: boolean
           timer_end_date?: string | null
+          timer_start_date?: string | null
           timer_type?: string | null
           title: string
           updated_at?: string
         }
         Update: {
+          animation_type?: string | null
+          background_gradient?: string | null
+          badge_color?: string | null
+          badge_text?: string | null
+          badge_text_color?: string | null
           created_at?: string
           custom_icon_url?: string | null
           description?: string | null
+          design_template?: string
           display_order?: number
           id?: string
           image_url?: string | null
           is_active?: boolean
           offer_type?: string
           product_link?: string | null
+          seasonal_theme?: string | null
           show_on_homepage?: boolean
           show_on_product_page?: boolean
           subtitle?: string | null
           timer_enabled?: boolean
           timer_end_date?: string | null
+          timer_start_date?: string | null
           timer_type?: string | null
           title?: string
           updated_at?: string

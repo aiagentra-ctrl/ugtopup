@@ -17,6 +17,14 @@ export interface Offer {
   is_active: boolean;
   show_on_homepage: boolean;
   show_on_product_page: boolean;
+  design_template: string;
+  badge_text: string | null;
+  badge_color: string | null;
+  badge_text_color: string | null;
+  animation_type: string | null;
+  seasonal_theme: string | null;
+  background_gradient: string | null;
+  timer_start_date: string | null;
 }
 
 export function useOffers(location: "homepage" | "product_page" | "all" = "all") {
@@ -28,6 +36,8 @@ export function useOffers(location: "homepage" | "product_page" | "all" = "all")
       .from("offers")
       .select("*")
       .eq("is_active", true)
+      .or("timer_end_date.is.null,timer_end_date.gt.now()")
+      .or("timer_start_date.is.null,timer_start_date.lte.now()")
       .order("display_order");
 
     if (location === "homepage") query = query.eq("show_on_homepage", true);

@@ -4,9 +4,9 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Plus, Pencil, Trash2, Search, Image, X, ArrowUp, ArrowDown } from "lucide-react";
 import { toast } from "sonner";
@@ -53,6 +53,9 @@ const emptyForm = {
   features: [] as string[],
   tags: [] as string[],
   is_active: true,
+  offer_id: "" as string,
+  offer_badge_text: "",
+  offer_badge_color: "",
 };
 
 export function DynamicProductManager() {
@@ -107,6 +110,9 @@ export function DynamicProductManager() {
       features: Array.isArray(p.features) ? p.features : [],
       tags: Array.isArray(p.tags) ? p.tags : [],
       is_active: p.is_active,
+      offer_id: (p as any).offer_id || "",
+      offer_badge_text: (p as any).offer_badge_text || "",
+      offer_badge_color: (p as any).offer_badge_color || "",
     });
     setDialogOpen(true);
   };
@@ -125,6 +131,9 @@ export function DynamicProductManager() {
         features: form.features,
         tags: form.tags,
         is_active: form.is_active,
+        offer_id: form.offer_id || null,
+        offer_badge_text: form.offer_badge_text || null,
+        offer_badge_color: form.offer_badge_color || null,
       };
       if (editingId) {
         await updateDynamicProduct(editingId, payload);
@@ -330,6 +339,31 @@ export function DynamicProductManager() {
                   </Badge>
                 ))}
               </div>
+            </div>
+            {/* Offer Badge */}
+            <div className="border rounded-lg p-3 space-y-3">
+              <Label className="text-sm font-semibold">Offer Badge (optional)</Label>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label className="text-xs">Badge Text</Label>
+                  <Input value={form.offer_badge_text} onChange={(e) => setForm((f) => ({ ...f, offer_badge_text: e.target.value }))} placeholder="20% OFF" />
+                </div>
+                <div>
+                  <Label className="text-xs">Badge Color</Label>
+                  <div className="flex gap-2 items-center">
+                    <input type="color" value={form.offer_badge_color || "#ef4444"} onChange={(e) => setForm((f) => ({ ...f, offer_badge_color: e.target.value }))} className="w-8 h-8 rounded border cursor-pointer" />
+                    <Input value={form.offer_badge_color} onChange={(e) => setForm((f) => ({ ...f, offer_badge_color: e.target.value }))} className="flex-1" />
+                  </div>
+                </div>
+              </div>
+              {form.offer_badge_text && (
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-muted-foreground">Preview:</span>
+                  <span className="px-2 py-0.5 rounded-md text-xs font-bold text-white" style={{ backgroundColor: form.offer_badge_color || "#ef4444" }}>
+                    {form.offer_badge_text}
+                  </span>
+                </div>
+              )}
             </div>
             <div className="flex items-center gap-2">
               <Switch checked={form.is_active} onCheckedChange={(v) => setForm((f) => ({ ...f, is_active: v }))} />
