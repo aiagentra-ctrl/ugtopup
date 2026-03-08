@@ -23,6 +23,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { supabase } from "@/integrations/supabase/client";
 import ugGamingLogo from "@/assets/ug-gaming-logo.jpg";
+import { NotificationBell } from "./NotificationBell";
 
 export const Header = () => {
   const { isAuthenticated, profile, user, logout } = useAuth();
