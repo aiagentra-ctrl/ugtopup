@@ -27,7 +27,7 @@ const Signup = () => {
     e.preventDefault();
     setLoading(true);
     
-    const { error } = await signup(email, password, username);
+    const { error } = await signup(email, password, username, refCode);
     
     if (!error) {
       // Auto-accept terms on account creation
