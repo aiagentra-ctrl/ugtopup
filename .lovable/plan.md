@@ -1,96 +1,62 @@
 
-# Dynamic Website with Advanced Admin Panel
 
-## Overview
-Make the entire website content dynamic and admin-controlled by creating two new admin sections and supporting database tables. The existing "Products (New)" page (GameProductPrices) will remain completely untouched.
+# Fix and Improve Voucher Inventory System
 
-## What Changes
+## Current State
 
-### Phase 1: Database Setup
+- **Database**: `voucher_codes` table + `assign_voucher_code` and `try_assign_voucher` functions exist and work correctly (atomic assignment with `FOR UPDATE SKIP LOCKED`)
+- **UniPin**: Already calls `try_assign_voucher` after order placement — working
+- **Garena, Netflix**: Do NOT call `try_assign_voucher` — vouchers are never auto-assigned for these products
+- **Admin UI**: `VoucherInventory.tsx` has stats, table, add/bulk import, filters — functional but basic
+- **Real-time**: Uses Supabase realtime subscription (refetches all on any change)
 
-**New table: `dynamic_products`** - stores products displayed on the homepage
-- `id`, `title`, `description`, `image_url`, `link`, `category` (topup/voucher/subscription/design), `price`, `discount_price`, `features` (jsonb array), `tags` (text array), `plans` (jsonb array), `display_order`, `is_active`, `created_at`, `updated_at`
+## What Needs Fixing
 
-**New table: `product_categories`** - dynamic categories
-- `id`, `name`, `slug`, `display_order`, `is_active`, `created_at`, `updated_at`
+1. **Garena and Netflix** pages need voucher auto-assignment (same pattern as UniPin)
+2. **Real-time subscription** refetches entire table on every change — should use incremental updates
+3. **UI** needs a cleaner spreadsheet-style look with pagination
+4. **Success modals** for Garena and Netflix need voucher code display
 
-**New table: `offers`** - dynamic offer/deal sections
-- `id`, `title`, `subtitle`, `description`, `image_url`, `offer_type` (flash_sale/limited_time/daily_deal/discount_bundle), `timer_enabled`, `timer_type` (hours/days/both/none), `timer_end_date`, `product_link`, `custom_icon_url`, `display_order`, `is_active`, `show_on_homepage`, `show_on_product_page`, `created_at`, `updated_at`
+## Plan
 
-RLS: Public SELECT for active items, admin ALL for management.
+### 1. Add Voucher Assignment to Garena & Netflix Order Flows
 
-**Seed `dynamic_products`** with current hardcoded data from ProductTabs so nothing changes visually on day one.
+**Files**: `src/pages/GarenaShell.tsx`, `src/pages/Netflix.tsx`
 
-### Phase 2: Admin Panel - Product Update Page (new section)
+After `createOrder()`, call `try_assign_voucher` with the correct game name (`garena`, `netflix`). Store the returned code and pass it to the success modal.
 
-Add a new sidebar menu item **"Product Update"** in AdminLayout.
+**Files**: `src/components/garena/GarenaSuccessModal.tsx`, `src/components/netflix/NetflixSuccessModal.tsx`
 
-New component: `src/components/admin/DynamicProductManager.tsx`
-- Full CRUD table listing all dynamic products
-- Inline editing with image upload (to `product-images` storage bucket)
-- Fields: title, description, image, link, category, price, discount price, features (add/remove chips), tags (add/remove), plans (JSON editor)
-- Product preview panel showing how it looks on the frontend
-- Search, filter by category, drag-to-reorder
+Add `voucherCode` prop and display the code (same pattern as `UnipinSuccessModal`).
 
-New component: `src/components/admin/CategoryManager.tsx`
-- Add/rename/delete categories
-- Reorder categories via drag or arrows
-- Auto-updates category options across the product form
+### 2. Improve VoucherInventory UI
 
-### Phase 3: Admin Panel - Offer Management Page (new section)
+**File**: `src/components/admin/VoucherInventory.tsx`
 
-Add a new sidebar menu item **"Offers"** in AdminLayout.
+- Add pagination (show 50 per page) to handle large inventories
+- Add alternating row colors for spreadsheet feel
+- Add "copy code" button per row
+- Improve stat cards with progress bar showing available/total ratio
+- Add confirmation dialog before delete
+- Show low-stock alert banner when any game has < 5 available codes
+- Group stats by game (expandable summary showing per-game availability)
 
-New component: `src/components/admin/OfferManager.tsx`
-- List all offers with enable/disable toggle
-- Add new offer with form: title, subtitle, description, image upload, offer type selector, timer controls (enable/disable, type, end date), product link picker
-- Edit existing offers inline
-- Reorder offers
-- Toggle homepage/product page visibility
+### 3. Improve Real-Time Updates
 
-### Phase 4: Frontend - Make ProductTabs Dynamic
+**File**: `src/components/admin/VoucherInventory.tsx`
 
-Update `src/components/ProductTabs.tsx`:
-- Fetch products from `dynamic_products` table instead of hardcoded `productData`
-- Fetch categories from `product_categories` table for tab names
-- Keep the exact same visual layout, just swap data source
-- Real-time subscription so admin changes appear instantly
+Instead of refetching everything on each realtime event, handle INSERT/UPDATE/DELETE events individually by updating local state. Add a polling fallback every 30s for reliability.
 
-### Phase 5: Frontend - Make BestDeals/Offers Dynamic
+### 4. No Database Changes Required
 
-Update `src/components/BestDeals.tsx`:
-- Fetch active homepage offers from `offers` table
-- Render offer blocks dynamically with optional countdown timers
-- Keep existing visual style, just make content admin-controlled
+The existing `voucher_codes` table, `assign_voucher_code`, and `try_assign_voucher` functions already handle everything correctly — atomic locking prevents duplicate assignment, notifications are sent via `create_user_notification`.
 
-### What Will NOT Change
-- **"Products (New)" page** (`GameProductPrices` component) -- zero modifications
-- **Existing `ProductsList`** component -- untouched
-- **Game pricing system** (`game_product_prices` table) -- untouched
-- **Overall website design/layout** -- only data sources change
+### Files Summary
 
-## Technical Details
+**Modified files:**
+- `src/pages/GarenaShell.tsx` — Add `try_assign_voucher` call after order
+- `src/pages/Netflix.tsx` — Add `try_assign_voucher` call after order  
+- `src/components/garena/GarenaSuccessModal.tsx` — Add voucher code display
+- `src/components/netflix/NetflixSuccessModal.tsx` — Add voucher code display
+- `src/components/admin/VoucherInventory.tsx` — UI upgrade with pagination, incremental realtime, per-game stats
 
-### New Files
-- `src/components/admin/DynamicProductManager.tsx` - Product Update admin page
-- `src/components/admin/CategoryManager.tsx` - Category management
-- `src/components/admin/OfferManager.tsx` - Offer management admin page
-- `src/lib/dynamicProductApi.ts` - API functions for dynamic products/categories
-- `src/lib/offerApi.ts` - API functions for offers
-- `src/hooks/useDynamicProducts.ts` - Frontend hook with real-time subscriptions
-- `src/hooks/useOffers.ts` - Frontend hook for offers
-
-### Modified Files
-- `src/components/admin/AdminLayout.tsx` - Add 3 new sidebar items (Product Update, Categories, Offers)
-- `src/pages/AdminPanel.tsx` - Add new section cases in switch
-- `src/components/ProductTabs.tsx` - Replace hardcoded data with database fetch
-- `src/components/BestDeals.tsx` - Replace hardcoded deals with database fetch
-
-### New Storage Bucket
-- `product-images` (public) for product image uploads
-
-### Database Migration
-- Create `dynamic_products`, `product_categories`, `offers` tables
-- Create `product-images` storage bucket
-- RLS policies for all new tables
-- Seed initial data from current hardcoded products
