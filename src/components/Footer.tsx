@@ -145,6 +145,14 @@ export const Footer = () => {
                 Refund & Payment Policy
               </Link>
             </li>
+            <li>
+              <Link 
+                to="/coupon-policy" 
+                className="text-[hsl(var(--footer-text))] text-base hover:text-[hsl(var(--footer-heading))] transition-colors duration-300"
+              >
+                Coupon Policy & Rules
+              </Link>
+            </li>
           </ul>
         </div>
         

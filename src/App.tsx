@@ -35,6 +35,7 @@ import BannerDesign from "./pages/BannerDesign";
 import ThumbnailDesign from "./pages/ThumbnailDesign";
 import ContactUs from "./pages/ContactUs";
 import RefundPolicy from "./pages/RefundPolicy";
+import CouponPolicy from "./pages/CouponPolicy";
 import UserNotifications from "./pages/UserNotifications";
 import PaymentSuccess from "./pages/PaymentSuccess";
 import PaymentCancel from "./pages/PaymentCancel";
@@ -76,6 +77,7 @@ const App = () => (
             <Route path="/product/thumbnail-design" element={<ThumbnailDesign />} />
             <Route path="/contact" element={<ContactUs />} />
             <Route path="/refund-policy" element={<RefundPolicy />} />
+            <Route path="/coupon-policy" element={<CouponPolicy />} />
             <Route
               path="/dashboard"
               element={
