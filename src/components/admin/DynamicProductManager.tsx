@@ -131,6 +131,9 @@ export function DynamicProductManager() {
         features: form.features,
         tags: form.tags,
         is_active: form.is_active,
+        offer_id: form.offer_id || null,
+        offer_badge_text: form.offer_badge_text || null,
+        offer_badge_color: form.offer_badge_color || null,
       };
       if (editingId) {
         await updateDynamicProduct(editingId, payload);
