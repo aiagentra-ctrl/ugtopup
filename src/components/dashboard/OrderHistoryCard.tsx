@@ -3,9 +3,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ShoppingBag, Loader2 } from "lucide-react";
+import { ShoppingBag, Loader2, ChevronDown, ChevronUp } from "lucide-react";
 import { format } from "date-fns";
 import { useState } from "react";
+import { OrderTimeline } from "./OrderTimeline";
 
 interface OrderHistoryCardProps {
   orders: Order[];
