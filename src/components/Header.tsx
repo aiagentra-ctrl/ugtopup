@@ -127,10 +127,10 @@ export const Header = () => {
                 {/* Add Credit Button */}
                 <Button
                   size="icon"
-                  className="neon-button h-10 w-10 rounded-xl"
+                  className="neon-button h-8 w-8 sm:h-10 sm:w-10 rounded-lg sm:rounded-xl"
                   onClick={() => setTopUpModalOpen(true)}
                 >
-                  <Plus className="h-5 w-5" />
+                  <Plus className="h-4 w-4 sm:h-5 sm:w-5" />
                 </Button>
 
                 {/* Notification Bell */}
