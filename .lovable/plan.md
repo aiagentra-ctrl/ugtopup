@@ -1,96 +1,94 @@
 
-# Dynamic Website with Advanced Admin Panel
+
+# Automatic Supabase Management System
 
 ## Overview
-Make the entire website content dynamic and admin-controlled by creating two new admin sections and supporting database tables. The existing "Products (New)" page (GameProductPrices) will remain completely untouched.
 
-## What Changes
+Build a database cleanup edge function (cron-triggered), an admin "Database Management" panel with cleanup controls/monitoring, and an archive system for old orders. All configurable by admin.
 
-### Phase 1: Database Setup
+## Database Changes
 
-**New table: `dynamic_products`** - stores products displayed on the homepage
-- `id`, `title`, `description`, `image_url`, `link`, `category` (topup/voucher/subscription/design), `price`, `discount_price`, `features` (jsonb array), `tags` (text array), `plans` (jsonb array), `display_order`, `is_active`, `created_at`, `updated_at`
+### 1. New table: `cleanup_settings`
+- `id` uuid PK
+- `setting_key` text UNIQUE NOT NULL (e.g. 'notification_retention_days', 'chatbot_retention_days', 'order_archive_days', 'activity_log_retention_days', 'offer_retention_days')
+- `setting_value` integer NOT NULL DEFAULT 30
+- `description` text
+- `is_enabled` boolean DEFAULT true
+- `last_run_at` timestamptz
+- `created_at`, `updated_at` timestamps
+- RLS: admin-only management, read via service role in edge function
 
-**New table: `product_categories`** - dynamic categories
-- `id`, `name`, `slug`, `display_order`, `is_active`, `created_at`, `updated_at`
+### 2. New table: `archived_orders`
+- Same columns as `product_orders` plus `archived_at` timestamptz DEFAULT now()
+- RLS: admin-only SELECT
 
-**New table: `offers`** - dynamic offer/deal sections
-- `id`, `title`, `subtitle`, `description`, `image_url`, `offer_type` (flash_sale/limited_time/daily_deal/discount_bundle), `timer_enabled`, `timer_type` (hours/days/both/none), `timer_end_date`, `product_link`, `custom_icon_url`, `display_order`, `is_active`, `show_on_homepage`, `show_on_product_page`, `created_at`, `updated_at`
+### 3. New table: `cleanup_logs`
+- `id` uuid PK
+- `cleanup_type` text NOT NULL (e.g. 'notifications', 'chatbot', 'orders', 'activity_logs')
+- `records_affected` integer DEFAULT 0
+- `details` text
+- `created_at` timestamptz DEFAULT now()
+- RLS: admin-only SELECT
 
-RLS: Public SELECT for active items, admin ALL for management.
+## Edge Function: `database-cleanup`
 
-**Seed `dynamic_products`** with current hardcoded data from ProductTabs so nothing changes visually on day one.
+A single edge function that:
+1. Reads `cleanup_settings` to get retention periods
+2. For each enabled setting:
+   - **Notifications**: Delete `user_notifications` + `notifications` older than retention period
+   - **Chatbot conversations**: Delete from `chatbot_conversations` older than retention
+   - **Activity logs**: Delete from `activity_logs` older than retention
+   - **Expired offers**: Deactivate offers past `timer_end_date`
+   - **Order archiving**: Move orders older than threshold from `product_orders` to `archived_orders`, then delete from main table
+   - **Chatbot feedback**: Clean old feedback beyond retention
+3. Log each action to `cleanup_logs`
+4. Check storage thresholds and create admin notification if >80%
+5. Return summary
 
-### Phase 2: Admin Panel - Product Update Page (new section)
+Triggered via pg_cron (daily at 2 AM).
 
-Add a new sidebar menu item **"Product Update"** in AdminLayout.
+## Admin UI: `DatabaseManagement.tsx`
 
-New component: `src/components/admin/DynamicProductManager.tsx`
-- Full CRUD table listing all dynamic products
-- Inline editing with image upload (to `product-images` storage bucket)
-- Fields: title, description, image, link, category, price, discount price, features (add/remove chips), tags (add/remove), plans (JSON editor)
-- Product preview panel showing how it looks on the frontend
-- Search, filter by category, drag-to-reorder
+New admin panel section with tabs:
 
-New component: `src/components/admin/CategoryManager.tsx`
-- Add/rename/delete categories
-- Reorder categories via drag or arrows
-- Auto-updates category options across the product form
+### Monitoring Tab
+- Database stats cards: total orders, archived orders, active notifications, chatbot conversations, activity log entries (counts from DB)
+- Storage usage (reuse existing `fetchSupabaseLimits`)
+- Recent cleanup logs table
 
-### Phase 3: Admin Panel - Offer Management Page (new section)
+### Settings Tab
+- Editable retention period for each cleanup category (from `cleanup_settings`)
+- Enable/disable toggle per category
+- "Run Cleanup Now" button (calls edge function manually)
 
-Add a new sidebar menu item **"Offers"** in AdminLayout.
+### Archive Tab
+- View archived orders with search/filter
+- Restore individual orders back to main table
+- Download/export archived data
 
-New component: `src/components/admin/OfferManager.tsx`
-- List all offers with enable/disable toggle
-- Add new offer with form: title, subtitle, description, image upload, offer type selector, timer controls (enable/disable, type, end date), product link picker
-- Edit existing offers inline
-- Reorder offers
-- Toggle homepage/product page visibility
+## Threshold Notifications
+- After each cleanup run, if storage > 80%, create admin notification via `create_user_notification`
+- Show cleanup summary in cleanup_logs
 
-### Phase 4: Frontend - Make ProductTabs Dynamic
+## File Changes
 
-Update `src/components/ProductTabs.tsx`:
-- Fetch products from `dynamic_products` table instead of hardcoded `productData`
-- Fetch categories from `product_categories` table for tab names
-- Keep the exact same visual layout, just swap data source
-- Real-time subscription so admin changes appear instantly
+| File | Action |
+|------|--------|
+| `supabase/migrations/new.sql` | Create 3 tables + RLS + seed cleanup_settings |
+| `supabase/functions/database-cleanup/index.ts` | New edge function |
+| `src/components/admin/DatabaseManagement.tsx` | New admin component |
+| `src/components/admin/AdminLayout.tsx` | Add "DB Management" menu item |
+| `src/pages/AdminPanel.tsx` | Add `db-management` case |
 
-### Phase 5: Frontend - Make BestDeals/Offers Dynamic
+## Cron Setup (via SQL insert tool, not migration)
 
-Update `src/components/BestDeals.tsx`:
-- Fetch active homepage offers from `offers` table
-- Render offer blocks dynamically with optional countdown timers
-- Keep existing visual style, just make content admin-controlled
+Schedule pg_cron job to call the edge function daily at 2 AM Nepal time.
 
-### What Will NOT Change
-- **"Products (New)" page** (`GameProductPrices` component) -- zero modifications
-- **Existing `ProductsList`** component -- untouched
-- **Game pricing system** (`game_product_prices` table) -- untouched
-- **Overall website design/layout** -- only data sources change
+## Implementation Order
 
-## Technical Details
+1. Migration: create tables + seed default settings
+2. Edge function: database-cleanup
+3. Admin UI: DatabaseManagement component
+4. Wire into AdminLayout + AdminPanel
+5. Set up cron job via insert tool
 
-### New Files
-- `src/components/admin/DynamicProductManager.tsx` - Product Update admin page
-- `src/components/admin/CategoryManager.tsx` - Category management
-- `src/components/admin/OfferManager.tsx` - Offer management admin page
-- `src/lib/dynamicProductApi.ts` - API functions for dynamic products/categories
-- `src/lib/offerApi.ts` - API functions for offers
-- `src/hooks/useDynamicProducts.ts` - Frontend hook with real-time subscriptions
-- `src/hooks/useOffers.ts` - Frontend hook for offers
-
-### Modified Files
-- `src/components/admin/AdminLayout.tsx` - Add 3 new sidebar items (Product Update, Categories, Offers)
-- `src/pages/AdminPanel.tsx` - Add new section cases in switch
-- `src/components/ProductTabs.tsx` - Replace hardcoded data with database fetch
-- `src/components/BestDeals.tsx` - Replace hardcoded deals with database fetch
-
-### New Storage Bucket
-- `product-images` (public) for product image uploads
-
-### Database Migration
-- Create `dynamic_products`, `product_categories`, `offers` tables
-- Create `product-images` storage bucket
-- RLS policies for all new tables
-- Seed initial data from current hardcoded products
