@@ -1,8 +1,9 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { User, Session } from '@supabase/supabase-js';
 import { toast } from '@/hooks/use-toast';
+import { checkLoginRate, loginLimiter, startInactivityMonitor, sanitizeInput } from '@/lib/security';
 
 interface Profile {
   id: string;
