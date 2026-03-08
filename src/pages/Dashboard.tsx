@@ -18,6 +18,7 @@ import { Heart, MessageSquare, RefreshCw } from "lucide-react";
 
 const Dashboard = () => {
   const { user, profile } = useAuth();
+  const navigate = useNavigate();
   const [topUpModalOpen, setTopUpModalOpen] = useState(false);
   const [balance, setBalance] = useState(profile?.balance || 0);
   const [creditRequests, setCreditRequests] = useState<CreditHistoryEntry[]>([]);
