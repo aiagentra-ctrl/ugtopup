@@ -229,6 +229,19 @@ const Dashboard = () => {
           />
         </div>
 
+        {/* Quick Links */}
+        <div className="mb-6 animate-fade-in flex flex-wrap gap-3" style={{ animationDelay: '450ms' }}>
+          <Button variant="outline" onClick={() => navigate('/support')} className="gap-2">
+            <MessageSquare className="h-4 w-4" /> Support Tickets
+          </Button>
+          <Button variant="outline" onClick={() => navigate('/wishlist')} className="gap-2">
+            <Heart className="h-4 w-4" /> Wishlist
+          </Button>
+          <Button variant="outline" onClick={() => navigate('/subscriptions')} className="gap-2">
+            <RefreshCw className="h-4 w-4" /> Subscriptions
+          </Button>
+        </div>
+
         {/* Trust Badges */}
         <div className="animate-fade-in" style={{ animationDelay: '500ms' }}>
           <TrustBadges />
