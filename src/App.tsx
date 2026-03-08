@@ -48,6 +48,10 @@ import ApiDocs from "./pages/ApiDocs";
 import NotFound from "./pages/NotFound";
 import DeveloperPanel from "./pages/DeveloperPanel";
 import { DeveloperRoute } from "./components/DeveloperRoute";
+import SupportTickets from "./pages/SupportTickets";
+import Wishlist from "./pages/Wishlist";
+import Subscriptions from "./pages/Subscriptions";
+import { AnnouncementBanner } from "./components/announcements/AnnouncementBanner";
 
 const queryClient = new QueryClient({
   defaultOptions: {
