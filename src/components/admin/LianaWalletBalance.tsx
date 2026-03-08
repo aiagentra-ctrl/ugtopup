@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -8,6 +8,8 @@ import { supabase } from "@/integrations/supabase/client";
 
 interface WalletData {
   balance?: number;
+  coins?: number;
+  amount?: number;
   currency?: string;
   status?: string;
   message?: string;
@@ -17,34 +19,44 @@ interface WalletData {
 export function LianaWalletBalance() {
   const [walletData, setWalletData] = useState<WalletData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [lastChecked, setLastChecked] = useState<Date | null>(null);
 
-  const fetchBalance = async () => {
+  const fetchBalance = useCallback(async () => {
     setLoading(true);
+    setError(null);
     try {
-      const { data, error } = await supabase.functions.invoke("process-ml-order", {
+      const { data, error: fnError } = await supabase.functions.invoke("process-ml-order", {
         body: { action: "check-balance" },
       });
 
-      if (error) throw error;
+      if (fnError) throw new Error(fnError.message || "Edge function error");
 
-      setWalletData(data?.balance || data);
+      if (data?.error) throw new Error(data.error);
+
+      const resolved = data?.balance ?? data;
+      if (resolved?.status === "error") {
+        throw new Error(resolved.message || "Could not fetch balance");
+      }
+
+      setWalletData(resolved);
       setLastChecked(new Date());
-    } catch (error) {
-      console.error("Error fetching wallet balance:", error);
+    } catch (err: any) {
+      console.error("Error fetching wallet balance:", err);
+      setError(err.message || "Failed to fetch wallet balance");
       toast.error("Failed to fetch wallet balance");
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchBalance();
-  }, []);
+  }, [fetchBalance]);
 
   const balance = walletData?.balance ?? walletData?.coins ?? walletData?.amount;
   const balanceNum = typeof balance === "number" ? balance : parseFloat(String(balance || "0"));
-  const isLow = balanceNum < 500;
+  const isLow = !error && walletData && balanceNum < 500;
 
   return (
     <Card className="border-border">
@@ -58,16 +70,24 @@ export function LianaWalletBalance() {
         </Button>
       </CardHeader>
       <CardContent>
-        {loading && !walletData ? (
+        {loading && !walletData && !error ? (
           <div className="animate-pulse space-y-2">
             <div className="h-8 bg-muted rounded w-1/2" />
             <div className="h-4 bg-muted rounded w-3/4" />
+          </div>
+        ) : error ? (
+          <div className="space-y-3">
+            <p className="text-sm text-destructive">⚠️ {error}</p>
+            <Button variant="outline" size="sm" onClick={fetchBalance} disabled={loading}>
+              <RefreshCw className={`h-3 w-3 mr-2 ${loading ? "animate-spin" : ""}`} />
+              Retry
+            </Button>
           </div>
         ) : (
           <div className="space-y-3">
             <div className="flex items-baseline gap-2">
               <span className="text-3xl font-bold text-foreground">
-                {balanceNum.toLocaleString()}
+                {loading ? "..." : balanceNum.toLocaleString()}
               </span>
               <span className="text-sm text-muted-foreground">coins</span>
               {isLow && (
@@ -88,12 +108,6 @@ export function LianaWalletBalance() {
               <p className="text-xs text-muted-foreground flex items-center gap-1">
                 <Clock className="h-3 w-3" />
                 Last checked: {lastChecked.toLocaleTimeString()}
-              </p>
-            )}
-
-            {walletData?.status === "error" && (
-              <p className="text-xs text-destructive">
-                Error: {walletData.message || "Could not fetch balance"}
               </p>
             )}
           </div>
