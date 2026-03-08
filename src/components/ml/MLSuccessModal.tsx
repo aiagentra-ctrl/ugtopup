@@ -14,9 +14,10 @@ interface MLSuccessModalProps {
   onClose: () => void;
   orderId: string;
   onTopUpAgain: () => void;
+  ign?: string | null;
 }
 
-export const MLSuccessModal = ({ isOpen, onClose, orderId, onTopUpAgain }: MLSuccessModalProps) => {
+export const MLSuccessModal = ({ isOpen, onClose, orderId, onTopUpAgain, ign }: MLSuccessModalProps) => {
   const navigate = useNavigate();
 
   const handleViewOrders = () => {
@@ -45,6 +46,12 @@ export const MLSuccessModal = ({ isOpen, onClose, orderId, onTopUpAgain }: MLSuc
               <span className="text-slate-400">Order ID:</span>
               <span className="font-mono text-slate-100">{orderId}</span>
             </div>
+            {ign && (
+              <div className="flex justify-between text-sm">
+                <span className="text-slate-400">IGN:</span>
+                <span className="font-semibold text-green-400">{ign}</span>
+              </div>
+            )}
             <div className="flex justify-between text-sm">
               <span className="text-slate-400">Status:</span>
               <span className="text-yellow-400">Pending Confirmation</span>
