@@ -62,6 +62,12 @@ export const AccountDropdown = () => {
             Dashboard
           </Link>
         </DropdownMenuItem>
+        <DropdownMenuItem asChild>
+          <Link to="/refer-earn" className="cursor-pointer">
+            <Gift className="mr-2 h-4 w-4" />
+            Refer & Earn
+          </Link>
+        </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem 
           onClick={logout}

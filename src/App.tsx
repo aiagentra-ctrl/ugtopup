@@ -116,6 +116,14 @@ const App = () => (
                 </ProtectedRoute>
               } 
             />
+            <Route 
+              path="/refer-earn" 
+              element={
+                <ProtectedRoute>
+                  <ReferAndEarn />
+                </ProtectedRoute>
+              } 
+            />
             {/* Payment result pages */}
             <Route path="/payment/success" element={<PaymentSuccess />} />
             <Route path="/payment/cancel" element={<PaymentCancel />} />
