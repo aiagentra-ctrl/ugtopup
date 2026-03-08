@@ -164,6 +164,63 @@ export type Database = {
         }
         Relationships: []
       }
+      coupons: {
+        Row: {
+          code: string
+          created_at: string
+          discount_percent: number
+          expires_at: string
+          id: string
+          is_used: boolean
+          source: string
+          source_id: string | null
+          used_at: string | null
+          used_on_order_id: string | null
+          user_id: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          discount_percent: number
+          expires_at: string
+          id?: string
+          is_used?: boolean
+          source?: string
+          source_id?: string | null
+          used_at?: string | null
+          used_on_order_id?: string | null
+          user_id: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          discount_percent?: number
+          expires_at?: string
+          id?: string
+          is_used?: boolean
+          source?: string
+          source_id?: string | null
+          used_at?: string | null
+          used_on_order_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "coupons_used_on_order_id_fkey"
+            columns: ["used_on_order_id"]
+            isOneToOne: false
+            referencedRelation: "product_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "coupons_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       dynamic_products: {
         Row: {
           category_id: string | null
@@ -833,6 +890,8 @@ export type Database = {
           full_name: string | null
           id: string
           provider: string | null
+          referral_code: string | null
+          referred_by: string | null
           updated_at: string
           username: string | null
         }
@@ -844,6 +903,8 @@ export type Database = {
           full_name?: string | null
           id: string
           provider?: string | null
+          referral_code?: string | null
+          referred_by?: string | null
           updated_at?: string
           username?: string | null
         }
@@ -855,10 +916,20 @@ export type Database = {
           full_name?: string | null
           id?: string
           provider?: string | null
+          referral_code?: string | null
+          referred_by?: string | null
           updated_at?: string
           username?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "profiles_referred_by_fkey"
+            columns: ["referred_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       push_subscriptions: {
         Row: {
@@ -897,6 +968,133 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      referral_settings: {
+        Row: {
+          created_at: string
+          id: string
+          is_enabled: boolean
+          min_order_amount: number
+          referee_coupon_validity_days: number
+          referee_discount_percent: number
+          referrer_coupon_validity_days: number
+          referrer_discount_percent: number
+          reward_after: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_enabled?: boolean
+          min_order_amount?: number
+          referee_coupon_validity_days?: number
+          referee_discount_percent?: number
+          referrer_coupon_validity_days?: number
+          referrer_discount_percent?: number
+          reward_after?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_enabled?: boolean
+          min_order_amount?: number
+          referee_coupon_validity_days?: number
+          referee_discount_percent?: number
+          referrer_coupon_validity_days?: number
+          referrer_discount_percent?: number
+          reward_after?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      referrals: {
+        Row: {
+          created_at: string
+          id: string
+          referee_first_order_id: string | null
+          referee_id: string
+          referrer_id: string
+          rewarded: boolean
+          rewarded_at: string | null
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          referee_first_order_id?: string | null
+          referee_id: string
+          referrer_id: string
+          rewarded?: boolean
+          rewarded_at?: string | null
+          status?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          referee_first_order_id?: string | null
+          referee_id?: string
+          referrer_id?: string
+          rewarded?: boolean
+          rewarded_at?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "referrals_referee_first_order_id_fkey"
+            columns: ["referee_first_order_id"]
+            isOneToOne: false
+            referencedRelation: "product_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "referrals_referee_id_fkey"
+            columns: ["referee_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "referrals_referrer_id_fkey"
+            columns: ["referrer_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      reward_milestones: {
+        Row: {
+          coupon_validity_days: number
+          created_at: string
+          description: string | null
+          discount_percent: number
+          id: string
+          is_active: boolean
+          order_count: number
+          updated_at: string
+        }
+        Insert: {
+          coupon_validity_days?: number
+          created_at?: string
+          description?: string | null
+          discount_percent?: number
+          id?: string
+          is_active?: boolean
+          order_count: number
+          updated_at?: string
+        }
+        Update: {
+          coupon_validity_days?: number
+          created_at?: string
+          description?: string | null
+          discount_percent?: number
+          id?: string
+          is_active?: boolean
+          order_count?: number
+          updated_at?: string
+        }
+        Relationships: []
       }
       role_permissions: {
         Row: {
