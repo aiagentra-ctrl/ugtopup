@@ -1,9 +1,10 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
 import {
   Table,
   TableBody,
@@ -19,6 +20,16 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import {
   Select,
   SelectContent,
@@ -36,6 +47,9 @@ import {
   CheckCircle,
   Clock,
   RefreshCw,
+  Copy,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -51,12 +65,17 @@ interface VoucherCode {
   used_at: string | null;
 }
 
+const PAGE_SIZE = 50;
+const LOW_STOCK_THRESHOLD = 5;
+
 export function VoucherInventory() {
   const [vouchers, setVouchers] = useState<VoucherCode[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [gameFilter, setGameFilter] = useState<string>("all");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
 
   // Add single
   const [showAddForm, setShowAddForm] = useState(false);
@@ -72,7 +91,7 @@ export function VoucherInventory() {
   const [bulkPackageId, setBulkPackageId] = useState("");
   const [bulkCodes, setBulkCodes] = useState("");
 
-  const fetchVouchers = async () => {
+  const fetchVouchers = useCallback(async () => {
     setLoading(true);
     const { data, error } = await supabase
       .from("voucher_codes" as any)
@@ -86,7 +105,7 @@ export function VoucherInventory() {
       setVouchers((data as any[]) || []);
     }
     setLoading(false);
-  };
+  }, []);
 
   useEffect(() => {
     fetchVouchers();
@@ -95,13 +114,37 @@ export function VoucherInventory() {
       .channel("voucher_codes_changes")
       .on(
         "postgres_changes",
-        { event: "*", schema: "public", table: "voucher_codes" },
-        () => fetchVouchers()
+        { event: "INSERT", schema: "public", table: "voucher_codes" },
+        (payload) => {
+          setVouchers((prev) => [payload.new as VoucherCode, ...prev]);
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "voucher_codes" },
+        (payload) => {
+          setVouchers((prev) =>
+            prev.map((v) => (v.id === (payload.new as VoucherCode).id ? (payload.new as VoucherCode) : v))
+          );
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "DELETE", schema: "public", table: "voucher_codes" },
+        (payload) => {
+          setVouchers((prev) => prev.filter((v) => v.id !== (payload.old as any).id));
+        }
       )
       .subscribe();
 
-    return () => { supabase.removeChannel(channel); };
-  }, []);
+    // Polling fallback every 30s
+    const interval = setInterval(fetchVouchers, 30000);
+
+    return () => {
+      supabase.removeChannel(channel);
+      clearInterval(interval);
+    };
+  }, [fetchVouchers]);
 
   const stats = useMemo(() => {
     const available = vouchers.filter((v) => v.status === "available").length;
@@ -112,6 +155,22 @@ export function VoucherInventory() {
     ).length;
     return { available, used, usedToday, total: vouchers.length };
   }, [vouchers]);
+
+  const gameStats = useMemo(() => {
+    const map: Record<string, { available: number; used: number; total: number }> = {};
+    vouchers.forEach((v) => {
+      if (!map[v.game]) map[v.game] = { available: 0, used: 0, total: 0 };
+      map[v.game].total++;
+      if (v.status === "available") map[v.game].available++;
+      else map[v.game].used++;
+    });
+    return map;
+  }, [vouchers]);
+
+  const lowStockGames = useMemo(
+    () => Object.entries(gameStats).filter(([, s]) => s.available < LOW_STOCK_THRESHOLD),
+    [gameStats]
+  );
 
   const games = useMemo(
     () => [...new Set(vouchers.map((v) => v.game))],
@@ -134,12 +193,25 @@ export function VoucherInventory() {
     });
   }, [vouchers, statusFilter, gameFilter, searchQuery]);
 
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const paged = useMemo(
+    () => filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE),
+    [filtered, currentPage]
+  );
+
+  // Reset page when filters change
+  useEffect(() => { setCurrentPage(1); }, [statusFilter, gameFilter, searchQuery]);
+
+  const handleCopyCode = (code: string) => {
+    navigator.clipboard.writeText(code);
+    toast.success("Code copied!");
+  };
+
   const handleAddSingle = async () => {
     if (!newProductName || !newCode || !newGame) {
       toast.error("Product name, game, and code are required");
       return;
     }
-
     const { error } = await supabase.from("voucher_codes" as any).insert({
       product_name: newProductName,
       game: newGame,
@@ -161,16 +233,8 @@ export function VoucherInventory() {
       toast.error("Product name, game, and codes are required");
       return;
     }
-
-    const codes = bulkCodes
-      .split("\n")
-      .map((c) => c.trim())
-      .filter((c) => c.length > 0);
-
-    if (codes.length === 0) {
-      toast.error("No valid codes found");
-      return;
-    }
+    const codes = bulkCodes.split("\n").map((c) => c.trim()).filter((c) => c.length > 0);
+    if (codes.length === 0) { toast.error("No valid codes found"); return; }
 
     const rows = codes.map((code) => ({
       product_name: bulkProductName,
@@ -178,9 +242,7 @@ export function VoucherInventory() {
       package_id: bulkPackageId || null,
       code,
     }));
-
     const { error } = await supabase.from("voucher_codes" as any).insert(rows as any);
-
     if (error) {
       toast.error(error.message);
     } else {
@@ -191,56 +253,63 @@ export function VoucherInventory() {
   };
 
   const handleDelete = async (id: string) => {
-    const { error } = await supabase
-      .from("voucher_codes" as any)
-      .delete()
-      .eq("id", id);
-
-    if (error) {
-      toast.error("Failed to delete");
-    } else {
-      toast.success("Voucher deleted");
-    }
+    const { error } = await supabase.from("voucher_codes" as any).delete().eq("id", id);
+    if (error) toast.error("Failed to delete");
+    else toast.success("Voucher deleted");
+    setDeleteTarget(null);
   };
 
   return (
     <div className="space-y-6">
+      {/* Low Stock Alert */}
+      {lowStockGames.length > 0 && (
+        <div className="rounded-lg border border-destructive/50 bg-destructive/5 p-4 flex items-start gap-3">
+          <AlertTriangle className="h-5 w-5 text-destructive mt-0.5 shrink-0" />
+          <div>
+            <p className="font-semibold text-destructive">Low Voucher Stock Warning</p>
+            <p className="text-sm text-muted-foreground mt-1">
+              {lowStockGames.map(([game, s]) => (
+                <span key={game} className="mr-3">
+                  <strong className="capitalize">{game}</strong>: {s.available} available
+                </span>
+              ))}
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <StatCard
-          icon={<Package className="h-5 w-5 text-primary" />}
-          label="Total Codes"
-          value={stats.total}
-        />
+        <StatCard icon={<Package className="h-5 w-5 text-primary" />} label="Total Codes" value={stats.total} />
         <StatCard
           icon={<CheckCircle className="h-5 w-5 text-green-500" />}
           label="Available"
           value={stats.available}
+          progress={stats.total > 0 ? (stats.available / stats.total) * 100 : 0}
         />
-        <StatCard
-          icon={<Clock className="h-5 w-5 text-yellow-500" />}
-          label="Used Today"
-          value={stats.usedToday}
-        />
-        <StatCard
-          icon={
-            stats.available < 5 ? (
-              <AlertTriangle className="h-5 w-5 text-red-500" />
-            ) : (
-              <CheckCircle className="h-5 w-5 text-muted-foreground" />
-            )
-          }
-          label="Stock Status"
-          value={
-            stats.available === 0
-              ? "Empty!"
-              : stats.available < 5
-              ? "Low Stock"
-              : "OK"
-          }
-          highlight={stats.available < 5}
-        />
+        <StatCard icon={<Clock className="h-5 w-5 text-yellow-500" />} label="Used" value={stats.used} />
+        <StatCard icon={<Clock className="h-5 w-5 text-muted-foreground" />} label="Used Today" value={stats.usedToday} />
       </div>
+
+      {/* Per-Game Stats */}
+      {Object.keys(gameStats).length > 0 && (
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+          {Object.entries(gameStats).map(([game, s]) => (
+            <div
+              key={game}
+              className={`rounded-lg border p-3 ${
+                s.available < LOW_STOCK_THRESHOLD ? "border-destructive/40 bg-destructive/5" : "border-border bg-card"
+              }`}
+            >
+              <p className="text-sm font-semibold capitalize text-foreground">{game}</p>
+              <div className="flex items-center gap-2 mt-1">
+                <span className="text-xs text-muted-foreground">{s.available}/{s.total}</span>
+                <Progress value={s.total > 0 ? (s.available / s.total) * 100 : 0} className="h-2 flex-1" />
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Actions + Filters */}
       <div className="flex flex-wrap gap-3 items-center">
@@ -267,9 +336,7 @@ export function VoucherInventory() {
         </div>
 
         <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-32">
-            <SelectValue />
-          </SelectTrigger>
+          <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Status</SelectItem>
             <SelectItem value="available">Available</SelectItem>
@@ -278,9 +345,7 @@ export function VoucherInventory() {
         </Select>
 
         <Select value={gameFilter} onValueChange={setGameFilter}>
-          <SelectTrigger className="w-32">
-            <SelectValue />
-          </SelectTrigger>
+          <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Games</SelectItem>
             {games.map((g) => (
@@ -290,45 +355,49 @@ export function VoucherInventory() {
         </Select>
       </div>
 
-      {/* Table */}
-      <div className="rounded-lg border border-border overflow-auto">
+      {/* Spreadsheet Table */}
+      <div className="rounded-lg border border-border overflow-auto bg-card">
         <Table>
           <TableHeader>
-            <TableRow>
-              <TableHead>Product Name</TableHead>
-              <TableHead>Game</TableHead>
-              <TableHead>Package ID</TableHead>
-              <TableHead>Voucher Code</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Order ID</TableHead>
-              <TableHead>Date Added</TableHead>
-              <TableHead>Date Used</TableHead>
-              <TableHead className="w-12" />
+            <TableRow className="bg-muted/50">
+              <TableHead className="font-semibold">Product Name</TableHead>
+              <TableHead className="font-semibold">Game</TableHead>
+              <TableHead className="font-semibold">Package ID</TableHead>
+              <TableHead className="font-semibold">Voucher Code</TableHead>
+              <TableHead className="font-semibold">Status</TableHead>
+              <TableHead className="font-semibold">Order ID</TableHead>
+              <TableHead className="font-semibold">Date Added</TableHead>
+              <TableHead className="font-semibold">Date Used</TableHead>
+              <TableHead className="w-20" />
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
-                  Loading...
-                </TableCell>
+                <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">Loading...</TableCell>
               </TableRow>
-            ) : filtered.length === 0 ? (
+            ) : paged.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
-                  No voucher codes found
-                </TableCell>
+                <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">No voucher codes found</TableCell>
               </TableRow>
             ) : (
-              filtered.map((v) => (
-                <TableRow key={v.id}>
+              paged.map((v, idx) => (
+                <TableRow key={v.id} className={idx % 2 === 0 ? "bg-background" : "bg-muted/20"}>
                   <TableCell className="font-medium">{v.product_name}</TableCell>
-                  <TableCell>{v.game}</TableCell>
+                  <TableCell className="capitalize">{v.game}</TableCell>
                   <TableCell className="text-muted-foreground text-xs">{v.package_id || "—"}</TableCell>
                   <TableCell>
-                    <code className="bg-muted px-2 py-0.5 rounded text-xs font-mono">
-                      {v.code}
-                    </code>
+                    <div className="flex items-center gap-1.5">
+                      <code className="bg-muted px-2 py-0.5 rounded text-xs font-mono">{v.code}</code>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-6 w-6"
+                        onClick={() => handleCopyCode(v.code)}
+                      >
+                        <Copy className="h-3 w-3" />
+                      </Button>
+                    </div>
                   </TableCell>
                   <TableCell>
                     <Badge variant={v.status === "available" ? "default" : "secondary"}>
@@ -338,19 +407,15 @@ export function VoucherInventory() {
                   <TableCell className="text-xs text-muted-foreground max-w-[120px] truncate">
                     {v.order_id || "—"}
                   </TableCell>
-                  <TableCell className="text-xs">
-                    {new Date(v.added_at).toLocaleDateString()}
-                  </TableCell>
-                  <TableCell className="text-xs">
-                    {v.used_at ? new Date(v.used_at).toLocaleDateString() : "—"}
-                  </TableCell>
+                  <TableCell className="text-xs">{new Date(v.added_at).toLocaleDateString()}</TableCell>
+                  <TableCell className="text-xs">{v.used_at ? new Date(v.used_at).toLocaleDateString() : "—"}</TableCell>
                   <TableCell>
                     {v.status === "available" && (
                       <Button
                         size="icon"
                         variant="ghost"
                         className="h-7 w-7 text-destructive"
-                        onClick={() => handleDelete(v.id)}
+                        onClick={() => setDeleteTarget(v.id)}
                       >
                         <Trash2 className="h-3.5 w-3.5" />
                       </Button>
@@ -363,6 +428,42 @@ export function VoucherInventory() {
         </Table>
       </div>
 
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between">
+          <p className="text-sm text-muted-foreground">
+            Showing {(currentPage - 1) * PAGE_SIZE + 1}–{Math.min(currentPage * PAGE_SIZE, filtered.length)} of {filtered.length}
+          </p>
+          <div className="flex items-center gap-2">
+            <Button size="sm" variant="outline" disabled={currentPage === 1} onClick={() => setCurrentPage((p) => p - 1)}>
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <span className="text-sm font-medium">Page {currentPage} / {totalPages}</span>
+            <Button size="sm" variant="outline" disabled={currentPage === totalPages} onClick={() => setCurrentPage((p) => p + 1)}>
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation */}
+      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Voucher Code?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently remove this voucher code from inventory. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => deleteTarget && handleDelete(deleteTarget)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       {/* Add Single Dialog */}
       <Dialog open={showAddForm} onOpenChange={setShowAddForm}>
         <DialogContent>
@@ -371,33 +472,22 @@ export function VoucherInventory() {
             <DialogDescription>Add a single voucher code to inventory</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
-            <Input
-              placeholder="Product Name (e.g. UniPin 2000 UC)"
-              value={newProductName}
-              onChange={(e) => setNewProductName(e.target.value)}
-            />
+            <Input placeholder="Product Name (e.g. UniPin 2000 UC)" value={newProductName} onChange={(e) => setNewProductName(e.target.value)} />
             <Select value={newGame} onValueChange={setNewGame}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="unipin">UniPin</SelectItem>
                 <SelectItem value="garena">Garena</SelectItem>
                 <SelectItem value="netflix">Netflix</SelectItem>
+                <SelectItem value="tiktok">TikTok</SelectItem>
+                <SelectItem value="youtube">YouTube</SelectItem>
+                <SelectItem value="smilecoin">SmileCoin</SelectItem>
                 <SelectItem value="other">Other</SelectItem>
               </SelectContent>
             </Select>
-            <Input
-              placeholder="Package ID (optional, for auto-matching)"
-              value={newPackageId}
-              onChange={(e) => setNewPackageId(e.target.value)}
-            />
-            <Input
-              placeholder="Voucher Code"
-              value={newCode}
-              onChange={(e) => setNewCode(e.target.value)}
-            />
-            <Button onClick={handleAddSingle} className="w-full">
-              Add Code
-            </Button>
+            <Input placeholder="Package ID (optional, for auto-matching)" value={newPackageId} onChange={(e) => setNewPackageId(e.target.value)} />
+            <Input placeholder="Voucher Code" value={newCode} onChange={(e) => setNewCode(e.target.value)} />
+            <Button onClick={handleAddSingle} className="w-full">Add Code</Button>
           </div>
         </DialogContent>
       </Dialog>
@@ -410,25 +500,20 @@ export function VoucherInventory() {
             <DialogDescription>Paste one code per line</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
-            <Input
-              placeholder="Product Name (e.g. UniPin 500 UC)"
-              value={bulkProductName}
-              onChange={(e) => setBulkProductName(e.target.value)}
-            />
+            <Input placeholder="Product Name (e.g. UniPin 500 UC)" value={bulkProductName} onChange={(e) => setBulkProductName(e.target.value)} />
             <Select value={bulkGame} onValueChange={setBulkGame}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="unipin">UniPin</SelectItem>
                 <SelectItem value="garena">Garena</SelectItem>
                 <SelectItem value="netflix">Netflix</SelectItem>
+                <SelectItem value="tiktok">TikTok</SelectItem>
+                <SelectItem value="youtube">YouTube</SelectItem>
+                <SelectItem value="smilecoin">SmileCoin</SelectItem>
                 <SelectItem value="other">Other</SelectItem>
               </SelectContent>
             </Select>
-            <Input
-              placeholder="Package ID (optional)"
-              value={bulkPackageId}
-              onChange={(e) => setBulkPackageId(e.target.value)}
-            />
+            <Input placeholder="Package ID (optional)" value={bulkPackageId} onChange={(e) => setBulkPackageId(e.target.value)} />
             <Textarea
               placeholder={"HFHEW123\nABCD456\nXYZ789"}
               value={bulkCodes}
@@ -454,25 +539,32 @@ function StatCard({
   label,
   value,
   highlight,
+  progress,
 }: {
   icon: React.ReactNode;
   label: string;
   value: string | number;
   highlight?: boolean;
+  progress?: number;
 }) {
   return (
     <div
-      className={`rounded-lg border p-4 flex items-center gap-3 ${
+      className={`rounded-lg border p-4 flex flex-col gap-2 ${
         highlight ? "border-destructive/50 bg-destructive/5" : "border-border bg-card"
       }`}
     >
-      {icon}
-      <div>
-        <p className="text-xs text-muted-foreground">{label}</p>
-        <p className={`text-lg font-bold ${highlight ? "text-destructive" : "text-foreground"}`}>
-          {value}
-        </p>
+      <div className="flex items-center gap-3">
+        {icon}
+        <div>
+          <p className="text-xs text-muted-foreground">{label}</p>
+          <p className={`text-lg font-bold ${highlight ? "text-destructive" : "text-foreground"}`}>
+            {value}
+          </p>
+        </div>
       </div>
+      {progress !== undefined && (
+        <Progress value={progress} className="h-1.5" />
+      )}
     </div>
   );
 }
