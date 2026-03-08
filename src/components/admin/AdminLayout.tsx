@@ -28,6 +28,7 @@ import {
   Wrench,
   BookOpen,
   ThumbsUp,
+  PieChart,
 } from "lucide-react";
 import {
   Sidebar,

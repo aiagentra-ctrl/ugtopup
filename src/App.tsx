@@ -53,6 +53,7 @@ import SupportTickets from "./pages/SupportTickets";
 import Wishlist from "./pages/Wishlist";
 import Subscriptions from "./pages/Subscriptions";
 import { AnnouncementBanner } from "./components/announcements/AnnouncementBanner";
+import { PageTrackingProvider } from "./components/PageTrackingProvider";
 
 const queryClient = new QueryClient({
   defaultOptions: {

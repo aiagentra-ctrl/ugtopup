@@ -170,6 +170,8 @@ const AdminPanel = () => {
         return <SystemHealthMonitor />;
       case "db-management":
         return <DatabaseManagement />;
+      case "advanced-analytics":
+        return <AdvancedAnalytics />;
       default:
         return <EnhancedDashboard />;
     }
