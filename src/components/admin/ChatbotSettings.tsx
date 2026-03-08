@@ -176,10 +176,41 @@ export const ChatbotSettings = () => {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="lovable_ai">Lovable AI (Built-in, Recommended)</SelectItem>
+                    <SelectItem value="custom">Custom API (OpenAI-compatible)</SelectItem>
                   </SelectContent>
                 </Select>
-                <p className="text-xs text-muted-foreground mt-1">Powered by OpenAI & Google Gemini — no API key needed</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {settings.ai_provider === 'custom' 
+                    ? 'Point to any OpenAI-compatible API endpoint'
+                    : 'Powered by OpenAI & Google Gemini — no API key needed'}
+                </p>
               </div>
+
+              {settings.ai_provider === 'custom' && (
+                <div className="space-y-3 p-3 rounded-lg border border-border bg-muted/30">
+                  <div>
+                    <Label>Custom API URL</Label>
+                    <Input
+                      value={settings.custom_api_url || ''}
+                      onChange={(e) => update('custom_api_url', e.target.value || null)}
+                      placeholder="https://api.openai.com/v1/chat/completions"
+                      className="mt-1"
+                    />
+                  </div>
+                  <div>
+                    <Label>API Key Secret Name</Label>
+                    <Input
+                      value={settings.custom_api_key_name || ''}
+                      onChange={(e) => update('custom_api_key_name', e.target.value || null)}
+                      placeholder="CUSTOM_AI_API_KEY"
+                      className="mt-1"
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Store your API key as a Supabase Edge Function secret with this name
+                    </p>
+                  </div>
+                </div>
+              )}
 
               <div>
                 <Label>AI Model</Label>
