@@ -61,6 +61,9 @@ const emptyForm = {
   features: [] as string[],
   tags: [] as string[],
   is_active: true,
+  offer_id: "" as string,
+  offer_badge_text: "",
+  offer_badge_color: "",
 };
 
 export function DynamicProductManager() {
