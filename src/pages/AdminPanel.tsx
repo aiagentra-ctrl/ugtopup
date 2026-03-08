@@ -164,6 +164,8 @@ const AdminPanel = () => {
         return <UserAnalytics />;
       case "maintenance-log":
         return <MaintenanceLog />;
+      case "db-management":
+        return <DatabaseManagement />;
       default:
         return <EnhancedDashboard />;
     }
