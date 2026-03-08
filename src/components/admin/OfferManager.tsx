@@ -9,7 +9,8 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Pencil, Trash2, ArrowUp, ArrowDown, Zap, Clock, Tag, Gift, Palette, Play, Calendar } from "lucide-react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Plus, Pencil, Trash2, ArrowUp, ArrowDown, Zap, Clock, Tag, Gift, ChevronDown } from "lucide-react";
 import { toast } from "sonner";
 import { fetchOffers, createOffer, updateOffer, deleteOffer } from "@/lib/offerApi";
 import { uploadProductImage } from "@/lib/dynamicProductApi";
@@ -51,10 +52,6 @@ const offerTypeLabels: Record<string, string> = {
   flash_sale: "Flash Sale", limited_time: "Limited Time", daily_deal: "Daily Deal", discount_bundle: "Discount Bundle",
 };
 
-const templateLabels: Record<string, string> = {
-  badge: "Badge", animated_banner: "Banner", homepage_highlight: "Highlight", seasonal: "Seasonal", daily_deal: "Daily Deal",
-};
-
 const gradientPresets = [
   { name: "Purple Haze", value: "linear-gradient(135deg, #667eea, #764ba2)" },
   { name: "Sunset", value: "linear-gradient(135deg, #f093fb, #f5576c)" },
@@ -65,20 +62,12 @@ const gradientPresets = [
 ];
 
 const animationOptions = [
-  { id: "none", label: "None", desc: "No animation" },
-  { id: "pulse", label: "Pulse", desc: "Gentle pulsing glow" },
-  { id: "flash", label: "Flash", desc: "Quick attention flash" },
-  { id: "bounce", label: "Bounce", desc: "Subtle bounce effect" },
-  { id: "slide-in", label: "Slide In", desc: "Slides from left" },
+  { id: "none", label: "None" },
+  { id: "pulse", label: "Pulse" },
+  { id: "flash", label: "Flash" },
+  { id: "bounce", label: "Bounce" },
+  { id: "slide-in", label: "Slide In" },
 ];
-
-const animationDemoClass: Record<string, string> = {
-  none: "",
-  pulse: "animate-pulse",
-  flash: "animate-ping",
-  bounce: "animate-bounce",
-  "slide-in": "animate-fade-in",
-};
 
 const emptyForm = {
   title: "",
@@ -262,32 +251,33 @@ export function OfferManager() {
         <Button onClick={openAdd}><Plus className="h-4 w-4 mr-2" />Add Offer</Button>
       </div>
 
-      <div className="grid gap-4">
+      {/* Simplified Offer List */}
+      <div className="grid gap-3">
         {offers.map((o, idx) => {
           const Icon = offerTypeIcons[o.offer_type] || Zap;
           return (
-            <Card key={o.id}>
-              <CardContent className="p-4 flex items-center gap-4">
-                <Icon className="h-8 w-8 text-primary flex-shrink-0" />
+            <Card key={o.id} className={cn(!o.is_active && "opacity-60")}>
+              <CardContent className="p-4 flex items-center gap-3">
+                <Icon className="h-6 w-6 text-primary flex-shrink-0" />
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <h3 className="font-semibold truncate">{o.title}</h3>
-                    <Badge variant={o.is_active ? "default" : "secondary"}>{o.is_active ? "Active" : "Inactive"}</Badge>
-                    <Badge variant="outline">{templateLabels[o.design_template] || o.design_template}</Badge>
-                    <Badge variant="outline">{offerTypeLabels[o.offer_type] || o.offer_type}</Badge>
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-semibold text-sm truncate">{o.title}</h3>
+                    <Badge variant={o.is_active ? "default" : "secondary"} className="text-[10px]">
+                      {o.is_active ? "Active" : "Off"}
+                    </Badge>
                   </div>
-                  <p className="text-sm text-muted-foreground truncate">
-                    {o.subtitle || "No subtitle"} • {o.timer_enabled ? `Timer: ${o.timer_type}` : "No timer"}
-                    {o.show_on_homepage && " • Homepage"}
-                    {o.show_on_product_page && " • Product Page"}
+                  <p className="text-xs text-muted-foreground truncate">
+                    {offerTypeLabels[o.offer_type] || o.offer_type}
+                    {o.show_on_homepage && " · Homepage"}
+                    {o.show_on_product_page && " · Product"}
                   </p>
                 </div>
                 <div className="flex items-center gap-1 flex-shrink-0">
                   <Switch checked={o.is_active} onCheckedChange={() => handleToggle(o)} />
-                  <Button variant="ghost" size="icon" onClick={() => handleReorder(o.id, "up")} disabled={idx === 0}><ArrowUp className="h-4 w-4" /></Button>
-                  <Button variant="ghost" size="icon" onClick={() => handleReorder(o.id, "down")} disabled={idx === offers.length - 1}><ArrowDown className="h-4 w-4" /></Button>
-                  <Button variant="ghost" size="icon" onClick={() => openEdit(o)}><Pencil className="h-4 w-4" /></Button>
-                  <Button variant="ghost" size="icon" onClick={() => handleDelete(o.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleReorder(o.id, "up")} disabled={idx === 0}><ArrowUp className="h-3.5 w-3.5" /></Button>
+                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleReorder(o.id, "down")} disabled={idx === offers.length - 1}><ArrowDown className="h-3.5 w-3.5" /></Button>
+                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(o)}><Pencil className="h-3.5 w-3.5" /></Button>
+                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDelete(o.id)}><Trash2 className="h-3.5 w-3.5 text-destructive" /></Button>
                 </div>
               </CardContent>
             </Card>
@@ -296,24 +286,23 @@ export function OfferManager() {
         {offers.length === 0 && <p className="text-center text-muted-foreground py-8">No offers yet.</p>}
       </div>
 
+      {/* Simplified 2-Tab Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-5xl max-h-[90vh] overflow-hidden p-0">
           <DialogHeader className="px-6 pt-6 pb-0">
             <DialogTitle>{editingId ? "Edit Offer" : "Create Offer"}</DialogTitle>
           </DialogHeader>
           <div className="flex flex-col lg:flex-row h-[calc(90vh-80px)] overflow-hidden">
-            {/* Left: Tabbed Form */}
+            {/* Left: Form */}
             <div className="flex-1 lg:w-[60%] overflow-y-auto p-6 border-r">
-              <Tabs defaultValue="basics" className="space-y-4">
-                <TabsList className="grid grid-cols-4 w-full">
-                  <TabsTrigger value="basics" className="text-xs gap-1"><Tag className="h-3 w-3" />Basics</TabsTrigger>
-                  <TabsTrigger value="style" className="text-xs gap-1"><Palette className="h-3 w-3" />Style</TabsTrigger>
-                  <TabsTrigger value="animation" className="text-xs gap-1"><Play className="h-3 w-3" />Animation</TabsTrigger>
-                  <TabsTrigger value="schedule" className="text-xs gap-1"><Calendar className="h-3 w-3" />Schedule</TabsTrigger>
+              <Tabs defaultValue="content" className="space-y-4">
+                <TabsList className="grid grid-cols-2 w-full">
+                  <TabsTrigger value="content">Content</TabsTrigger>
+                  <TabsTrigger value="settings">Settings</TabsTrigger>
                 </TabsList>
 
-                {/* BASICS TAB */}
-                <TabsContent value="basics" className="space-y-4">
+                {/* CONTENT TAB */}
+                <TabsContent value="content" className="space-y-4">
                   <div>
                     <Label className="mb-2 block text-sm font-semibold">Design Template</Label>
                     <OfferTemplatePreview selected={form.design_template} onSelect={(t) => setForm((f) => ({ ...f, design_template: t }))} />
@@ -330,7 +319,7 @@ export function OfferManager() {
                   </div>
                   <div>
                     <Label className="text-xs">Description</Label>
-                    <Textarea value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} rows={2} placeholder="Short description of the offer..." />
+                    <Textarea value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} rows={2} placeholder="Short description..." />
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
@@ -338,10 +327,10 @@ export function OfferManager() {
                       <Select value={form.offer_type} onValueChange={(v) => setForm((f) => ({ ...f, offer_type: v }))}>
                         <SelectTrigger><SelectValue /></SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="flash_sale">⚡ Flash Sale</SelectItem>
-                          <SelectItem value="limited_time">⏰ Limited Time</SelectItem>
-                          <SelectItem value="daily_deal">🏷️ Daily Deal</SelectItem>
-                          <SelectItem value="discount_bundle">🎁 Discount Bundle</SelectItem>
+                          <SelectItem value="flash_sale">Flash Sale</SelectItem>
+                          <SelectItem value="limited_time">Limited Time</SelectItem>
+                          <SelectItem value="daily_deal">Daily Deal</SelectItem>
+                          <SelectItem value="discount_bundle">Discount Bundle</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
@@ -360,121 +349,40 @@ export function OfferManager() {
                       </label>
                     </div>
                   </div>
-                </TabsContent>
 
-                {/* STYLE TAB */}
-                <TabsContent value="style" className="space-y-4">
                   {/* Badge */}
-                  <div className="space-y-3">
-                    <Label className="text-sm font-semibold">Badge</Label>
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                      <div>
-                        <Label className="text-xs">Text</Label>
-                        <Input value={form.badge_text} onChange={(e) => setForm((f) => ({ ...f, badge_text: e.target.value }))} placeholder="20% OFF" />
-                      </div>
-                      <div>
-                        <Label className="text-xs">Color</Label>
-                        <div className="flex gap-2 items-center">
-                          <input type="color" value={form.badge_color} onChange={(e) => setForm((f) => ({ ...f, badge_color: e.target.value }))} className="w-8 h-8 rounded border cursor-pointer" />
-                          <Input value={form.badge_color} onChange={(e) => setForm((f) => ({ ...f, badge_color: e.target.value }))} className="flex-1" />
-                        </div>
-                      </div>
-                      <div>
-                        <Label className="text-xs">Text Color</Label>
-                        <div className="flex gap-2 items-center">
-                          <input type="color" value={form.badge_text_color} onChange={(e) => setForm((f) => ({ ...f, badge_text_color: e.target.value }))} className="w-8 h-8 rounded border cursor-pointer" />
-                          <Input value={form.badge_text_color} onChange={(e) => setForm((f) => ({ ...f, badge_text_color: e.target.value }))} className="flex-1" />
-                        </div>
-                      </div>
-                    </div>
-                    {form.badge_text && (
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs text-muted-foreground">Preview:</span>
-                        <span className="px-2 py-0.5 rounded-md text-xs font-bold" style={{ backgroundColor: form.badge_color, color: form.badge_text_color }}>
-                          {form.badge_text}
-                        </span>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Gradient */}
-                  {(form.design_template === "animated_banner" || form.design_template === "homepage_highlight" || form.design_template === "seasonal") && (
-                    <div className="space-y-3">
-                      <Label className="text-sm font-semibold">Background Gradient</Label>
-                      <div className="grid grid-cols-3 gap-2">
-                        {gradientPresets.map((p) => (
-                          <button
-                            key={p.name}
-                            type="button"
-                            onClick={() => { setForm((f) => ({ ...f, background_gradient: p.value })); setCustomGradient(false); }}
-                            className={cn(
-                              "h-12 rounded-lg border-2 transition-all text-[10px] font-bold text-white flex items-end justify-center pb-1",
-                              form.background_gradient === p.value && !customGradient ? "border-primary ring-2 ring-primary/30" : "border-transparent"
-                            )}
-                            style={{ background: p.value }}
-                          >
-                            {p.name}
-                          </button>
-                        ))}
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Switch checked={customGradient} onCheckedChange={(v) => setCustomGradient(v)} />
-                        <Label className="text-xs">Custom gradient</Label>
-                      </div>
-                      {customGradient && (
-                        <div>
-                          <Input value={form.background_gradient} onChange={(e) => setForm((f) => ({ ...f, background_gradient: e.target.value }))} placeholder="linear-gradient(135deg, #667eea, #764ba2)" />
-                          {form.background_gradient && (
-                            <div className="mt-2 h-8 rounded-md" style={{ background: form.background_gradient }} />
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Seasonal */}
-                  {form.design_template === "seasonal" && (
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     <div>
-                      <Label className="text-sm font-semibold">Seasonal Theme</Label>
-                      <Select value={form.seasonal_theme} onValueChange={(v) => setForm((f) => ({ ...f, seasonal_theme: v }))}>
-                        <SelectTrigger><SelectValue placeholder="Select theme" /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="holi">Holi 🎨</SelectItem>
-                          <SelectItem value="diwali">Diwali 🪔</SelectItem>
-                          <SelectItem value="christmas">Christmas 🎄</SelectItem>
-                          <SelectItem value="new_year">New Year 🎆</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      <Label className="text-xs">Badge Text</Label>
+                      <Input value={form.badge_text} onChange={(e) => setForm((f) => ({ ...f, badge_text: e.target.value }))} placeholder="20% OFF" />
+                    </div>
+                    <div>
+                      <Label className="text-xs">Badge Color</Label>
+                      <div className="flex gap-2 items-center">
+                        <input type="color" value={form.badge_color} onChange={(e) => setForm((f) => ({ ...f, badge_color: e.target.value }))} className="w-8 h-8 rounded border cursor-pointer" />
+                        <Input value={form.badge_color} onChange={(e) => setForm((f) => ({ ...f, badge_color: e.target.value }))} className="flex-1" />
+                      </div>
+                    </div>
+                    <div>
+                      <Label className="text-xs">Text Color</Label>
+                      <div className="flex gap-2 items-center">
+                        <input type="color" value={form.badge_text_color} onChange={(e) => setForm((f) => ({ ...f, badge_text_color: e.target.value }))} className="w-8 h-8 rounded border cursor-pointer" />
+                        <Input value={form.badge_text_color} onChange={(e) => setForm((f) => ({ ...f, badge_text_color: e.target.value }))} className="flex-1" />
+                      </div>
+                    </div>
+                  </div>
+                  {form.badge_text && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-muted-foreground">Preview:</span>
+                      <span className="px-2 py-0.5 rounded-md text-xs font-bold" style={{ backgroundColor: form.badge_color, color: form.badge_text_color }}>
+                        {form.badge_text}
+                      </span>
                     </div>
                   )}
                 </TabsContent>
 
-                {/* ANIMATION TAB */}
-                <TabsContent value="animation" className="space-y-4">
-                  <Label className="text-sm font-semibold">Choose Animation</Label>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                    {animationOptions.map((a) => (
-                      <button
-                        key={a.id}
-                        type="button"
-                        onClick={() => setForm((f) => ({ ...f, animation_type: a.id }))}
-                        className={cn(
-                          "flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all",
-                          form.animation_type === a.id
-                            ? "border-primary bg-primary/10 shadow-md"
-                            : "border-border hover:border-primary/50"
-                        )}
-                      >
-                        <div className={cn("w-6 h-6 rounded-full bg-primary", animationDemoClass[a.id])} />
-                        <span className="text-xs font-semibold">{a.label}</span>
-                        <span className="text-[10px] text-muted-foreground text-center">{a.desc}</span>
-                      </button>
-                    ))}
-                  </div>
-                </TabsContent>
-
-                {/* SCHEDULE TAB */}
-                <TabsContent value="schedule" className="space-y-4">
+                {/* SETTINGS TAB */}
+                <TabsContent value="settings" className="space-y-4">
                   {/* Timer */}
                   <div className="border rounded-lg p-4 space-y-3">
                     <div className="flex items-center gap-2">
@@ -524,6 +432,76 @@ export function OfferManager() {
                       </div>
                     </div>
                   </div>
+
+                  {/* Advanced — Collapsible */}
+                  <Collapsible>
+                    <CollapsibleTrigger asChild>
+                      <Button variant="ghost" className="w-full justify-between text-sm font-semibold">
+                        Advanced Options
+                        <ChevronDown className="h-4 w-4" />
+                      </Button>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent className="space-y-4 pt-3">
+                      {/* Animation */}
+                      <div>
+                        <Label className="text-xs mb-2 block">Animation</Label>
+                        <Select value={form.animation_type} onValueChange={(v) => setForm((f) => ({ ...f, animation_type: v }))}>
+                          <SelectTrigger><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            {animationOptions.map(a => (
+                              <SelectItem key={a.id} value={a.id}>{a.label}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      {/* Gradient */}
+                      {(form.design_template === "animated_banner" || form.design_template === "homepage_highlight" || form.design_template === "seasonal") && (
+                        <div className="space-y-3">
+                          <Label className="text-xs">Background Gradient</Label>
+                          <div className="grid grid-cols-3 gap-2">
+                            {gradientPresets.map((p) => (
+                              <button
+                                key={p.name}
+                                type="button"
+                                onClick={() => { setForm((f) => ({ ...f, background_gradient: p.value })); setCustomGradient(false); }}
+                                className={cn(
+                                  "h-10 rounded-lg border-2 transition-all text-[10px] font-bold text-white flex items-end justify-center pb-1",
+                                  form.background_gradient === p.value && !customGradient ? "border-primary ring-2 ring-primary/30" : "border-transparent"
+                                )}
+                                style={{ background: p.value }}
+                              >
+                                {p.name}
+                              </button>
+                            ))}
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Switch checked={customGradient} onCheckedChange={(v) => setCustomGradient(v)} />
+                            <Label className="text-xs">Custom gradient</Label>
+                          </div>
+                          {customGradient && (
+                            <Input value={form.background_gradient} onChange={(e) => setForm((f) => ({ ...f, background_gradient: e.target.value }))} placeholder="linear-gradient(135deg, #667eea, #764ba2)" />
+                          )}
+                        </div>
+                      )}
+
+                      {/* Seasonal */}
+                      {form.design_template === "seasonal" && (
+                        <div>
+                          <Label className="text-xs">Seasonal Theme</Label>
+                          <Select value={form.seasonal_theme} onValueChange={(v) => setForm((f) => ({ ...f, seasonal_theme: v }))}>
+                            <SelectTrigger><SelectValue placeholder="Select theme" /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="holi">Holi</SelectItem>
+                              <SelectItem value="diwali">Diwali</SelectItem>
+                              <SelectItem value="christmas">Christmas</SelectItem>
+                              <SelectItem value="new_year">New Year</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      )}
+                    </CollapsibleContent>
+                  </Collapsible>
                 </TabsContent>
               </Tabs>
 

@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Users, Copy, Check, Gift, UserPlus, Clock, CheckCircle2 } from "lucide-react";
+import { Users, Copy, Check, Gift, UserPlus, Clock, CheckCircle2, Share2, ArrowRight } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 
@@ -71,73 +71,96 @@ const Referrals = () => {
   const successfulReferrals = referrals.filter(r => r.status === "completed").length;
   const pendingReferrals = referrals.filter(r => r.status === "pending").length;
 
+  const steps = [
+    { icon: Share2, title: "Share Link", desc: "Copy and send your referral link to friends" },
+    { icon: UserPlus, title: "Friend Signs Up", desc: "They create an account using your link" },
+    { icon: Gift, title: "Both Earn", desc: "You both get discount coupons on first order" },
+  ];
+
   return (
     <div className="min-h-screen bg-background">
       <Header />
-      <main className="container mx-auto px-4 py-8 max-w-4xl">
-        <div className="mb-8 animate-fade-in">
-          <h1 className="text-3xl font-bold text-foreground mb-2 flex items-center gap-2">
-            <Users className="h-8 w-8 text-primary" /> Referrals
+      <main className="container mx-auto px-4 py-8 max-w-4xl space-y-6">
+        {/* Page Header */}
+        <div className="animate-fade-in">
+          <h1 className="text-2xl md:text-3xl font-bold text-foreground mb-1 flex items-center gap-2">
+            <Users className="h-7 w-7 text-primary" /> Referrals
           </h1>
-          <p className="text-muted-foreground">Invite friends and earn coupon rewards when they make their first purchase</p>
+          <p className="text-sm text-muted-foreground">Invite friends and earn coupons when they make their first purchase</p>
         </div>
 
-        {/* Referral Link Card */}
-        <Card className="mb-6 bg-card border-border">
-          <CardHeader>
-            <CardTitle className="text-lg flex items-center gap-2">
-              <UserPlus className="h-5 w-5 text-primary" /> Your Referral Link
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
+        {/* How It Works - 3 Steps */}
+        <Card className="border-border animate-fade-in">
+          <CardContent className="p-5">
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-4">How it works</p>
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-0">
+              {steps.map((step, i) => (
+                <div key={i} className="flex items-center gap-3 flex-1">
+                  <div className="flex items-center gap-3 flex-1">
+                    <div className="flex-shrink-0 w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                      <step.icon className="h-5 w-5 text-primary" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="font-semibold text-sm text-foreground">{step.title}</p>
+                      <p className="text-[11px] text-muted-foreground leading-tight">{step.desc}</p>
+                    </div>
+                  </div>
+                  {i < steps.length - 1 && (
+                    <ArrowRight className="hidden sm:block h-4 w-4 text-muted-foreground flex-shrink-0 mx-2" />
+                  )}
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Referral Link - Prominent CTA */}
+        <Card className="border-primary/30 bg-primary/5 animate-fade-in">
+          <CardContent className="p-5 space-y-3">
+            <p className="font-semibold text-foreground text-sm">Your Referral Link</p>
             <div className="flex gap-2">
-              <Input value={referralLink} readOnly className="font-mono text-sm bg-muted" />
-              <Button onClick={handleCopy} variant="outline" className="shrink-0">
+              <Input value={referralLink} readOnly className="font-mono text-xs bg-background" />
+              <Button onClick={handleCopy} className="shrink-0 gap-2">
                 {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                {copied ? "Copied" : "Copy"}
               </Button>
             </div>
-            <p className="text-xs text-muted-foreground mt-2">
-              Your referral code: <span className="font-mono font-bold text-primary">{profile?.referral_code || "..."}</span>
+            <p className="text-xs text-muted-foreground">
+              Your code: <span className="font-mono font-bold text-primary">{profile?.referral_code || "..."}</span>
             </p>
           </CardContent>
         </Card>
 
-        {/* Stats */}
-        <div className="grid grid-cols-3 gap-3 mb-6">
-          <Card className="bg-card border-border">
-            <CardContent className="p-4 text-center">
-              <p className="text-2xl font-bold text-primary">{totalReferred}</p>
-              <p className="text-xs text-muted-foreground">Total Referred</p>
-            </CardContent>
-          </Card>
-          <Card className="bg-card border-border">
-            <CardContent className="p-4 text-center">
-              <p className="text-2xl font-bold text-green-500">{successfulReferrals}</p>
-              <p className="text-xs text-muted-foreground">Successful</p>
-            </CardContent>
-          </Card>
-          <Card className="bg-card border-border">
-            <CardContent className="p-4 text-center">
-              <p className="text-2xl font-bold text-yellow-500">{pendingReferrals}</p>
-              <p className="text-xs text-muted-foreground">Pending</p>
-            </CardContent>
-          </Card>
+        {/* Stats as Inline Row */}
+        <div className="flex items-center gap-3 animate-fade-in">
+          <Badge variant="outline" className="py-2 px-4 text-sm gap-1.5">
+            <Users className="h-3.5 w-3.5" /> {totalReferred} Referred
+          </Badge>
+          <Badge variant="outline" className="py-2 px-4 text-sm gap-1.5 text-green-600 border-green-200">
+            <CheckCircle2 className="h-3.5 w-3.5" /> {successfulReferrals} Successful
+          </Badge>
+          <Badge variant="outline" className="py-2 px-4 text-sm gap-1.5 text-yellow-600 border-yellow-200">
+            <Clock className="h-3.5 w-3.5" /> {pendingReferrals} Pending
+          </Badge>
         </div>
 
         {/* Referral History */}
-        <Card className="bg-card border-border">
-          <CardHeader>
+        <Card className="border-border animate-fade-in">
+          <CardHeader className="pb-3">
             <CardTitle className="text-lg flex items-center gap-2">
-              <Gift className="h-5 w-5 text-primary" /> Referral History
+              <UserPlus className="h-5 w-5 text-primary" /> Referral History
             </CardTitle>
           </CardHeader>
           <CardContent>
             {loading ? (
-              <p className="text-center text-muted-foreground py-8">Loading...</p>
+              <p className="text-center text-muted-foreground py-8 text-sm">Loading...</p>
             ) : referrals.length === 0 ? (
-              <p className="text-center text-muted-foreground py-8">No referrals yet. Share your link to get started!</p>
+              <div className="text-center py-10">
+                <UserPlus className="h-10 w-10 mx-auto text-muted-foreground/40 mb-2" />
+                <p className="text-sm text-muted-foreground">No referrals yet. Share your link to get started!</p>
+              </div>
             ) : (
-              <div className="space-y-3">
+              <div className="space-y-2">
                 {referrals.map(r => (
                   <div key={r.id} className="flex items-center justify-between p-3 rounded-lg border border-border bg-background/50">
                     <div>
@@ -148,11 +171,11 @@ const Referrals = () => {
                         Joined {format(new Date(r.created_at), "MMM d, yyyy")}
                       </p>
                     </div>
-                    <Badge variant={r.status === "completed" ? "default" : "secondary"}>
+                    <Badge variant={r.status === "completed" ? "default" : "secondary"} className="gap-1">
                       {r.status === "completed" ? (
-                        <><CheckCircle2 className="h-3 w-3 mr-1" /> Rewarded</>
+                        <><CheckCircle2 className="h-3 w-3" /> Rewarded</>
                       ) : (
-                        <><Clock className="h-3 w-3 mr-1" /> Pending</>
+                        <><Clock className="h-3 w-3" /> Pending</>
                       )}
                     </Badge>
                   </div>
