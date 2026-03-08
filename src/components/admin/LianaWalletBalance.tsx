@@ -3,24 +3,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import {
-  RefreshCw,
-  Wallet,
-  AlertTriangle,
-  Clock,
-  TrendingDown,
-  Activity,
-  Coins,
-  ShieldAlert,
-  CheckCircle,
-  XCircle,
+  RefreshCw, Wallet, AlertTriangle, Clock, TrendingDown, Activity,
+  Coins, ShieldAlert, CheckCircle, XCircle, ArrowDown, ArrowUp,
 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -55,6 +42,7 @@ interface WalletSummary {
   coins_used_today: number;
   orders_today: number;
   failures_today: number;
+  avg_coins_per_order: number;
 }
 
 export function LianaWalletBalance() {
@@ -74,19 +62,13 @@ export function LianaWalletBalance() {
       const { data, error: fnError } = await supabase.functions.invoke("process-ml-order", {
         body: { action: "check-balance" },
       });
-
       if (fnError) throw new Error(fnError.message || "Edge function error");
       if (data?.error) throw new Error(data.error);
-
       const resolved = data?.balance ?? data;
-      if (resolved?.status === "error") {
-        throw new Error(resolved.message || "Could not fetch balance");
-      }
-
+      if (resolved?.status === "error") throw new Error(resolved.message || "Could not fetch balance");
       setWalletData(resolved);
       setLastChecked(new Date());
     } catch (err: any) {
-      console.error("Error fetching wallet balance:", err);
       setError(err.message || "Failed to fetch wallet balance");
     } finally {
       setLoading(false);
@@ -99,14 +81,18 @@ export function LianaWalletBalance() {
       const { data, error: fnError } = await supabase.functions.invoke("process-ml-order", {
         body: { action: "wallet-logs" },
       });
-
       if (fnError) throw new Error(fnError.message);
       if (data?.success) {
         setLogs(data.logs || []);
-        setSummary(data.summary || null);
+        const rawSummary = data.summary || {};
+        setSummary({
+          ...rawSummary,
+          avg_coins_per_order: rawSummary.orders_today > 0
+            ? Math.round(rawSummary.coins_used_today / rawSummary.orders_today)
+            : 0,
+        });
       }
     } catch (err: any) {
-      console.error("Error fetching wallet logs:", err);
       toast.error("Failed to fetch wallet logs");
     } finally {
       setLogsLoading(false);
@@ -115,11 +101,26 @@ export function LianaWalletBalance() {
 
   useEffect(() => {
     fetchBalance();
+    // Auto-refresh every 60s
+    const interval = setInterval(fetchBalance, 60000);
+    return () => clearInterval(interval);
   }, [fetchBalance]);
 
   useEffect(() => {
     if (showLogs) fetchLogs();
   }, [showLogs, fetchLogs]);
+
+  // Real-time: refresh on wallet_activity_logs changes
+  useEffect(() => {
+    const channel = supabase
+      .channel("wallet-realtime")
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "wallet_activity_logs" }, () => {
+        fetchBalance();
+        if (showLogs) fetchLogs();
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [fetchBalance, fetchLogs, showLogs]);
 
   const balance = walletData?.balance ?? walletData?.coins ?? walletData?.amount;
   const balanceNum = typeof balance === "number" ? balance : parseFloat(String(balance || "0"));
@@ -135,15 +136,23 @@ export function LianaWalletBalance() {
   return (
     <div className="space-y-4">
       {/* Main Balance Card */}
-      <Card className="border-border">
+      <Card className={`border-2 ${isCritical ? "border-destructive" : isLow ? "border-yellow-500" : "border-border"}`}>
         <CardHeader className="flex flex-row items-center justify-between pb-2">
           <CardTitle className="text-sm font-medium flex items-center gap-2">
             <Wallet className="h-4 w-4 text-primary" />
             Liana API Wallet
           </CardTitle>
-          <Button variant="ghost" size="icon" onClick={fetchBalance} disabled={loading}>
-            <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
-          </Button>
+          <div className="flex items-center gap-2">
+            {lastChecked && (
+              <span className="text-[10px] text-muted-foreground flex items-center gap-1">
+                <Clock className="h-3 w-3" />
+                {lastChecked.toLocaleTimeString()}
+              </span>
+            )}
+            <Button variant="ghost" size="icon" onClick={fetchBalance} disabled={loading}>
+              <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
           {loading && !walletData && !error ? (
@@ -162,21 +171,23 @@ export function LianaWalletBalance() {
           ) : (
             <div className="space-y-3">
               <div className="flex items-baseline gap-2">
-                <span className="text-3xl font-bold text-foreground">
+                <span className="text-3xl font-bold text-foreground tabular-nums">
                   {loading ? "..." : balanceNum.toLocaleString(undefined, { maximumFractionDigits: 2 })}
                 </span>
                 <span className="text-sm text-muted-foreground">coins</span>
                 {isCritical ? (
-                  <Badge variant="destructive" className="gap-1 ml-2">
-                    <ShieldAlert className="h-3 w-3" />
-                    Critical
+                  <Badge variant="destructive" className="gap-1 ml-2 animate-pulse">
+                    <ShieldAlert className="h-3 w-3" /> Critical
                   </Badge>
                 ) : isLow ? (
                   <Badge variant="destructive" className="gap-1 ml-2">
-                    <AlertTriangle className="h-3 w-3" />
-                    Low
+                    <AlertTriangle className="h-3 w-3" /> Low
                   </Badge>
-                ) : null}
+                ) : (
+                  <Badge variant="outline" className="gap-1 ml-2 text-green-500 border-green-500/30">
+                    <CheckCircle className="h-3 w-3" /> Healthy
+                  </Badge>
+                )}
               </div>
 
               {isCritical && (
@@ -189,13 +200,6 @@ export function LianaWalletBalance() {
                   ⚠️ Wallet balance is low. Top up to prevent order failures.
                 </p>
               )}
-
-              {lastChecked && (
-                <p className="text-xs text-muted-foreground flex items-center gap-1">
-                  <Clock className="h-3 w-3" />
-                  Last checked: {lastChecked.toLocaleTimeString()}
-                </p>
-              )}
             </div>
           )}
         </CardContent>
@@ -203,21 +207,17 @@ export function LianaWalletBalance() {
 
       {/* Summary Stats */}
       {summary && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
           <MiniStat icon={<Coins className="h-4 w-4 text-primary" />} label="Coins Used Today" value={summary.coins_used_today.toLocaleString()} />
+          <MiniStat icon={<Activity className="h-4 w-4 text-blue-500" />} label="Avg Coins/Order" value={summary.avg_coins_per_order.toLocaleString()} />
           <MiniStat icon={<CheckCircle className="h-4 w-4 text-green-500" />} label="Orders Today" value={summary.orders_today} />
           <MiniStat icon={<XCircle className="h-4 w-4 text-destructive" />} label="Failures Today" value={summary.failures_today} />
-          <MiniStat icon={<Activity className="h-4 w-4 text-muted-foreground" />} label="Total Logs" value={summary.total_logs} />
+          <MiniStat icon={<TrendingDown className="h-4 w-4 text-muted-foreground" />} label="Total Logs" value={summary.total_logs} />
         </div>
       )}
 
       {/* Toggle Logs */}
-      <Button
-        variant="outline"
-        size="sm"
-        onClick={() => setShowLogs(!showLogs)}
-        className="w-full"
-      >
+      <Button variant="outline" size="sm" onClick={() => setShowLogs(!showLogs)} className="w-full">
         <TrendingDown className="h-4 w-4 mr-2" />
         {showLogs ? "Hide" : "Show"} Wallet Activity Logs
       </Button>
@@ -242,46 +242,52 @@ export function LianaWalletBalance() {
                     <TableHead className="text-right">Coins Used</TableHead>
                     <TableHead className="text-right">Before</TableHead>
                     <TableHead className="text-right">After</TableHead>
+                    <TableHead className="text-right">Change</TableHead>
                     <TableHead>Status</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {logsLoading ? (
                     <TableRow>
-                      <TableCell colSpan={7} className="text-center py-6 text-muted-foreground">
-                        Loading...
-                      </TableCell>
+                      <TableCell colSpan={8} className="text-center py-6 text-muted-foreground">Loading...</TableCell>
                     </TableRow>
                   ) : logs.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={7} className="text-center py-6 text-muted-foreground">
-                        No wallet activity yet
-                      </TableCell>
+                      <TableCell colSpan={8} className="text-center py-6 text-muted-foreground">No wallet activity yet</TableCell>
                     </TableRow>
                   ) : (
                     logs.map((log) => {
                       const config = actionConfig[log.action] || actionConfig.balance_check;
+                      const change = log.balance_before != null && log.balance_after != null
+                        ? log.balance_after - log.balance_before
+                        : null;
                       return (
                         <TableRow key={log.id}>
                           <TableCell className="text-xs whitespace-nowrap">
                             {format(new Date(log.created_at), "MMM d, HH:mm:ss")}
                           </TableCell>
-                          <TableCell className="font-mono text-xs">
-                            {log.order_number || "—"}
-                          </TableCell>
+                          <TableCell className="font-mono text-xs">{log.order_number || "—"}</TableCell>
                           <TableCell>
                             <span className={`flex items-center gap-1 text-xs ${config.color}`}>
                               {config.icon} {config.label}
                             </span>
                           </TableCell>
                           <TableCell className="text-right font-mono text-xs">
-                            {log.coins_used > 0 ? `-${log.coins_used.toLocaleString()}` : "—"}
+                            {log.coins_used > 0 ? <span className="text-destructive">-{log.coins_used.toLocaleString()}</span> : "—"}
                           </TableCell>
                           <TableCell className="text-right text-xs text-muted-foreground">
                             {log.balance_before != null ? log.balance_before.toLocaleString() : "—"}
                           </TableCell>
                           <TableCell className="text-right text-xs text-muted-foreground">
                             {log.balance_after != null ? log.balance_after.toLocaleString() : "—"}
+                          </TableCell>
+                          <TableCell className="text-right text-xs">
+                            {change != null ? (
+                              <span className={`flex items-center justify-end gap-0.5 ${change < 0 ? "text-destructive" : "text-green-500"}`}>
+                                {change < 0 ? <ArrowDown className="h-3 w-3" /> : <ArrowUp className="h-3 w-3" />}
+                                {Math.abs(change).toLocaleString()}
+                              </span>
+                            ) : "—"}
                           </TableCell>
                           <TableCell>
                             {log.error_message ? (
@@ -311,8 +317,8 @@ function MiniStat({ icon, label, value }: { icon: React.ReactNode; label: string
     <div className="rounded-lg border border-border bg-card p-3 flex items-center gap-2">
       {icon}
       <div>
-        <p className="text-xs text-muted-foreground">{label}</p>
-        <p className="text-sm font-bold text-foreground">{value}</p>
+        <p className="text-[10px] text-muted-foreground">{label}</p>
+        <p className="text-sm font-bold text-foreground tabular-nums">{value}</p>
       </div>
     </div>
   );
