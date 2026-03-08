@@ -131,6 +131,7 @@ const App = () => (
             <Route path="/payment/success" element={<PaymentSuccess />} />
             <Route path="/payment/cancel" element={<PaymentCancel />} />
             <Route path="/login-required" element={<LoginRequired />} />
+            <Route path="/api-docs" element={<ApiDocs />} />
             <Route path="/admin-login" element={<AdminLogin />} />
             <Route 
               path="/admin" 

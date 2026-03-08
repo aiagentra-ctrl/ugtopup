@@ -153,6 +153,14 @@ export const Footer = () => {
                 Coupon Policy & Rules
               </Link>
             </li>
+            <li>
+              <Link 
+                to="/api-docs" 
+                className="text-[hsl(var(--footer-text))] text-base hover:text-[hsl(var(--footer-heading))] transition-colors duration-300"
+              >
+                API Documentation
+              </Link>
+            </li>
           </ul>
         </div>
         
