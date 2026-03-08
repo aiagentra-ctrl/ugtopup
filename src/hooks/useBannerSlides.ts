@@ -1,49 +1,30 @@
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchActiveBannerSlides, BannerSlide } from "@/lib/bannerApi";
 
-export const useBannerSlides = () => {
-  const [slides, setSlides] = useState<BannerSlide[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<Error | null>(null);
+export { type BannerSlide };
 
-  const loadSlides = async () => {
-    try {
-      const data = await fetchActiveBannerSlides();
-      setSlides(data);
-      setError(null);
-    } catch (err) {
-      console.error("Error fetching banner slides:", err);
-      setError(err as Error);
-    } finally {
-      setLoading(false);
-    }
-  };
+export const useBannerSlides = () => {
+  const queryClient = useQueryClient();
+
+  const { data: slides = [], isLoading: loading, error } = useQuery({
+    queryKey: ["banner-slides"],
+    queryFn: fetchActiveBannerSlides,
+    staleTime: 1000 * 60 * 5,
+    gcTime: 1000 * 60 * 60 * 24,
+  });
 
   useEffect(() => {
-    loadSlides();
-
-    // Subscribe to real-time changes
     const channel = supabase
       .channel("banner-slides-changes")
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "banner_slides",
-        },
-        () => {
-          // Refetch on any change
-          loadSlides();
-        }
-      )
+      .on("postgres_changes", { event: "*", schema: "public", table: "banner_slides" }, () => {
+        queryClient.invalidateQueries({ queryKey: ["banner-slides"] });
+      })
       .subscribe();
 
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, []);
+    return () => { supabase.removeChannel(channel); };
+  }, [queryClient]);
 
-  return { slides, loading, error, refetch: loadSlides };
+  return { slides, loading, error: error as Error | null, refetch: () => queryClient.invalidateQueries({ queryKey: ["banner-slides"] }) };
 };
