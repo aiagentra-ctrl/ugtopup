@@ -1,96 +1,124 @@
 
-# Dynamic Website with Advanced Admin Panel
 
-## Overview
-Make the entire website content dynamic and admin-controlled by creating two new admin sections and supporting database tables. The existing "Products (New)" page (GameProductPrices) will remain completely untouched.
+# Advanced Offer Management System
 
-## What Changes
+## Current State
 
-### Phase 1: Database Setup
+- **`offers` table** exists with: title, subtitle, description, image_url, offer_type (flash_sale/limited_time/daily_deal/discount_bundle), timer fields, product_link, show_on_homepage/show_on_product_page, display_order, is_active
+- **`OfferManager.tsx`** admin UI: basic CRUD with type selection, timer controls, visibility toggles
+- **`BestDeals.tsx`** renders homepage offers from `useOffers("homepage")` — simple centered text+timer layout
+- **`ProductCard.tsx`** has no offer/badge support
+- **`dynamic_products` table** has no offer attachment fields
+- No design templates, no animations, no product-level badges, no seasonal themes
 
-**New table: `dynamic_products`** - stores products displayed on the homepage
-- `id`, `title`, `description`, `image_url`, `link`, `category` (topup/voucher/subscription/design), `price`, `discount_price`, `features` (jsonb array), `tags` (text array), `plans` (jsonb array), `display_order`, `is_active`, `created_at`, `updated_at`
+## Database Changes
 
-**New table: `product_categories`** - dynamic categories
-- `id`, `name`, `slug`, `display_order`, `is_active`, `created_at`, `updated_at`
+### 1. Add columns to `offers` table
 
-**New table: `offers`** - dynamic offer/deal sections
-- `id`, `title`, `subtitle`, `description`, `image_url`, `offer_type` (flash_sale/limited_time/daily_deal/discount_bundle), `timer_enabled`, `timer_type` (hours/days/both/none), `timer_end_date`, `product_link`, `custom_icon_url`, `display_order`, `is_active`, `show_on_homepage`, `show_on_product_page`, `created_at`, `updated_at`
+```sql
+ALTER TABLE offers ADD COLUMN IF NOT EXISTS design_template text NOT NULL DEFAULT 'badge';
+ALTER TABLE offers ADD COLUMN IF NOT EXISTS badge_text text;
+ALTER TABLE offers ADD COLUMN IF NOT EXISTS badge_color text DEFAULT '#ef4444';
+ALTER TABLE offers ADD COLUMN IF NOT EXISTS badge_text_color text DEFAULT '#ffffff';
+ALTER TABLE offers ADD COLUMN IF NOT EXISTS animation_type text DEFAULT 'none';
+ALTER TABLE offers ADD COLUMN IF NOT EXISTS seasonal_theme text;
+ALTER TABLE offers ADD COLUMN IF NOT EXISTS background_gradient text;
+ALTER TABLE offers ADD COLUMN IF NOT EXISTS timer_start_date timestamptz;
+```
 
-RLS: Public SELECT for active items, admin ALL for management.
+### 2. Add offer columns to `dynamic_products` table
 
-**Seed `dynamic_products`** with current hardcoded data from ProductTabs so nothing changes visually on day one.
+```sql
+ALTER TABLE dynamic_products ADD COLUMN IF NOT EXISTS offer_id uuid REFERENCES offers(id) ON DELETE SET NULL;
+ALTER TABLE dynamic_products ADD COLUMN IF NOT EXISTS offer_badge_text text;
+ALTER TABLE dynamic_products ADD COLUMN IF NOT EXISTS offer_badge_color text;
+```
 
-### Phase 2: Admin Panel - Product Update Page (new section)
+This lets admins attach an offer to any product + override the badge text/color per product.
 
-Add a new sidebar menu item **"Product Update"** in AdminLayout.
+## Design Templates (5 types)
 
-New component: `src/components/admin/DynamicProductManager.tsx`
-- Full CRUD table listing all dynamic products
-- Inline editing with image upload (to `product-images` storage bucket)
-- Fields: title, description, image, link, category, price, discount price, features (add/remove chips), tags (add/remove), plans (JSON editor)
-- Product preview panel showing how it looks on the frontend
-- Search, filter by category, drag-to-reorder
+The `design_template` field controls which layout renders:
 
-New component: `src/components/admin/CategoryManager.tsx`
-- Add/rename/delete categories
-- Reorder categories via drag or arrows
-- Auto-updates category options across the product form
+1. **`badge`** — Small label on product card ("20% OFF", "Hot Deal"). Renders as a positioned badge on ProductCard.
+2. **`animated_banner`** — Full-width animated banner with slide-in or pulse effect. For homepage/product pages.
+3. **`homepage_highlight`** — Featured promotional card with image, gradient background, CTA button.
+4. **`seasonal`** — Festival-themed design with custom colors, themed border/background (Holi rainbow, Diwali gold, Christmas red/green, New Year sparkle).
+5. **`daily_deal`** — Compact countdown card with urgent styling, pulsing timer, and action button.
 
-### Phase 3: Admin Panel - Offer Management Page (new section)
-
-Add a new sidebar menu item **"Offers"** in AdminLayout.
-
-New component: `src/components/admin/OfferManager.tsx`
-- List all offers with enable/disable toggle
-- Add new offer with form: title, subtitle, description, image upload, offer type selector, timer controls (enable/disable, type, end date), product link picker
-- Edit existing offers inline
-- Reorder offers
-- Toggle homepage/product page visibility
-
-### Phase 4: Frontend - Make ProductTabs Dynamic
-
-Update `src/components/ProductTabs.tsx`:
-- Fetch products from `dynamic_products` table instead of hardcoded `productData`
-- Fetch categories from `product_categories` table for tab names
-- Keep the exact same visual layout, just swap data source
-- Real-time subscription so admin changes appear instantly
-
-### Phase 5: Frontend - Make BestDeals/Offers Dynamic
-
-Update `src/components/BestDeals.tsx`:
-- Fetch active homepage offers from `offers` table
-- Render offer blocks dynamically with optional countdown timers
-- Keep existing visual style, just make content admin-controlled
-
-### What Will NOT Change
-- **"Products (New)" page** (`GameProductPrices` component) -- zero modifications
-- **Existing `ProductsList`** component -- untouched
-- **Game pricing system** (`game_product_prices` table) -- untouched
-- **Overall website design/layout** -- only data sources change
-
-## Technical Details
-
-### New Files
-- `src/components/admin/DynamicProductManager.tsx` - Product Update admin page
-- `src/components/admin/CategoryManager.tsx` - Category management
-- `src/components/admin/OfferManager.tsx` - Offer management admin page
-- `src/lib/dynamicProductApi.ts` - API functions for dynamic products/categories
-- `src/lib/offerApi.ts` - API functions for offers
-- `src/hooks/useDynamicProducts.ts` - Frontend hook with real-time subscriptions
-- `src/hooks/useOffers.ts` - Frontend hook for offers
+## File Changes
 
 ### Modified Files
-- `src/components/admin/AdminLayout.tsx` - Add 3 new sidebar items (Product Update, Categories, Offers)
-- `src/pages/AdminPanel.tsx` - Add new section cases in switch
-- `src/components/ProductTabs.tsx` - Replace hardcoded data with database fetch
-- `src/components/BestDeals.tsx` - Replace hardcoded deals with database fetch
 
-### New Storage Bucket
-- `product-images` (public) for product image uploads
+**`src/components/admin/OfferManager.tsx`** — Major upgrade:
+- Add design template selector (5 options with visual previews)
+- Add badge text/color pickers
+- Add animation type selector (none, pulse, slide-in, flash, bounce)
+- Add seasonal theme picker (holi, diwali, christmas, new_year, custom)
+- Add background gradient picker
+- Add start date field for scheduling
+- Add live preview panel showing how the offer will look
+- Add product assignment section (multi-select from dynamic_products)
 
-### Database Migration
-- Create `dynamic_products`, `product_categories`, `offers` tables
-- Create `product-images` storage bucket
-- RLS policies for all new tables
-- Seed initial data from current hardcoded products
+**`src/components/admin/DynamicProductManager.tsx`** — Add offer attachment:
+- Dropdown to assign an offer to a product
+- Override badge text and color fields
+
+**`src/components/ProductCard.tsx`** — Add offer badge rendering:
+- Accept optional `badgeText`, `badgeColor`, `badgeTextColor` props
+- Render positioned badge with optional animation class (pulse/flash)
+
+**`src/components/ProductTabs.tsx`** — Pass offer data to ProductCard:
+- Join product's `offer_id` with offers data
+- Pass badge props to each ProductCard
+
+**`src/components/BestDeals.tsx`** — Complete redesign:
+- Render different layouts based on `design_template`
+- `badge` type: skip (badge renders on product cards only)
+- `animated_banner`: full-width banner with slide-in animation
+- `homepage_highlight`: featured card with gradient + CTA
+- `seasonal`: themed card with festival colors and optional background pattern
+- `daily_deal`: urgent countdown card with pulsing timer
+- Add CSS animations (flash, pulse, slide-in, bounce) via Tailwind keyframes
+
+**`src/hooks/useOffers.ts`** — Extend Offer interface with new fields
+
+**`src/hooks/useDynamicProducts.ts`** — Join offers data when fetching products
+
+**`src/lib/offerApi.ts`** — Update create/update payloads with new fields
+
+**`src/pages/Index.tsx`** — No changes needed (BestDeals already renders there)
+
+**`tailwind.config.ts`** — Add new keyframes:
+- `flash`: opacity blink for flash sale badges
+- `bounce-subtle`: gentle bounce for daily deals
+- `slide-in-left`: for animated banners
+
+### New Files
+
+**`src/components/offers/OfferBadge.tsx`** — Reusable badge component with animation support. Used by ProductCard.
+
+**`src/components/offers/OfferBanner.tsx`** — Animated banner template component.
+
+**`src/components/offers/OfferHighlight.tsx`** — Homepage highlight card template.
+
+**`src/components/offers/OfferSeasonal.tsx`** — Seasonal/festival themed offer card with themed backgrounds (Holi colors, Diwali gold particles, etc).
+
+**`src/components/offers/OfferDailyDeal.tsx`** — Countdown-focused daily deal card with urgency styling.
+
+**`src/components/offers/OfferTemplatePreview.tsx`** — Preview component used in admin to show how each template looks.
+
+## Auto-Expiry
+
+Offers with `timer_end_date` in the past are filtered out in `useOffers` by adding `.or('timer_end_date.is.null,timer_end_date.gt.now()')` to the query. Offers with `timer_start_date` in the future are also filtered: `.or('timer_start_date.is.null,timer_start_date.lte.now()')`.
+
+## Summary
+
+- 1 migration (new columns on `offers` + `dynamic_products`)
+- 5 new offer template components
+- 1 new OfferBadge component for product cards
+- Major OfferManager admin upgrade with templates, colors, animations, scheduling
+- ProductCard gains offer badge support
+- BestDeals renders 5 distinct template layouts
+- Auto-expiry via query filters
+
