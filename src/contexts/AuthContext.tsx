@@ -23,7 +23,7 @@ interface AuthContextType {
   setProfile: (profile: Profile | null) => void;
   loading: boolean;
   login: (email: string, password: string) => Promise<{ error: any }>;
-  signup: (email: string, password: string, username?: string) => Promise<{ error: any }>;
+  signup: (email: string, password: string, username?: string, referralCode?: string) => Promise<{ error: any }>;
   loginWithGoogle: () => Promise<void>;
   logout: () => Promise<void>;
   updateProfile: (data: Partial<Profile>) => Promise<{ error: any }>;
