@@ -28,6 +28,10 @@ import { RewardMilestoneManager } from "@/components/admin/RewardMilestoneManage
 import { ReferralManager } from "@/components/admin/ReferralManager";
 import { ChatbotOrders } from "@/components/admin/ChatbotOrders";
 import { ServiceStatus } from "@/components/admin/ServiceStatus";
+import { TicketManager } from "@/components/admin/TicketManager";
+import { AnnouncementManager } from "@/components/admin/AnnouncementManager";
+import { UserAnalytics } from "@/components/admin/UserAnalytics";
+import { MaintenanceLog } from "@/components/admin/MaintenanceLog";
 import { checkAdminAccess } from "@/lib/adminApi";
 import { useAdminPushNotifications } from "@/hooks/useAdminPushNotifications";
 import { toast } from "sonner";
@@ -142,6 +146,14 @@ const AdminPanel = () => {
         return <ChatbotOrders />;
       case "service-status":
         return <ServiceStatus />;
+      case "tickets":
+        return <TicketManager />;
+      case "announcements":
+        return <AnnouncementManager />;
+      case "user-analytics":
+        return <UserAnalytics />;
+      case "maintenance-log":
+        return <MaintenanceLog />;
       default:
         return <EnhancedDashboard />;
     }

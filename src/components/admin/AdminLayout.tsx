@@ -22,6 +22,10 @@ import {
   Trophy,
   UserPlus,
   HeartPulse,
+  MessageSquare,
+  Megaphone,
+  BarChart3,
+  Wrench,
 } from "lucide-react";
 import {
   Sidebar,
@@ -67,6 +71,10 @@ const menuItems = [
   { id: "promo-analytics", title: "Promo Analytics", icon: Activity },
   { id: "chatbot-orders", title: "Chatbot Orders", icon: Bot },
   { id: "service-status", title: "Service Status", icon: HeartPulse },
+  { id: "tickets", title: "Support Tickets", icon: MessageSquare },
+  { id: "announcements", title: "Announcements", icon: Megaphone },
+  { id: "user-analytics", title: "User Analytics", icon: BarChart3 },
+  { id: "maintenance-log", title: "Maintenance Log", icon: Wrench },
 ];
 
 // Bottom nav items for mobile quick access

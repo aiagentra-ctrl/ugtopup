@@ -50,6 +50,15 @@ export function ServiceStatus() {
         </Alert>
       )}
 
+      {/* Maintenance Model Info */}
+      <Alert className="border-primary/20 bg-primary/5">
+        <Server className="h-4 w-4" />
+        <AlertTitle>Monthly Developer Maintenance</AlertTitle>
+        <AlertDescription>
+          All systems on this platform are maintained under a monthly developer service plan. This includes bug fixes, API monitoring, UI improvements, security updates, and performance optimization. View the <span className="font-medium text-primary">Maintenance Log</span> section for detailed work history.
+        </AlertDescription>
+      </Alert>
+
       {/* Info Banner */}
       <Alert>
         <AlertTriangle className="h-4 w-4" />

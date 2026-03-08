@@ -1,121 +1,96 @@
 
-
-# Developer Maintenance Feature System — Implementation Plan
+# Dynamic Website with Advanced Admin Panel
 
 ## Overview
+Make the entire website content dynamic and admin-controlled by creating two new admin sections and supporting database tables. The existing "Products (New)" page (GameProductPrices) will remain completely untouched.
 
-This is a large multi-month feature set. I will implement all the infrastructure and Month 2-5 features in phases: database tables first, then components and pages.
+## What Changes
 
-## Phase 1: Database Migration
+### Phase 1: Database Setup
 
-Create all new tables in a single migration:
+**New table: `dynamic_products`** - stores products displayed on the homepage
+- `id`, `title`, `description`, `image_url`, `link`, `category` (topup/voucher/subscription/design), `price`, `discount_price`, `features` (jsonb array), `tags` (text array), `plans` (jsonb array), `display_order`, `is_active`, `created_at`, `updated_at`
 
-**`support_tickets`** — user support tickets
-- id, user_id, subject, description, status (open/in_progress/resolved/closed), priority (low/medium/high), created_at, updated_at, closed_at
+**New table: `product_categories`** - dynamic categories
+- `id`, `name`, `slug`, `display_order`, `is_active`, `created_at`, `updated_at`
 
-**`ticket_messages`** — messages within tickets
-- id, ticket_id (FK), sender_id, sender_role (user/admin), message, created_at
+**New table: `offers`** - dynamic offer/deal sections
+- `id`, `title`, `subtitle`, `description`, `image_url`, `offer_type` (flash_sale/limited_time/daily_deal/discount_bundle), `timer_enabled`, `timer_type` (hours/days/both/none), `timer_end_date`, `product_link`, `custom_icon_url`, `display_order`, `is_active`, `show_on_homepage`, `show_on_product_page`, `created_at`, `updated_at`
 
-**`announcements`** — admin announcements
-- id, title, message, type (banner/modal), target (all/specific), target_emails (text[]), is_active, starts_at, expires_at, created_at
+RLS: Public SELECT for active items, admin ALL for management.
 
-**`wishlists`** — user favorites
-- id, user_id, product_id (text — links to dynamic_products or game product keys), product_name, created_at
+**Seed `dynamic_products`** with current hardcoded data from ProductTabs so nothing changes visually on day one.
 
-**`subscriptions`** — recurring purchase plans
-- id, user_id, product_category, product_name, package_name, price, frequency (weekly/biweekly/monthly), next_run_at, is_active, created_at, updated_at
+### Phase 2: Admin Panel - Product Update Page (new section)
 
-**`developer_maintenance_log`** — tracks monthly maintenance work
-- id, month (text, e.g. "2026-03"), feature_area, description, hours_spent, created_at
+Add a new sidebar menu item **"Product Update"** in AdminLayout.
 
-RLS: User tables (support_tickets, wishlists, subscriptions) — users can read/write own rows, admins can manage all. Announcements — public read for active, admin write. Maintenance log — developer read/write, admin read.
+New component: `src/components/admin/DynamicProductManager.tsx`
+- Full CRUD table listing all dynamic products
+- Inline editing with image upload (to `product-images` storage bucket)
+- Fields: title, description, image, link, category, price, discount price, features (add/remove chips), tags (add/remove), plans (JSON editor)
+- Product preview panel showing how it looks on the frontend
+- Search, filter by category, drag-to-reorder
 
-## Phase 2: Month 2 — Order Status Timeline
+New component: `src/components/admin/CategoryManager.tsx`
+- Add/rename/delete categories
+- Reorder categories via drag or arrows
+- Auto-updates category options across the product form
 
-**New file: `src/components/dashboard/OrderTimeline.tsx`**
-- Visual step timeline: Placed → Processing → Confirmed → Completed (with Canceled branch)
-- Each step shows timestamp if available, with green/yellow/gray indicators
-- Uses existing order data (`created_at`, `processing_started_at`, `confirmed_at`, `completed_at`, `canceled_at`)
+### Phase 3: Admin Panel - Offer Management Page (new section)
 
-**Modified: `src/components/dashboard/OrderHistoryCard.tsx`**
-- Add expandable row that shows `OrderTimeline` for each order when clicked
+Add a new sidebar menu item **"Offers"** in AdminLayout.
 
-## Phase 3: Month 3 — Support & Announcements
+New component: `src/components/admin/OfferManager.tsx`
+- List all offers with enable/disable toggle
+- Add new offer with form: title, subtitle, description, image upload, offer type selector, timer controls (enable/disable, type, end date), product link picker
+- Edit existing offers inline
+- Reorder offers
+- Toggle homepage/product page visibility
 
-**New files:**
-- `src/pages/SupportTickets.tsx` — user-facing ticket list + create form
-- `src/components/admin/TicketManager.tsx` — admin ticket management with reply
-- `src/components/announcements/AnnouncementBanner.tsx` — renders active announcements
-- `src/lib/supportApi.ts` — CRUD for tickets/messages
-- `src/lib/announcementApi.ts` — fetch/manage announcements
+### Phase 4: Frontend - Make ProductTabs Dynamic
 
-**Modified:**
-- `src/App.tsx` — add `/support` route (protected)
-- `src/pages/AdminPanel.tsx` — add `case "tickets"` and `case "announcements"`
-- `src/components/admin/AdminLayout.tsx` — add menu items for Tickets and Announcements
-- `src/pages/Dashboard.tsx` — add link to support tickets
-- `src/App.tsx` or layout — render `AnnouncementBanner` globally
+Update `src/components/ProductTabs.tsx`:
+- Fetch products from `dynamic_products` table instead of hardcoded `productData`
+- Fetch categories from `product_categories` table for tab names
+- Keep the exact same visual layout, just swap data source
+- Real-time subscription so admin changes appear instantly
 
-## Phase 4: Month 4 — Analytics & Automation
+### Phase 5: Frontend - Make BestDeals/Offers Dynamic
 
-**New files:**
-- `src/components/admin/UserAnalytics.tsx` — admin analytics with recharts (new vs returning users, revenue segments, popular products, inactive users)
+Update `src/components/BestDeals.tsx`:
+- Fetch active homepage offers from `offers` table
+- Render offer blocks dynamically with optional countdown timers
+- Keep existing visual style, just make content admin-controlled
 
-**Modified:**
-- `src/pages/AdminPanel.tsx` — add `case "user-analytics"`
-- `src/components/admin/AdminLayout.tsx` — add "User Analytics" menu item
+### What Will NOT Change
+- **"Products (New)" page** (`GameProductPrices` component) -- zero modifications
+- **Existing `ProductsList`** component -- untouched
+- **Game pricing system** (`game_product_prices` table) -- untouched
+- **Overall website design/layout** -- only data sources change
 
-Automated campaigns: Add feature flag entries for `automated_campaigns`. Actual cron-based edge function (`supabase/functions/marketing-cron/index.ts`) that queries inactive users and creates notification + coupon records.
+## Technical Details
 
-## Phase 5: Month 5 — Wishlist & Subscriptions
+### New Files
+- `src/components/admin/DynamicProductManager.tsx` - Product Update admin page
+- `src/components/admin/CategoryManager.tsx` - Category management
+- `src/components/admin/OfferManager.tsx` - Offer management admin page
+- `src/lib/dynamicProductApi.ts` - API functions for dynamic products/categories
+- `src/lib/offerApi.ts` - API functions for offers
+- `src/hooks/useDynamicProducts.ts` - Frontend hook with real-time subscriptions
+- `src/hooks/useOffers.ts` - Frontend hook for offers
 
-**New files:**
-- `src/pages/Wishlist.tsx` — user wishlist page
-- `src/lib/wishlistApi.ts` — add/remove/fetch wishlist items
-- `src/pages/Subscriptions.tsx` — manage recurring plans
-- `src/lib/subscriptionApi.ts` — CRUD for subscriptions
+### Modified Files
+- `src/components/admin/AdminLayout.tsx` - Add 3 new sidebar items (Product Update, Categories, Offers)
+- `src/pages/AdminPanel.tsx` - Add new section cases in switch
+- `src/components/ProductTabs.tsx` - Replace hardcoded data with database fetch
+- `src/components/BestDeals.tsx` - Replace hardcoded deals with database fetch
 
-**Modified:**
-- `src/App.tsx` — add `/wishlist` and `/subscriptions` routes
-- `src/pages/Dashboard.tsx` — add quick links to wishlist and subscriptions
-- Product pages — add "Add to Wishlist" heart button
+### New Storage Bucket
+- `product-images` (public) for product image uploads
 
-## Phase 6: Developer Maintenance Dashboard
-
-**New file: `src/components/admin/MaintenanceLog.tsx`**
-- Read-only view for admins showing developer maintenance history
-- Shows monthly work log, hours, feature areas
-
-**Modified:**
-- `src/pages/DeveloperPanel.tsx` — add maintenance log management section
-- `src/pages/AdminPanel.tsx` — add `case "maintenance-log"`
-- `src/components/admin/AdminLayout.tsx` — add "Maintenance Log" menu item
-- `src/components/admin/ServiceStatus.tsx` — add banner explaining monthly maintenance model
-
-## Feature Flags Integration
-
-Add new feature flag seed entries for: `support_tickets`, `announcements`, `user_analytics`, `automated_campaigns`, `wishlist`, `subscriptions` — all controllable from the Developer Panel.
-
-## Summary of All New Files (12)
-1. `src/components/dashboard/OrderTimeline.tsx`
-2. `src/pages/SupportTickets.tsx`
-3. `src/components/admin/TicketManager.tsx`
-4. `src/components/announcements/AnnouncementBanner.tsx`
-5. `src/lib/supportApi.ts`
-6. `src/lib/announcementApi.ts`
-7. `src/components/admin/UserAnalytics.tsx`
-8. `supabase/functions/marketing-cron/index.ts`
-9. `src/pages/Wishlist.tsx`
-10. `src/lib/wishlistApi.ts`
-11. `src/lib/subscriptionApi.ts`
-12. `src/components/admin/MaintenanceLog.tsx`
-
-## Modified Files (7)
-1. `src/App.tsx` — new routes
-2. `src/pages/AdminPanel.tsx` — new section cases
-3. `src/components/admin/AdminLayout.tsx` — new menu items
-4. `src/pages/Dashboard.tsx` — quick links
-5. `src/pages/DeveloperPanel.tsx` — maintenance log section
-6. `src/components/admin/ServiceStatus.tsx` — maintenance model banner
-7. `src/components/dashboard/OrderHistoryCard.tsx` — timeline expansion
-
+### Database Migration
+- Create `dynamic_products`, `product_categories`, `offers` tables
+- Create `product-images` storage bucket
+- RLS policies for all new tables
+- Seed initial data from current hardcoded products

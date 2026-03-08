@@ -8,13 +8,17 @@ import { OrderHistoryCard } from "@/components/dashboard/OrderHistoryCard";
 import { TrustBadges } from "@/components/dashboard/TrustBadges";
 import { CreditRequestHistory } from "@/components/topup/CreditRequestHistory";
 import { TopUpModal } from "@/components/topup/TopUpModal";
+import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { fetchUserPaymentRequests, type CreditHistoryEntry } from "@/lib/creditApi";
 import { fetchUserOrders, type Order } from "@/lib/orderApi";
 import { supabase } from "@/integrations/supabase/client";
+import { useNavigate } from "react-router-dom";
+import { Heart, MessageSquare, RefreshCw } from "lucide-react";
 
 const Dashboard = () => {
   const { user, profile } = useAuth();
+  const navigate = useNavigate();
   const [topUpModalOpen, setTopUpModalOpen] = useState(false);
   const [balance, setBalance] = useState(profile?.balance || 0);
   const [creditRequests, setCreditRequests] = useState<CreditHistoryEntry[]>([]);
@@ -223,6 +227,19 @@ const Dashboard = () => {
             loading={loadingOrders}
             error={ordersError}
           />
+        </div>
+
+        {/* Quick Links */}
+        <div className="mb-6 animate-fade-in flex flex-wrap gap-3" style={{ animationDelay: '450ms' }}>
+          <Button variant="outline" onClick={() => navigate('/support')} className="gap-2">
+            <MessageSquare className="h-4 w-4" /> Support Tickets
+          </Button>
+          <Button variant="outline" onClick={() => navigate('/wishlist')} className="gap-2">
+            <Heart className="h-4 w-4" /> Wishlist
+          </Button>
+          <Button variant="outline" onClick={() => navigate('/subscriptions')} className="gap-2">
+            <RefreshCw className="h-4 w-4" /> Subscriptions
+          </Button>
         </div>
 
         {/* Trust Badges */}
