@@ -8,10 +8,13 @@ import { OrderHistoryCard } from "@/components/dashboard/OrderHistoryCard";
 import { TrustBadges } from "@/components/dashboard/TrustBadges";
 import { CreditRequestHistory } from "@/components/topup/CreditRequestHistory";
 import { TopUpModal } from "@/components/topup/TopUpModal";
+import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { fetchUserPaymentRequests, type CreditHistoryEntry } from "@/lib/creditApi";
 import { fetchUserOrders, type Order } from "@/lib/orderApi";
 import { supabase } from "@/integrations/supabase/client";
+import { useNavigate } from "react-router-dom";
+import { Heart, MessageSquare, RefreshCw } from "lucide-react";
 
 const Dashboard = () => {
   const { user, profile } = useAuth();
