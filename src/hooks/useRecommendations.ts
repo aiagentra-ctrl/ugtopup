@@ -74,7 +74,7 @@ async function fetchFrequentlyBoughtTogether(category: string): Promise<Recommen
   const { data: categoryOrders, error: err1 } = await supabase
     .from("product_orders")
     .select("user_id")
-    .eq("product_category", category)
+    .eq("product_category", category as any)
     .limit(200);
 
   if (err1) throw err1;
