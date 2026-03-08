@@ -14,7 +14,6 @@ export interface LianaOrder {
   retry_count: number;
   created_at: string;
   updated_at: string;
-  // New tracking columns
   verification_response: Record<string, unknown> | null;
   order_response: Record<string, unknown> | null;
   api_request_sent: boolean;
@@ -35,6 +34,13 @@ export interface LianaOrder {
   order_status?: string;
   transaction_id?: string;
   failure_reason?: string;
+  // Joined wallet log
+  wallet_log?: {
+    coins_used: number;
+    balance_before: number | null;
+    balance_after: number | null;
+    api_status: string | null;
+  } | null;
 }
 
 export interface LianaOrderStats {
@@ -74,15 +80,26 @@ export async function fetchLianaOrders(statusFilter?: string): Promise<LianaOrde
   }
 
   const { data, error } = await query;
+  if (error) throw error;
 
-  if (error) {
-    console.error("Error fetching liana orders:", error);
-    throw error;
+  // Fetch wallet logs for these orders
+  const orderIds = (data || []).map((o: any) => o.order_id).filter(Boolean);
+  let walletMap: Record<string, any> = {};
+  if (orderIds.length > 0) {
+    const { data: logs } = await supabase
+      .from("wallet_activity_logs")
+      .select("order_id, coins_used, balance_before, balance_after, api_status")
+      .in("order_id", orderIds);
+    if (logs) {
+      for (const log of logs) {
+        if (log.order_id) walletMap[log.order_id] = log;
+      }
+    }
   }
 
-  // Flatten the joined data
   return (data || []).map((order: Record<string, unknown>) => {
     const productOrder = order.product_orders as Record<string, unknown> | null;
+    const orderId = order.order_id as string;
     return {
       ...order,
       order_number: productOrder?.order_number as string | undefined,
@@ -97,6 +114,7 @@ export async function fetchLianaOrders(statusFilter?: string): Promise<LianaOrde
       order_status: productOrder?.status as string | undefined,
       transaction_id: productOrder?.transaction_id as string | undefined,
       failure_reason: productOrder?.failure_reason as string | undefined,
+      wallet_log: walletMap[orderId] || null,
     } as LianaOrder;
   });
 }
@@ -105,11 +123,7 @@ export async function getLianaOrderStats(): Promise<LianaOrderStats> {
   const { data, error } = await supabase
     .from("liana_orders")
     .select("status");
-
-  if (error) {
-    console.error("Error fetching liana order stats:", error);
-    throw error;
-  }
+  if (error) throw error;
 
   const orders = data || [];
   const total = orders.length;
@@ -118,109 +132,76 @@ export async function getLianaOrderStats(): Promise<LianaOrderStats> {
   const completed = orders.filter((o) => o.status === "completed").length;
   const failed = orders.filter((o) => o.status === "failed").length;
   const canceled = orders.filter((o) => o.status === "canceled").length;
-
   const successRate = total > 0 ? Math.round((completed / total) * 100) : 0;
 
   return { total, pending, processing, completed, failed, canceled, successRate };
 }
 
 export async function cancelLianaOrder(orderId: string): Promise<void> {
-  // Update liana_orders to canceled
   const { error: updateError } = await supabase
     .from("liana_orders")
-    .update({ 
-      status: "canceled", 
-      error_message: "Manually canceled by admin",
-      updated_at: new Date().toISOString() 
-    })
+    .update({ status: "canceled", error_message: "Manually canceled by admin", updated_at: new Date().toISOString() })
     .eq("id", orderId);
+  if (updateError) throw updateError;
 
-  if (updateError) {
-    console.error("Error canceling liana order:", updateError);
-    throw updateError;
-  }
-
-  // Get the order_id from liana_orders to update product_orders
   const { data: lianaOrder, error: fetchError } = await supabase
     .from("liana_orders")
     .select("order_id")
     .eq("id", orderId)
     .single();
+  if (fetchError || !lianaOrder) throw new Error("Could not find liana order");
 
-  if (fetchError || !lianaOrder) {
-    throw new Error("Could not find liana order");
-  }
-
-  // Also update product_orders
   const { error: productError } = await supabase
     .from("product_orders")
-    .update({ 
-      status: "canceled",
-      failure_reason: "Manually canceled by admin",
-      canceled_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    })
+    .update({ status: "canceled", failure_reason: "Manually canceled by admin", canceled_at: new Date().toISOString(), updated_at: new Date().toISOString() })
     .eq("id", lianaOrder.order_id);
-
-  if (productError) {
-    console.error("Error updating product order:", productError);
-    throw productError;
-  }
+  if (productError) throw productError;
 }
 
 export async function retryLianaOrder(orderId: string): Promise<void> {
-  // Update status to pending so the edge function can retry
   const { error: updateError } = await supabase
     .from("liana_orders")
     .update({ status: "pending", error_message: null, updated_at: new Date().toISOString() })
     .eq("id", orderId);
+  if (updateError) throw updateError;
 
-  if (updateError) {
-    console.error("Error updating liana order for retry:", updateError);
-    throw updateError;
-  }
-
-  // Get the order_id from liana_orders to call the edge function
   const { data: lianaOrder, error: fetchError } = await supabase
     .from("liana_orders")
     .select("order_id")
     .eq("id", orderId)
     .single();
+  if (fetchError || !lianaOrder) throw new Error("Could not find liana order");
 
-  if (fetchError || !lianaOrder) {
-    throw new Error("Could not find liana order");
-  }
-
-  // Call the edge function to retry processing
   const { error: fnError } = await supabase.functions.invoke("process-ml-order", {
     body: { order_id: lianaOrder.order_id },
   });
-
-  if (fnError) {
-    console.error("Error invoking process-ml-order:", fnError);
-    throw fnError;
-  }
+  if (fnError) throw fnError;
 }
 
-export async function retryAllFailedOrders(): Promise<number> {
-  const { data: failedOrders, error } = await supabase
-    .from("liana_orders")
-    .select("id")
-    .eq("status", "failed");
+export async function getApiErrorAlerts(): Promise<Array<{ type: string; message: string; count: number; latest: string }>> {
+  const { data } = await supabase
+    .from("wallet_activity_logs")
+    .select("api_status, error_message, created_at")
+    .not("error_message", "is", null)
+    .order("created_at", { ascending: false })
+    .limit(50);
 
-  if (error) {
-    throw error;
-  }
+  if (!data || data.length === 0) return [];
 
-  let retried = 0;
-  for (const order of failedOrders || []) {
-    try {
-      await retryLianaOrder(order.id);
-      retried++;
-    } catch (e) {
-      console.error(`Failed to retry order ${order.id}:`, e);
+  // Group by error type
+  const groups: Record<string, { count: number; message: string; latest: string }> = {};
+  for (const log of data) {
+    const key = log.api_status || "unknown";
+    if (!groups[key]) {
+      groups[key] = { count: 0, message: log.error_message || "", latest: log.created_at };
     }
+    groups[key].count++;
   }
 
-  return retried;
+  return Object.entries(groups).map(([type, info]) => ({
+    type,
+    message: info.message,
+    count: info.count,
+    latest: info.latest,
+  }));
 }
