@@ -10,7 +10,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Label } from "@/components/ui/label";
 import { Plus, Pencil, Trash2, Search, Image, X, ArrowUp, ArrowDown } from "lucide-react";
 import { toast } from "sonner";
-import { toast } from "sonner";
 import {
   fetchDynamicProducts,
   createDynamicProduct,
