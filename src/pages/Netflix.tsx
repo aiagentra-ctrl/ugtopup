@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
 import { NetflixProductHeader } from "@/components/netflix/NetflixProductHeader";
 import { NetflixUserInputForm, NetflixFormData } from "@/components/netflix/NetflixUserInputForm";
 import { NetflixPackageSelector } from "@/components/netflix/NetflixPackageSelector";
@@ -19,6 +20,7 @@ const Netflix = () => {
   const [showOrderReview, setShowOrderReview] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [orderId, setOrderId] = useState("");
+  const [voucherCode, setVoucherCode] = useState<string | null>(null);
   const { profile } = useAuth();
 
   const handleFormDataChange = (data: NetflixFormData | null, isValid: boolean) => {
@@ -53,7 +55,7 @@ const Netflix = () => {
     }
 
     try {
-      await createOrder({
+      const order = await createOrder({
         order_number: orderId,
         product_category: 'netflix',
         product_name: 'Netflix Subscription',
@@ -68,10 +70,28 @@ const Netflix = () => {
         }
       });
 
+      // Try to auto-assign voucher code
+      let assignedCode: string | null = null;
+      try {
+        const { data: voucherResult } = await supabase.rpc('try_assign_voucher' as any, {
+          p_order_id: order.id,
+          p_game: 'netflix',
+          p_package_id: selectedPackage.id || null,
+        });
+        if (voucherResult && (voucherResult as any).success && (voucherResult as any).code) {
+          assignedCode = (voucherResult as any).code;
+        }
+      } catch (vErr) {
+        console.error('Voucher assignment error:', vErr);
+      }
+
+      setVoucherCode(assignedCode);
       setShowOrderReview(false);
       setShowSuccessModal(true);
       
-      toast.success("Subscription order placed successfully!");
+      toast.success(assignedCode 
+        ? `Voucher code delivered: ${assignedCode}`
+        : "Subscription order placed successfully!");
     } catch (error: any) {
       console.error('Error creating order:', error);
       toast.error(error.message || "Failed to place order");
@@ -84,6 +104,7 @@ const Netflix = () => {
     setSelectedPackage(null);
     setPurchaseQuantity(1);
     setOrderId("");
+    setVoucherCode(null);
   };
 
   const isFormComplete = isFormValid && selectedPackage !== null;
@@ -151,6 +172,7 @@ const Netflix = () => {
         onClose={() => setShowSuccessModal(false)}
         orderId={orderId}
         onSubscribeAgain={handleSubscribeAgain}
+        voucherCode={voucherCode}
       />
     </div>
   );
