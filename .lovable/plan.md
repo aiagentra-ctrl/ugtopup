@@ -1,96 +1,89 @@
 
-# Dynamic Website with Advanced Admin Panel
+
+# ML API Ordering: IGN Verification & Error Monitoring
 
 ## Overview
-Make the entire website content dynamic and admin-controlled by creating two new admin sections and supporting database tables. The existing "Products (New)" page (GameProductPrices) will remain completely untouched.
 
-## What Changes
+Add a pre-order IGN verification step so users confirm their in-game name before credits are deducted, plus an API monitoring section in admin.
 
-### Phase 1: Database Setup
+## Current State
 
-**New table: `dynamic_products`** - stores products displayed on the homepage
-- `id`, `title`, `description`, `image_url`, `link`, `category` (topup/voucher/subscription/design), `price`, `discount_price`, `features` (jsonb array), `tags` (text array), `plans` (jsonb array), `display_order`, `is_active`, `created_at`, `updated_at`
+- The edge function `process-ml-order` already verifies IGN via Liana API, but only **after** the order is placed and credits deducted. If verification fails, the order is canceled (credits lost temporarily).
+- No user-facing IGN confirmation step exists.
+- Admin has `LianaOrdersDashboard` and `LianaWalletBalance` but no dedicated API error monitoring view.
 
-**New table: `product_categories`** - dynamic categories
-- `id`, `name`, `slug`, `display_order`, `is_active`, `created_at`, `updated_at`
+## Plan
 
-**New table: `offers`** - dynamic offer/deal sections
-- `id`, `title`, `subtitle`, `description`, `image_url`, `offer_type` (flash_sale/limited_time/daily_deal/discount_bundle), `timer_enabled`, `timer_type` (hours/days/both/none), `timer_end_date`, `product_link`, `custom_icon_url`, `display_order`, `is_active`, `show_on_homepage`, `show_on_product_page`, `created_at`, `updated_at`
+### 1. Pre-Order IGN Verification (Frontend)
 
-RLS: Public SELECT for active items, admin ALL for management.
+**Add a new action to the edge function**: `action: 'verify-ign'` that accepts `{ user_id, zone_id, variation_id }` and returns the IGN without placing an order.
 
-**Seed `dynamic_products`** with current hardcoded data from ProductTabs so nothing changes visually on day one.
+**New component: `src/components/ml/MLIgnVerification.tsx`**
+- After user enters Game ID + Zone ID and selects a package, clicking "Buy Now" first calls `verify-ign`
+- Shows a confirmation card: "Is this your account? **[IGN]**" with Confirm/Cancel buttons
+- Only after user confirms → proceed to balance check → order review modal → place order
 
-### Phase 2: Admin Panel - Product Update Page (new section)
+**Flow change in `MobileLegends.tsx`**:
+1. `handleBuyNow` → call `verify-ign` edge function
+2. If success → show IGN confirmation UI with the returned name
+3. User confirms → proceed to balance check + review modal (existing flow)
+4. If verification fails → show error, don't proceed
 
-Add a new sidebar menu item **"Product Update"** in AdminLayout.
+**Edge function update**: The `handleProcessOrder` can skip re-verification since it was already done pre-order, saving an API call. Add a `skip_verification` flag in product_details.
 
-New component: `src/components/admin/DynamicProductManager.tsx`
-- Full CRUD table listing all dynamic products
-- Inline editing with image upload (to `product-images` storage bucket)
-- Fields: title, description, image, link, category, price, discount price, features (add/remove chips), tags (add/remove), plans (JSON editor)
-- Product preview panel showing how it looks on the frontend
-- Search, filter by category, drag-to-reorder
+### 2. Edge Function: Add verify-ign Action
 
-New component: `src/components/admin/CategoryManager.tsx`
-- Add/rename/delete categories
-- Reorder categories via drag or arrows
-- Auto-updates category options across the product form
+In `process-ml-order/index.ts`, add a new handler:
 
-### Phase 3: Admin Panel - Offer Management Page (new section)
+```
+action: 'verify-ign' → handleVerifyIgn(userId, zoneId, variationId, apiKey, apiSecret)
+```
 
-Add a new sidebar menu item **"Offers"** in AdminLayout.
+This calls `LIANA_API_BASE_URL/ign/verify` and returns `{ success, ign, display }` without creating any order or liana_orders record. It also resolves the correct `variation_id` from the package name to ensure correct API product code mapping.
 
-New component: `src/components/admin/OfferManager.tsx`
-- List all offers with enable/disable toggle
-- Add new offer with form: title, subtitle, description, image upload, offer type selector, timer controls (enable/disable, type, end date), product link picker
-- Edit existing offers inline
-- Reorder offers
-- Toggle homepage/product page visibility
+### 3. Correct Diamond Value Validation
 
-### Phase 4: Frontend - Make ProductTabs Dynamic
+Add validation in `handleProcessOrder` that cross-checks:
+- `order.quantity` matches the expected quantity for the resolved `variation_id`
+- Log a warning if mismatch detected (but still proceed since variation_id is the source of truth)
 
-Update `src/components/ProductTabs.tsx`:
-- Fetch products from `dynamic_products` table instead of hardcoded `productData`
-- Fetch categories from `product_categories` table for tab names
-- Keep the exact same visual layout, just swap data source
-- Real-time subscription so admin changes appear instantly
+The `MLPackageSelector` already pulls from `game_product_prices` DB, and the edge function uses `resolveVariationId` which maps by package name. These are already consistent. Add a `variation_id` field to `product_details` metadata set by the frontend so the edge function can validate it matches.
 
-### Phase 5: Frontend - Make BestDeals/Offers Dynamic
+### 4. Retry Logic for API Connection
 
-Update `src/components/BestDeals.tsx`:
-- Fetch active homepage offers from `offers` table
-- Render offer blocks dynamically with optional countdown timers
-- Keep existing visual style, just make content admin-controlled
+Add retry wrapper in the edge function for both verify and order API calls:
+- Up to 2 retries with 1s delay on network errors (not on 4xx responses)
+- Log each retry attempt
 
-### What Will NOT Change
-- **"Products (New)" page** (`GameProductPrices` component) -- zero modifications
-- **Existing `ProductsList`** component -- untouched
-- **Game pricing system** (`game_product_prices` table) -- untouched
-- **Overall website design/layout** -- only data sources change
+### 5. API Order Monitoring Section (Admin)
 
-## Technical Details
+**New component: `src/components/admin/MLApiMonitoring.tsx`**
+
+A dedicated monitoring tab showing:
+- **Failed Orders table**: order_number, package, error message, API response code, timestamp, retry button
+- **Verification Results**: recent verify calls with IGN returned, success/fail
+- **API Response Codes**: summary of response statuses (200/400/500) from `liana_orders`
+- Data sourced from `liana_orders` + `wallet_activity_logs` tables (already exist)
+
+Add as a tab in the existing `LianaOrdersDashboard` or as a new section in AdminPanel.
+
+### 6. Success Modal Enhancement
+
+Update `MLSuccessModal` to show the verified IGN when available (passed from order flow).
+
+## Files Summary
 
 ### New Files
-- `src/components/admin/DynamicProductManager.tsx` - Product Update admin page
-- `src/components/admin/CategoryManager.tsx` - Category management
-- `src/components/admin/OfferManager.tsx` - Offer management admin page
-- `src/lib/dynamicProductApi.ts` - API functions for dynamic products/categories
-- `src/lib/offerApi.ts` - API functions for offers
-- `src/hooks/useDynamicProducts.ts` - Frontend hook with real-time subscriptions
-- `src/hooks/useOffers.ts` - Frontend hook for offers
+- `src/components/ml/MLIgnVerification.tsx` — IGN confirmation card component
+- `src/components/admin/MLApiMonitoring.tsx` — API error monitoring dashboard
 
 ### Modified Files
-- `src/components/admin/AdminLayout.tsx` - Add 3 new sidebar items (Product Update, Categories, Offers)
-- `src/pages/AdminPanel.tsx` - Add new section cases in switch
-- `src/components/ProductTabs.tsx` - Replace hardcoded data with database fetch
-- `src/components/BestDeals.tsx` - Replace hardcoded deals with database fetch
+- `supabase/functions/process-ml-order/index.ts` — Add `verify-ign` action, retry logic, skip-verification flag
+- `src/pages/MobileLegends.tsx` — Add IGN verification step before order placement
+- `src/components/ml/MLSuccessModal.tsx` — Show IGN in success modal
+- `src/components/admin/AdminLayout.tsx` — Add monitoring menu item (or integrate into existing ML section)
+- `src/pages/AdminPanel.tsx` — Add monitoring section routing
 
-### New Storage Bucket
-- `product-images` (public) for product image uploads
+### No DB Changes Required
+All data already captured in `liana_orders` and `wallet_activity_logs` tables.
 
-### Database Migration
-- Create `dynamic_products`, `product_categories`, `offers` tables
-- Create `product-images` storage bucket
-- RLS policies for all new tables
-- Seed initial data from current hardcoded products
