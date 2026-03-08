@@ -170,8 +170,8 @@ export const Header = () => {
                 {/* User Profile Icon - Mobile */}
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <button className="sm:hidden flex items-center justify-center h-10 w-10 bg-black border border-white/10 rounded-xl hover:border-primary/50 transition-colors">
-                      <span className="text-sm font-medium text-white">
+                    <button className="sm:hidden flex items-center justify-center h-8 w-8 bg-black border border-white/10 rounded-lg hover:border-primary/50 transition-colors">
+                      <span className="text-xs font-medium text-white">
                         {user?.email?.charAt(0).toUpperCase()}
                       </span>
                     </button>
