@@ -137,6 +137,8 @@ const AdminPanel = () => {
         return <CouponRulesManager />;
       case "promo-analytics":
         return <PromotionAnalytics />;
+      case "chatbot-orders":
+        return <ChatbotOrders />;
       default:
         return <EnhancedDashboard />;
     }

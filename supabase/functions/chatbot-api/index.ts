@@ -528,6 +528,7 @@ async function handleOrder(body: any) {
       product_details: productDetails,
       payment_method: "credit",
       status: "pending",
+      metadata: { source: body.platform || "chatbot_api", session_id: body.session_id || null },
     })
     .select("id, order_number")
     .single();
