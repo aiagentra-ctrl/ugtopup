@@ -1,9 +1,7 @@
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { QueryClient } from "@tanstack/react-query";
-import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
-import { createSyncStoragePersister } from "@tanstack/query-sync-storage-persister";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { HashRouter as BrowserRouter, Routes, Route } from "react-router-dom";
 import { Suspense } from "react";
 import { AuthProvider } from "./contexts/AuthContext";
@@ -52,10 +50,9 @@ import NotFound from "./pages/NotFound";
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      gcTime: 1000 * 60 * 60 * 24, // 24 hours — keep cached data for offline use
-      staleTime: 1000 * 60 * 5, // 5 minutes — reduce unnecessary refetches
+      gcTime: 1000 * 60 * 60 * 24, // 24 hours
+      staleTime: 1000 * 60 * 5, // 5 minutes
       retry: (failureCount) => {
-        // Don't retry when offline
         if (!navigator.onLine) return false;
         return failureCount < 2;
       },
@@ -67,26 +64,8 @@ const queryClient = new QueryClient({
   },
 });
 
-const persister = createSyncStoragePersister({
-  storage: window.localStorage,
-  key: "ugtopups-query-cache",
-  throttleTime: 1000,
-});
-
 const App = () => (
-  <PersistQueryClientProvider
-    client={queryClient}
-    persistOptions={{
-      persister,
-      maxAge: 1000 * 60 * 60 * 24, // 24 hours
-      dehydrateOptions: {
-        shouldDehydrateQuery: (query) => {
-          // Only persist successful queries with data
-          return query.state.status === "success" && query.state.data !== undefined;
-        },
-      },
-    }}
-  >
+  <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <Toaster />
       <Sonner />
@@ -188,7 +167,7 @@ const App = () => (
         </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>
-  </PersistQueryClientProvider>
+  </QueryClientProvider>
 );
 
 export default App;
