@@ -118,8 +118,8 @@ export const Header = () => {
             {isAuthenticated ? (
               <>
                 {/* Credit Balance - Visible on all devices */}
-                <div className="flex items-center gap-2 bg-black/60 border border-white/10 rounded-xl px-3 py-1.5 sm:px-4 sm:py-2">
-                  <span className="text-xs sm:text-sm font-semibold text-white">
+                <div className="flex items-center bg-black/60 border border-white/10 rounded-lg sm:rounded-xl px-2 py-1 sm:px-4 sm:py-2">
+                  <span className="text-[11px] sm:text-sm font-semibold text-white whitespace-nowrap">
                     {balance || 0} Cr.
                   </span>
                 </div>
