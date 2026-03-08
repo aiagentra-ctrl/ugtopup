@@ -88,26 +88,40 @@ export const OrderHistoryCard = ({ orders, loading, error }: OrderHistoryCardPro
               </TableHeader>
               <TableBody>
                 {displayedOrders.map((order) => (
-                  <TableRow key={order.id} className="border-slate-800 hover:bg-slate-900/50">
-                    <TableCell className="font-mono text-sm">
-                      {order.order_number}
-                    </TableCell>
-                    <TableCell className="font-medium">
-                      {order.product_name}
-                    </TableCell>
-                    <TableCell>{order.package_name}</TableCell>
-                    <TableCell className="font-semibold text-primary">
-                      ₹{order.price.toLocaleString()}
-                    </TableCell>
-                    <TableCell>
-                      <Badge className={getStatusColor(order.status)}>
-                        {formatStatus(order.status)}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {format(new Date(order.created_at), 'MMM dd, yyyy')}
-                    </TableCell>
-                  </TableRow>
+                  <>
+                    <TableRow
+                      key={order.id}
+                      className="border-slate-800 hover:bg-slate-900/50 cursor-pointer"
+                      onClick={() => setExpandedOrder(expandedOrder === order.id ? null : order.id)}
+                    >
+                      <TableCell className="font-mono text-sm">
+                        {order.order_number}
+                      </TableCell>
+                      <TableCell className="font-medium">
+                        {order.product_name}
+                      </TableCell>
+                      <TableCell>{order.package_name}</TableCell>
+                      <TableCell className="font-semibold text-primary">
+                        ₹{order.price.toLocaleString()}
+                      </TableCell>
+                      <TableCell>
+                        <Badge className={getStatusColor(order.status)}>
+                          {formatStatus(order.status)}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-muted-foreground flex items-center gap-1">
+                        {format(new Date(order.created_at), 'MMM dd, yyyy')}
+                        {expandedOrder === order.id ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+                      </TableCell>
+                    </TableRow>
+                    {expandedOrder === order.id && (
+                      <TableRow key={`${order.id}-timeline`} className="border-slate-800">
+                        <TableCell colSpan={6} className="p-0">
+                          <OrderTimeline order={order} />
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </>
                 ))}
               </TableBody>
             </Table>
