@@ -27,6 +27,7 @@ import { AdminAppDownload } from "@/components/admin/AdminAppDownload";
 import { RewardMilestoneManager } from "@/components/admin/RewardMilestoneManager";
 import { ReferralManager } from "@/components/admin/ReferralManager";
 import { ChatbotOrders } from "@/components/admin/ChatbotOrders";
+import { ChatbotApiDocs } from "@/components/admin/ChatbotApiDocs";
 import { ServiceStatus } from "@/components/admin/ServiceStatus";
 import { TicketManager } from "@/components/admin/TicketManager";
 import { AnnouncementManager } from "@/components/admin/AnnouncementManager";
@@ -128,6 +129,8 @@ const AdminPanel = () => {
         return <OfferManager />;
       case "chatbot":
         return <ChatbotSettings />;
+      case "chatbot-docs":
+        return <ChatbotApiDocs />;
       case "vouchers":
         return <VoucherInventory />;
       case "ml-monitoring":
