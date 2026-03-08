@@ -1,4 +1,4 @@
-import { User, LayoutDashboard, LogOut, Bell } from "lucide-react";
+import { User, LayoutDashboard, LogOut, Bell, Gift } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUnreadNotifications } from "@/hooks/useUnreadNotifications";
@@ -60,6 +60,12 @@ export const AccountDropdown = () => {
           <Link to="/dashboard" className="cursor-pointer">
             <LayoutDashboard className="mr-2 h-4 w-4" />
             Dashboard
+          </Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild>
+          <Link to="/refer-earn" className="cursor-pointer">
+            <Gift className="mr-2 h-4 w-4" />
+            Refer & Earn
           </Link>
         </DropdownMenuItem>
         <DropdownMenuSeparator />
