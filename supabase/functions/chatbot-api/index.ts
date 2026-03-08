@@ -858,6 +858,10 @@ Deno.serve(async (req) => {
         return await handleOrder(body);
       case "credit-request":
         return await handleCreditRequest(body);
+      case "initiate-payment":
+        return await handleInitiatePayment(body);
+      case "payment-status":
+        return await handlePaymentStatus(body);
       case "cleanup-conversations":
         return await handleCleanupConversations();
       default:
