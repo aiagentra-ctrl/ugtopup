@@ -88,7 +88,7 @@ const UnipinUC = () => {
     }
 
     try {
-      await createOrder({
+      const order = await createOrder({
         order_number: orderId,
         product_category: 'unipin',
         product_name: 'Unipin UC',
@@ -104,12 +104,30 @@ const UnipinUC = () => {
         }
       });
 
+      // Try to auto-assign voucher code
+      let assignedCode: string | null = null;
+      try {
+        const { data: voucherResult } = await supabase.rpc('try_assign_voucher' as any, {
+          p_order_id: order.id,
+          p_game: 'unipin',
+          p_package_id: selectedPackage.id || null,
+        });
+        if (voucherResult && (voucherResult as any).success && (voucherResult as any).code) {
+          assignedCode = (voucherResult as any).code;
+        }
+      } catch (vErr) {
+        console.error('Voucher assignment error:', vErr);
+      }
+
+      setVoucherCode(assignedCode);
       setIsReviewOpen(false);
       setIsSuccessOpen(true);
 
       toast({
         title: "Purchase Successful! 🎉",
-        description: `Your order ${orderId} is pending confirmation.`,
+        description: assignedCode
+          ? `Your voucher code: ${assignedCode}`
+          : `Your order ${orderId} is pending confirmation.`,
       });
     } catch (error: any) {
       console.error('Error creating order:', error);
