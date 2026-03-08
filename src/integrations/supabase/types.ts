@@ -954,6 +954,66 @@ export type Database = {
           },
         ]
       }
+      wallet_activity_logs: {
+        Row: {
+          action: string
+          api_response: Json | null
+          api_status: string | null
+          balance_after: number | null
+          balance_before: number | null
+          coins_used: number | null
+          created_at: string
+          error_message: string | null
+          id: string
+          liana_order_id: string | null
+          order_id: string | null
+          order_number: string | null
+        }
+        Insert: {
+          action: string
+          api_response?: Json | null
+          api_status?: string | null
+          balance_after?: number | null
+          balance_before?: number | null
+          coins_used?: number | null
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          liana_order_id?: string | null
+          order_id?: string | null
+          order_number?: string | null
+        }
+        Update: {
+          action?: string
+          api_response?: Json | null
+          api_status?: string | null
+          balance_after?: number | null
+          balance_before?: number | null
+          coins_used?: number | null
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          liana_order_id?: string | null
+          order_id?: string | null
+          order_number?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wallet_activity_logs_liana_order_id_fkey"
+            columns: ["liana_order_id"]
+            isOneToOne: false
+            referencedRelation: "liana_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wallet_activity_logs_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "product_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       admin_dashboard_stats: {
