@@ -44,9 +44,9 @@ export const Testimonials = () => {
   }, []);
 
   return (
-    <section className="py-16 bg-muted/30">
-      <div className="container mx-auto px-4">
-        <h2 className="mb-12 text-center text-3xl font-bold md:text-4xl">
+    <section className="py-10 sm:py-16 bg-muted/30">
+      <div className="container mx-auto px-3 sm:px-4">
+        <h2 className="mb-8 sm:mb-12 text-center text-2xl font-bold sm:text-3xl md:text-4xl">
           CUSTOMER REVIEWS
         </h2>
 
