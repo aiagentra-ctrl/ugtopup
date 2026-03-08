@@ -599,6 +599,48 @@ export type Database = {
         }
         Relationships: []
       }
+      developer_service_pricing: {
+        Row: {
+          billing_start_date: string
+          category: string
+          created_at: string
+          currency: string
+          description: string | null
+          display_order: number
+          id: string
+          is_active: boolean
+          monthly_price: number
+          service_name: string
+          updated_at: string
+        }
+        Insert: {
+          billing_start_date?: string
+          category?: string
+          created_at?: string
+          currency?: string
+          description?: string | null
+          display_order?: number
+          id?: string
+          is_active?: boolean
+          monthly_price?: number
+          service_name: string
+          updated_at?: string
+        }
+        Update: {
+          billing_start_date?: string
+          category?: string
+          created_at?: string
+          currency?: string
+          description?: string | null
+          display_order?: number
+          id?: string
+          is_active?: boolean
+          monthly_price?: number
+          service_name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       dynamic_products: {
         Row: {
           category_id: string | null
