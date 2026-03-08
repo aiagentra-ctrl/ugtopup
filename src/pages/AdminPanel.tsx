@@ -146,6 +146,14 @@ const AdminPanel = () => {
         return <ChatbotOrders />;
       case "service-status":
         return <ServiceStatus />;
+      case "tickets":
+        return <TicketManager />;
+      case "announcements":
+        return <AnnouncementManager />;
+      case "user-analytics":
+        return <UserAnalytics />;
+      case "maintenance-log":
+        return <MaintenanceLog />;
       default:
         return <EnhancedDashboard />;
     }
