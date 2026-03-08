@@ -1719,7 +1719,7 @@ export type Database = {
         | "admin_action"
         | "system_action"
         | "order_created"
-      app_role: "admin" | "user" | "super_admin" | "sub_admin"
+      app_role: "admin" | "user" | "super_admin" | "sub_admin" | "developer"
       notification_target_type: "all" | "specific"
       order_status:
         | "pending"
@@ -1882,7 +1882,7 @@ export const Constants = {
         "system_action",
         "order_created",
       ],
-      app_role: ["admin", "user", "super_admin", "sub_admin"],
+      app_role: ["admin", "user", "super_admin", "sub_admin", "developer"],
       notification_target_type: ["all", "specific"],
       order_status: [
         "pending",
