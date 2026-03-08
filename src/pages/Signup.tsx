@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, Link, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,6 +14,8 @@ const Signup = () => {
   const [googleLoading, setGoogleLoading] = useState(false);
   const { signup, loginWithGoogle, isAuthenticated } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const refCode = searchParams.get("ref") || "";
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -25,7 +27,7 @@ const Signup = () => {
     e.preventDefault();
     setLoading(true);
     
-    const { error } = await signup(email, password, username);
+    const { error } = await signup(email, password, username, refCode);
     
     if (!error) {
       // Auto-accept terms on account creation

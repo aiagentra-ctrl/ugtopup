@@ -12,6 +12,8 @@ interface Profile {
   avatar_url?: string;
   balance: number;
   provider?: string;
+  referral_code?: string;
+  referred_by?: string;
 }
 
 interface AuthContextType {
@@ -21,7 +23,7 @@ interface AuthContextType {
   setProfile: (profile: Profile | null) => void;
   loading: boolean;
   login: (email: string, password: string) => Promise<{ error: any }>;
-  signup: (email: string, password: string, username?: string) => Promise<{ error: any }>;
+  signup: (email: string, password: string, username?: string, referralCode?: string) => Promise<{ error: any }>;
   loginWithGoogle: () => Promise<void>;
   logout: () => Promise<void>;
   updateProfile: (data: Partial<Profile>) => Promise<{ error: any }>;
@@ -149,7 +151,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   // Email/Password Signup
-  const signup = async (email: string, password: string, username?: string) => {
+  const signup = async (email: string, password: string, username?: string, referralCode?: string) => {
     try {
       const redirectUrl = `${window.location.origin}/`;
       
@@ -165,6 +167,29 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       });
 
       if (error) throw error;
+
+      // Handle referral tracking
+      if (referralCode && data.user) {
+        try {
+          const { data: referrerProfile } = await supabase
+            .from('profiles')
+            .select('id')
+            .eq('referral_code', referralCode.toUpperCase())
+            .single();
+
+          if (referrerProfile && referrerProfile.id !== data.user.id) {
+            // Update referred_by on the new user's profile
+            await supabase.from('profiles').update({ referred_by: referrerProfile.id }).eq('id', data.user.id);
+            // Create referral record
+            await supabase.from('referrals').insert({
+              referrer_id: referrerProfile.id,
+              referee_id: data.user.id,
+            });
+          }
+        } catch (refError) {
+          console.error('Referral tracking error:', refError);
+        }
+      }
 
       toast({
         title: "Account created!",
