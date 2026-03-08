@@ -33,8 +33,8 @@ export const ProductCard = ({ image, title, link }: ProductCardProps) => {
             onError={() => setImageLoading(false)}
           />
         </div>
-        <div className="p-4 text-center">
-          <p className="text-sm font-medium text-neutral-200 tracking-wide">
+        <div className="p-2.5 sm:p-4 text-center">
+          <p className="text-xs sm:text-sm font-medium text-neutral-200 tracking-wide line-clamp-2">
             {title}
           </p>
         </div>

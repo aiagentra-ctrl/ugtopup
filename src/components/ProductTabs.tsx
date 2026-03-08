@@ -74,7 +74,7 @@ export const ProductTabs = () => {
 
           return (
             <TabsContent key={cat.slug} value={cat.slug} className="animate-fade-in">
-              <div className={`grid gap-4 sm:gap-6 ${gridCols}`}>
+              <div className={`grid gap-3 sm:gap-4 md:gap-6 ${gridCols}`}>
                 {catProducts.map((product) => (
                   <ProductCard
                     key={product.id}

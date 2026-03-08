@@ -17,7 +17,7 @@ export const GameCard = ({ image, title }: GameCardProps) => {
           />
         </div>
       </div>
-      <p className="mt-3 text-center text-sm font-medium text-foreground">
+      <p className="mt-2 sm:mt-3 text-center text-xs sm:text-sm font-medium text-foreground line-clamp-1">
         {title}
       </p>
     </div>

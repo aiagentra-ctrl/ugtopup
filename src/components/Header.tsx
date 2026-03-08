@@ -215,10 +215,10 @@ export const Header = () => {
             <Button
               variant="ghost"
               size="icon"
-              className="h-10 w-10 text-white/60 hover:text-white hover:bg-white/5"
+              className="h-8 w-8 sm:h-10 sm:w-10 text-white/60 hover:text-white hover:bg-white/5"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             >
-              <Menu className="h-6 w-6" />
+              <Menu className="h-5 w-5 sm:h-6 sm:w-6" />
             </Button>
           </div>
         </div>
