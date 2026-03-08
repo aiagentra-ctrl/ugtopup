@@ -20,6 +20,7 @@ import { CategoryManager } from "@/components/admin/CategoryManager";
 import { OfferManager } from "@/components/admin/OfferManager";
 import { ChatbotSettings } from "@/components/admin/ChatbotSettings";
 import { VoucherInventory } from "@/components/admin/VoucherInventory";
+import { MLApiMonitoring } from "@/components/admin/MLApiMonitoring";
 import { checkAdminAccess } from "@/lib/adminApi";
 import { toast } from "sonner";
 
