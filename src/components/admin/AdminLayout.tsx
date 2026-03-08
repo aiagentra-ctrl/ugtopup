@@ -58,6 +58,8 @@ const menuItems = [
   { id: "vouchers", title: "Voucher Inventory", icon: Ticket },
   { id: "ml-monitoring", title: "API Monitoring", icon: Activity },
   { id: "admin-app", title: "Admin App", icon: Smartphone },
+  { id: "milestones", title: "Reward Milestones", icon: Trophy },
+  { id: "referrals", title: "Referral Program", icon: UserPlus },
 ];
 
 // Bottom nav items for mobile quick access
