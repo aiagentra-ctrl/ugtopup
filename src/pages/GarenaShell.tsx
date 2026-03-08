@@ -144,6 +144,7 @@ const GarenaShell = () => {
     setSelectedPackage(null);
     setPurchaseQuantity(1);
     setIsFormValid(false);
+    setVoucherCode(null);
   };
 
   const canReviewOrder = isFormValid && selectedPackage;
