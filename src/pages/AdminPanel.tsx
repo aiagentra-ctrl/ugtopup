@@ -165,6 +165,8 @@ const AdminPanel = () => {
         return <UserAnalytics />;
       case "maintenance-log":
         return <MaintenanceLog />;
+      case "system-health":
+        return <SystemHealthMonitor />;
       case "db-management":
         return <DatabaseManagement />;
       default:
