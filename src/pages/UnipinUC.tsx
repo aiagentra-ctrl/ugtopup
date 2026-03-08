@@ -11,6 +11,7 @@ import { UnipinPackage } from "@/data/unipinPackages";
 import { Button } from "@/components/ui/button";
 import { QuantitySelector } from "@/components/ui/quantity-selector";
 import { createOrder, generateOrderNumber } from "@/lib/orderApi";
+import { supabase } from "@/integrations/supabase/client";
 
 const UnipinUC = () => {
   const { user, profile } = useAuth();
