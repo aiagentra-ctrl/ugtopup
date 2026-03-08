@@ -39,6 +39,8 @@ import UserNotifications from "./pages/UserNotifications";
 import PaymentSuccess from "./pages/PaymentSuccess";
 import PaymentCancel from "./pages/PaymentCancel";
 import LoginRequired from "./pages/LoginRequired";
+import Rewards from "./pages/Rewards";
+import Referrals from "./pages/Referrals";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
