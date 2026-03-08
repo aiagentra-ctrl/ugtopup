@@ -8,6 +8,7 @@ export interface OrderInput {
   quantity: number;
   price: number;
   product_details: Record<string, any>;
+  coupon_code?: string;
 }
 
 export interface Order {
