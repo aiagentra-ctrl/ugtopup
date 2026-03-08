@@ -1,96 +1,95 @@
 
-# Dynamic Website with Advanced Admin Panel
 
-## Overview
-Make the entire website content dynamic and admin-controlled by creating two new admin sections and supporting database tables. The existing "Products (New)" page (GameProductPrices) will remain completely untouched.
+# WhatsApp Chatbot HTTPS API Enhancement
 
-## What Changes
+## Current State
 
-### Phase 1: Database Setup
+The system already has a solid foundation:
+- **Edge function** (`chatbot-api`) with `message`, `order-status`, `credit-request`, and `cleanup-conversations` actions
+- **Server-side conversation storage** in `chatbot_conversations` table with 10-day retention
+- **Product search** (RAG-like) querying `game_product_prices` and `dynamic_products`
+- **API documentation page** at `/api-docs`
+- **Session/platform support** for external integrations
 
-**New table: `dynamic_products`** - stores products displayed on the homepage
-- `id`, `title`, `description`, `image_url`, `link`, `category` (topup/voucher/subscription/design), `price`, `discount_price`, `features` (jsonb array), `tags` (text array), `plans` (jsonb array), `display_order`, `is_active`, `created_at`, `updated_at`
+## What Needs to Be Built
 
-**New table: `product_categories`** - dynamic categories
-- `id`, `name`, `slug`, `display_order`, `is_active`, `created_at`, `updated_at`
+### 1. Order Placement via Chatbot (`handleOrder` — currently a stub)
 
-**New table: `offers`** - dynamic offer/deal sections
-- `id`, `title`, `subtitle`, `description`, `image_url`, `offer_type` (flash_sale/limited_time/daily_deal/discount_bundle), `timer_enabled`, `timer_type` (hours/days/both/none), `timer_end_date`, `product_link`, `custom_icon_url`, `display_order`, `is_active`, `show_on_homepage`, `show_on_product_page`, `created_at`, `updated_at`
+Enhance the existing stub to accept order details and create real orders. The flow:
+- Accept `product_name`, `package_id`, `player_id`, `email`, `zone_id` (optional)
+- Validate the product exists and is active in `game_product_prices`
+- Look up user by email in `profiles`
+- Check credit balance
+- If sufficient credits: call the existing `place_order` DB function (atomic credit deduction), return confirmation
+- If insufficient credits: return payment instructions with the API Nepal payment link
 
-RLS: Public SELECT for active items, admin ALL for management.
+### 2. Payment Link Generation Action (`action: "initiate-payment"`)
 
-**Seed `dynamic_products`** with current hardcoded data from ProductTabs so nothing changes visually on day one.
+New action that wraps the existing `initiate-payment` edge function logic:
+- Accept `email` and `amount`
+- Look up user, call the payment initiation flow
+- Return the payment redirect URL for the external platform to share with the user
 
-### Phase 2: Admin Panel - Product Update Page (new section)
+### 3. Payment Status Check Action (`action: "payment-status"`)
 
-Add a new sidebar menu item **"Product Update"** in AdminLayout.
+New action to check payment transaction status:
+- Accept `identifier` (payment transaction ID)
+- Query `payment_transactions` table
+- Return current status (initiated/completed/failed)
 
-New component: `src/components/admin/DynamicProductManager.tsx`
-- Full CRUD table listing all dynamic products
-- Inline editing with image upload (to `product-images` storage bucket)
-- Fields: title, description, image, link, category, price, discount price, features (add/remove chips), tags (add/remove), plans (JSON editor)
-- Product preview panel showing how it looks on the frontend
-- Search, filter by category, drag-to-reorder
+### 4. Enhanced API Documentation Page
 
-New component: `src/components/admin/CategoryManager.tsx`
-- Add/rename/delete categories
-- Reorder categories via drag or arrows
-- Auto-updates category options across the product form
+Update `src/pages/ApiDocs.tsx` to add sections for:
+- Order placement endpoint with request/response examples
+- Payment link generation endpoint
+- Payment status check endpoint
+- WhatsApp integration guide (step-by-step: set up WhatsApp bot → point webhook to our API → handle responses)
+- Error codes reference table
 
-### Phase 3: Admin Panel - Offer Management Page (new section)
+### 5. No Admin Panel Changes Needed
 
-Add a new sidebar menu item **"Offers"** in AdminLayout.
+The existing admin panel already has:
+- AI model/prompt configuration in ChatbotSettings
+- Payment gateway is configured via Supabase secrets
+- Chatbot enable/disable toggle
+- Conversation cleanup is already implemented
 
-New component: `src/components/admin/OfferManager.tsx`
-- List all offers with enable/disable toggle
-- Add new offer with form: title, subtitle, description, image upload, offer type selector, timer controls (enable/disable, type, end date), product link picker
-- Edit existing offers inline
-- Reorder offers
-- Toggle homepage/product page visibility
+## File Changes
 
-### Phase 4: Frontend - Make ProductTabs Dynamic
+| File | Action |
+|------|--------|
+| `supabase/functions/chatbot-api/index.ts` | Modified — implement `handleOrder`, add `initiate-payment` and `payment-status` actions |
+| `src/pages/ApiDocs.tsx` | Modified — add new endpoint docs, WhatsApp guide, error codes |
 
-Update `src/components/ProductTabs.tsx`:
-- Fetch products from `dynamic_products` table instead of hardcoded `productData`
-- Fetch categories from `product_categories` table for tab names
-- Keep the exact same visual layout, just swap data source
-- Real-time subscription so admin changes appear instantly
+## No Database Changes
 
-### Phase 5: Frontend - Make BestDeals/Offers Dynamic
+All required tables already exist (`chatbot_conversations`, `game_product_prices`, `product_orders`, `payment_transactions`, `profiles`).
 
-Update `src/components/BestDeals.tsx`:
-- Fetch active homepage offers from `offers` table
-- Render offer blocks dynamically with optional countdown timers
-- Keep existing visual style, just make content admin-controlled
+## Edge Function Details
 
-### What Will NOT Change
-- **"Products (New)" page** (`GameProductPrices` component) -- zero modifications
-- **Existing `ProductsList`** component -- untouched
-- **Game pricing system** (`game_product_prices` table) -- untouched
-- **Overall website design/layout** -- only data sources change
+**`handleOrder`** implementation:
+```
+Input: { action: "order", email, product_name, package_id, player_id, zone_id? }
+1. Validate required fields
+2. Look up package in game_product_prices by package_id
+3. Look up user profile by email
+4. Check balance >= price
+5. If yes → insert into product_orders, deduct credits, return success + order_number
+6. If no → return insufficient_credits + payment instructions
+```
 
-## Technical Details
+**`initiate-payment`** action:
+```
+Input: { action: "initiate-payment", email, amount }
+1. Look up user by email
+2. Generate payment via existing API Nepal logic (or return QR/manual instructions)
+3. Return { payment_url, identifier }
+```
 
-### New Files
-- `src/components/admin/DynamicProductManager.tsx` - Product Update admin page
-- `src/components/admin/CategoryManager.tsx` - Category management
-- `src/components/admin/OfferManager.tsx` - Offer management admin page
-- `src/lib/dynamicProductApi.ts` - API functions for dynamic products/categories
-- `src/lib/offerApi.ts` - API functions for offers
-- `src/hooks/useDynamicProducts.ts` - Frontend hook with real-time subscriptions
-- `src/hooks/useOffers.ts` - Frontend hook for offers
+**`payment-status`** action:
+```
+Input: { action: "payment-status", identifier }
+1. Query payment_transactions by identifier
+2. Return { status, amount, completed_at }
+```
 
-### Modified Files
-- `src/components/admin/AdminLayout.tsx` - Add 3 new sidebar items (Product Update, Categories, Offers)
-- `src/pages/AdminPanel.tsx` - Add new section cases in switch
-- `src/components/ProductTabs.tsx` - Replace hardcoded data with database fetch
-- `src/components/BestDeals.tsx` - Replace hardcoded deals with database fetch
-
-### New Storage Bucket
-- `product-images` (public) for product image uploads
-
-### Database Migration
-- Create `dynamic_products`, `product_categories`, `offers` tables
-- Create `product-images` storage bucket
-- RLS policies for all new tables
-- Seed initial data from current hardcoded products
