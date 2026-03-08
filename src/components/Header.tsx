@@ -133,6 +133,9 @@ export const Header = () => {
                   <Plus className="h-5 w-5" />
                 </Button>
 
+                {/* Notification Bell */}
+                <NotificationBell />
+
                 {/* User Profile Dropdown - Desktop */}
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
