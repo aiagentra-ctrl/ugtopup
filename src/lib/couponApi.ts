@@ -24,7 +24,7 @@ export const validateCoupon = async (
     return { valid: false, message: error.message };
   }
 
-  return data as CouponValidation;
+  return data as unknown as CouponValidation;
 };
 
 export const getAvailableCoupons = async () => {
