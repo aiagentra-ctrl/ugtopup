@@ -28,6 +28,8 @@ interface Settings {
   ai_provider: string;
   ai_model: string;
   ai_system_prompt: string;
+  custom_api_url: string | null;
+  custom_api_key_name: string | null;
 }
 
 const AI_MODELS = [
