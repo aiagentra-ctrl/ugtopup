@@ -98,6 +98,36 @@ export type Database = {
         }
         Relationships: []
       }
+      chatbot_conversations: {
+        Row: {
+          created_at: string | null
+          id: string
+          message: string
+          metadata: Json | null
+          platform: string
+          role: string
+          session_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          message: string
+          metadata?: Json | null
+          platform?: string
+          role: string
+          session_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          message?: string
+          metadata?: Json | null
+          platform?: string
+          role?: string
+          session_id?: string
+        }
+        Relationships: []
+      }
       chatbot_settings: {
         Row: {
           ai_model: string
