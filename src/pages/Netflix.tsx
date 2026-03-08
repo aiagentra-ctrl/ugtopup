@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
 import { NetflixProductHeader } from "@/components/netflix/NetflixProductHeader";
 import { NetflixUserInputForm, NetflixFormData } from "@/components/netflix/NetflixUserInputForm";
 import { NetflixPackageSelector } from "@/components/netflix/NetflixPackageSelector";
