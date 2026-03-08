@@ -422,9 +422,318 @@ async function handleOrderStatus(body: any) {
 }
 
 async function handleOrder(body: any) {
+  const { email, package_id, player_id, zone_id, product_name } = body;
+
+  if (!email || !package_id) {
+    return new Response(
+      JSON.stringify({ error: "email and package_id are required" }),
+      { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
+
+  const sb = supabaseAdmin();
+
+  // 1. Look up the package
+  const { data: pkg } = await sb
+    .from("game_product_prices")
+    .select("*")
+    .eq("package_id", package_id)
+    .eq("is_active", true)
+    .single();
+
+  if (!pkg) {
+    return new Response(
+      JSON.stringify({ error: "Package not found or inactive.", package_id }),
+      { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
+
+  // 2. Look up user by email
+  const { data: profile } = await sb
+    .from("profiles")
+    .select("id, email, username, balance")
+    .eq("email", email)
+    .single();
+
+  if (!profile) {
+    return new Response(
+      JSON.stringify({ error: "No account found with this email. Please register at our website first." }),
+      { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
+
+  const price = Number(pkg.price);
+
+  // 3. Check balance
+  if ((profile.balance || 0) < price) {
+    return new Response(
+      JSON.stringify({
+        error: "insufficient_credits",
+        message: `Insufficient credits. You have NPR ${profile.balance || 0} but need NPR ${price}. Please top up your account first.`,
+        balance: profile.balance || 0,
+        required: price,
+        top_up_url: "https://ugtopups.lovable.app/#/dashboard",
+        timestamp: new Date().toISOString(),
+      }),
+      { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
+
+  // 4. Build product details
+  const productDetails: any = { player_id: player_id || "" };
+  if (zone_id) productDetails.zone_id = zone_id;
+
+  // Determine product category from game name
+  const gameToCategoryMap: Record<string, string> = {
+    freefire: "freefire", mobile_legends: "mobile_legends", pubg: "pubg",
+    roblox: "roblox", netflix: "netflix", tiktok: "tiktok", youtube: "youtube",
+    chatgpt: "chatgpt", garena: "garena", smilecoin: "smilecoin", unipin: "unipin",
+  };
+  const category = gameToCategoryMap[pkg.game] || pkg.game;
+
+  // 5. Place order using the atomic place_order function via service role
+  // We need to impersonate the user for the place_order RPC which uses auth.uid()
+  // Instead, insert directly with atomic balance check
+  const orderNumber = (profile.username || email.split("@")[0]).toLowerCase() + "-" + Math.random().toString(36).slice(2, 5);
+
+  // Atomic: lock profile, check balance, deduct, insert order
+  const { data: updatedProfile, error: deductErr } = await sb
+    .from("profiles")
+    .update({ balance: profile.balance - price })
+    .eq("id", profile.id)
+    .gte("balance", price) // atomic check
+    .select("balance")
+    .single();
+
+  if (deductErr || !updatedProfile) {
+    return new Response(
+      JSON.stringify({ error: "insufficient_credits", message: "Balance changed. Please try again." }),
+      { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
+
+  const { data: order, error: orderErr } = await sb
+    .from("product_orders")
+    .insert({
+      user_id: profile.id,
+      user_email: profile.email,
+      user_name: profile.username || email.split("@")[0],
+      order_number: orderNumber,
+      product_category: category,
+      product_name: product_name || pkg.package_name,
+      package_name: pkg.package_name,
+      quantity: pkg.quantity,
+      price: price,
+      credits_deducted: price,
+      product_details: productDetails,
+      payment_method: "credit",
+      status: "pending",
+    })
+    .select("id, order_number")
+    .single();
+
+  if (orderErr) {
+    // Refund credits on failure
+    await sb.from("profiles").update({ balance: profile.balance }).eq("id", profile.id);
+    console.error("Order insert error:", orderErr);
+    return new Response(
+      JSON.stringify({ error: "Failed to create order. " + orderErr.message }),
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
+
+  // Log activity
+  await sb.from("activity_logs").insert({
+    actor_id: profile.id,
+    actor_email: profile.email,
+    activity_type: "order_created",
+    action: "Chatbot Order Placed",
+    description: `Order ${orderNumber} placed via chatbot API. ${price} credits deducted.`,
+    target_type: "order",
+    target_id: order.id,
+    metadata: { order_number: orderNumber, price, product: pkg.package_name, source: "chatbot_api" },
+  });
+
   return new Response(
     JSON.stringify({
-      message: "Order creation via chatbot coming soon.",
+      success: true,
+      message: `Order placed successfully! Order number: ${orderNumber}. ${price} credits deducted.`,
+      order_number: orderNumber,
+      order_id: order.id,
+      product: pkg.package_name,
+      price,
+      new_balance: updatedProfile.balance,
+      timestamp: new Date().toISOString(),
+    }),
+    { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+  );
+}
+
+async function handleInitiatePayment(body: any) {
+  const { email, amount } = body;
+
+  if (!email || !amount || amount < 1 || amount > 100000) {
+    return new Response(
+      JSON.stringify({ error: "email and amount (1-100000) are required" }),
+      { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
+
+  const sb = supabaseAdmin();
+
+  const { data: profile } = await sb
+    .from("profiles")
+    .select("id, email, username, full_name")
+    .eq("email", email)
+    .single();
+
+  if (!profile) {
+    return new Response(
+      JSON.stringify({ error: "No account found with this email." }),
+      { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
+
+  const identifier = `UG${profile.id.slice(0, 4)}${Date.now().toString(36)}`;
+
+  // Insert payment transaction
+  const { error: insertErr } = await sb
+    .from("payment_transactions")
+    .insert({
+      user_id: profile.id,
+      user_email: email,
+      identifier,
+      amount: Number(amount),
+      credits: Number(amount),
+      status: "initiated",
+    });
+
+  if (insertErr) {
+    return new Response(
+      JSON.stringify({ error: "Failed to create payment record." }),
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
+
+  // Try API Nepal payment
+  const mode = Deno.env.get("APINEPAL_MODE") || "test";
+  const publicKey = Deno.env.get("APINEPAL_PUBLIC_KEY");
+  const secretKey = Deno.env.get("APINEPAL_SECRET_KEY");
+
+  if (!publicKey || !secretKey) {
+    // Return manual payment instructions
+    return new Response(
+      JSON.stringify({
+        success: true,
+        payment_method: "manual",
+        message: `Payment gateway not configured. Please use manual payment: send NPR ${amount} via bank transfer and submit a credit request with your email.`,
+        identifier,
+        timestamp: new Date().toISOString(),
+      }),
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
+
+  const apiEndpoint = mode === "live"
+    ? "https://apinepal.com/payment/initiate"
+    : "https://apinepal.com/test/payment/initiate";
+
+  const baseUrl = "https://ugtopups.lovable.app";
+  const ipnUrl = `${SUPABASE_URL}/functions/v1/payment-ipn`;
+  const fullName = profile.full_name || profile.username || email.split("@")[0];
+  const nameParts = fullName.split(" ");
+
+  const params = new URLSearchParams();
+  params.append("public_key", publicKey);
+  params.append("secret_key", secretKey);
+  params.append("identifier", identifier);
+  params.append("currency", "NPR");
+  params.append("amount", amount.toString());
+  params.append("details", `UG Gaming - User: ${profile.username || email} - ${amount} Credits Top-Up`);
+  params.append("ipn_url", ipnUrl);
+  params.append("success_url", `${baseUrl}/#/payment/success?id=${identifier}`);
+  params.append("cancel_url", `${baseUrl}/#/payment/cancel?id=${identifier}`);
+  params.append("site_name", "UG Gaming");
+  params.append("site_logo", `${baseUrl}/logo.jpg`);
+  params.append("checkout_theme", "dark");
+  params.append("customer[first_name]", nameParts[0] || "Customer");
+  params.append("customer[last_name]", nameParts.slice(1).join(" ") || "User");
+  params.append("customer[email]", email);
+  params.append("customer[mobile]", "9800000000");
+
+  try {
+    const response = await fetch(apiEndpoint, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: params.toString(),
+    });
+    const result = await response.json();
+
+    if (result.status === "success" && result.redirect_url) {
+      await sb.from("payment_transactions")
+        .update({ redirect_url: result.redirect_url, status: "pending" })
+        .eq("identifier", identifier);
+
+      return new Response(
+        JSON.stringify({
+          success: true,
+          payment_method: "online",
+          payment_url: result.redirect_url,
+          identifier,
+          message: `Payment link generated. Complete payment of NPR ${amount} using this link.`,
+          timestamp: new Date().toISOString(),
+        }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    } else {
+      await sb.from("payment_transactions")
+        .update({ status: "failed", api_response: result })
+        .eq("identifier", identifier);
+
+      return new Response(
+        JSON.stringify({
+          error: result.message?.[0] || "Payment initiation failed",
+          identifier,
+        }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+  } catch (err: any) {
+    console.error("Payment initiation error:", err);
+    return new Response(
+      JSON.stringify({ error: "Payment service unavailable. Please try manual payment." }),
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
+}
+
+async function handlePaymentStatus(body: any) {
+  const { identifier } = body;
+
+  if (!identifier) {
+    return new Response(
+      JSON.stringify({ error: "identifier is required" }),
+      { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
+
+  const sb = supabaseAdmin();
+  const { data, error } = await sb
+    .from("payment_transactions")
+    .select("identifier, amount, credits, status, payment_gateway, created_at, completed_at")
+    .eq("identifier", identifier)
+    .single();
+
+  if (error || !data) {
+    return new Response(
+      JSON.stringify({ error: "Transaction not found." }),
+      { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
+
+  return new Response(
+    JSON.stringify({
+      ...data,
       timestamp: new Date().toISOString(),
     }),
     { headers: { ...corsHeaders, "Content-Type": "application/json" } }
