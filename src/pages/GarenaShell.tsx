@@ -24,6 +24,7 @@ const GarenaShell = () => {
   const [isReviewOpen, setIsReviewOpen] = useState(false);
   const [isSuccessOpen, setIsSuccessOpen] = useState(false);
   const [orderId, setOrderId] = useState("");
+  const [voucherCode, setVoucherCode] = useState<string | null>(null);
 
   const handleFormDataChange = (data: GarenaFormData | null, isValid: boolean) => {
     setFormData(data);
