@@ -1,0 +1,1 @@
+UPDATE public.chatbot_settings SET ai_provider = 'openrouter', ai_model = 'arcee-ai/trinity-mini:free', custom_api_url = NULL, custom_api_key_name = NULL WHERE id = 'd5a1ad82-f777-480d-8ba2-7fcc1f736b49';
