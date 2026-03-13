@@ -38,6 +38,7 @@ import { MaintenanceLog } from "@/components/admin/MaintenanceLog";
 import { DatabaseManagement } from "@/components/admin/DatabaseManagement";
 import { SystemHealthMonitor } from "@/components/admin/SystemHealthMonitor";
 import { AdvancedAnalytics } from "@/components/admin/AdvancedAnalytics";
+import { WhatsAppChatbot } from "@/components/admin/WhatsAppChatbot";
 import { checkAdminAccess } from "@/lib/adminApi";
 import { useAdminPushNotifications } from "@/hooks/useAdminPushNotifications";
 import { toast } from "sonner";
@@ -172,6 +173,8 @@ const AdminPanel = () => {
         return <DatabaseManagement />;
       case "advanced-analytics":
         return <AdvancedAnalytics />;
+      case "whatsapp":
+        return <WhatsAppChatbot />;
       default:
         return <EnhancedDashboard />;
     }

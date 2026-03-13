@@ -84,6 +84,7 @@ const menuItems = [
   { id: "system-health", title: "System Health", icon: HeartPulse },
   { id: "db-management", title: "DB Management", icon: Database },
   { id: "advanced-analytics", title: "Advanced Analytics", icon: PieChart },
+  { id: "whatsapp", title: "WhatsApp Chatbot", icon: MessageSquare },
 ];
 
 // Bottom nav items for mobile quick access
