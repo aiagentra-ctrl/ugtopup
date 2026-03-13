@@ -678,7 +678,7 @@ export const ChatbotSettings = () => {
                 {/* AI Model info */}
                 <div className="mt-3 p-2 bg-muted rounded-lg">
                   <p className="text-[10px] text-muted-foreground text-center">
-                    Powered by <span className="font-medium">{AI_MODELS.find(m => m.value === settings.ai_model)?.label || settings.ai_model}</span>
+                    Powered by <span className="font-medium">{[...OPENROUTER_MODELS, ...LOVABLE_AI_MODELS].find(m => m.value === settings.ai_model)?.label || settings.ai_model}</span>
                   </p>
                 </div>
               </CardContent>
