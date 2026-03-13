@@ -38,11 +38,28 @@ interface TestMessage {
   text: string;
 }
 
-const AI_MODELS = [
+const AI_PROVIDERS = [
+  { value: 'openrouter', label: 'OpenRouter (Default)', description: 'Access 100+ models via OpenRouter API' },
+  { value: 'lovable_ai', label: 'Lovable AI (Built-in)', description: 'Powered by OpenAI & Google Gemini' },
+  { value: 'custom', label: 'Custom API', description: 'Point to any OpenAI-compatible endpoint' },
+];
+
+const OPENROUTER_MODELS = [
+  { value: 'arcee-ai/trinity-mini:free', label: 'Arcee Trinity Mini (Free)' },
+  { value: 'arcee-ai/trinity-mini', label: 'Arcee Trinity Mini' },
+  { value: 'openai/gpt-4o-mini', label: 'OpenAI GPT-4o Mini' },
+  { value: 'openai/gpt-4o', label: 'OpenAI GPT-4o' },
+  { value: 'google/gemini-flash-1.5', label: 'Google Gemini Flash 1.5' },
+  { value: 'google/gemini-2.5-flash', label: 'Google Gemini 2.5 Flash' },
+  { value: 'meta-llama/llama-3.1-8b-instruct:free', label: 'Llama 3.1 8B (Free)' },
+  { value: 'mistralai/mistral-7b-instruct:free', label: 'Mistral 7B (Free)' },
+  { value: 'deepseek/deepseek-chat', label: 'DeepSeek Chat' },
+];
+
+const LOVABLE_AI_MODELS = [
   { value: 'google/gemini-3-flash-preview', label: 'Gemini 3 Flash (Fast, Recommended)' },
   { value: 'google/gemini-2.5-flash', label: 'Gemini 2.5 Flash (Balanced)' },
   { value: 'google/gemini-2.5-pro', label: 'Gemini 2.5 Pro (Best Quality)' },
-  { value: 'google/gemini-3-pro-preview', label: 'Gemini 3 Pro (Next-Gen)' },
   { value: 'openai/gpt-5-nano', label: 'GPT-5 Nano (Fast & Cheap)' },
   { value: 'openai/gpt-5-mini', label: 'GPT-5 Mini (Balanced)' },
   { value: 'openai/gpt-5', label: 'GPT-5 (Best Quality)' },
