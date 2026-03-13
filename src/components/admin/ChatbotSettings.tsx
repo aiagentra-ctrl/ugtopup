@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { toast } from 'sonner';
-import { Bot, Save, Eye, Brain, MessageCircle, Package, CreditCard, Mail, Loader2, Send, Play, User } from 'lucide-react';
+import { Bot, Save, Eye, Brain, MessageCircle, Package, CreditCard, Mail, Loader2, Send, Play, User, Zap, CheckCircle, XCircle } from 'lucide-react';
 
 interface Settings {
   id: string;
