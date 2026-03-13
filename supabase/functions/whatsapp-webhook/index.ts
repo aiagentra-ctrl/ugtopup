@@ -10,6 +10,16 @@ const corsHeaders = {
   "Content-Type": "application/json",
 };
 
+type IncomingMessagePayload = {
+  phone: string;
+  text: string;
+  messageType: string;
+  timestamp: string;
+  event: string;
+  instanceName: string | null;
+  remoteJid: string;
+};
+
 function supabaseAdmin() {
   return createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 }
@@ -34,6 +44,26 @@ setInterval(() => {
   }
 }, 120_000);
 
+function safeErrorMessage(error: unknown): string {
+  if (error instanceof Error) return error.message;
+  if (typeof error === "string") return error;
+  try {
+    return JSON.stringify(error);
+  } catch {
+    return "Unknown error";
+  }
+}
+
+function payloadPreview(payload: unknown, maxChars = 3500): string {
+  try {
+    const serialized = JSON.stringify(payload);
+    if (serialized.length <= maxChars) return serialized;
+    return `${serialized.slice(0, maxChars)}...[truncated]`;
+  } catch {
+    return "unserializable payload";
+  }
+}
+
 async function getWhatsAppConfig() {
   const db = supabaseAdmin();
   const { data, error } = await db.from("whatsapp_config").select("*").limit(1).single();
@@ -48,13 +78,13 @@ async function logMessage(
   sessionId: string,
   status = "sent",
   errorMessage?: string,
-  metadata?: Record<string, unknown>
+  metadata?: Record<string, unknown>,
 ) {
   const db = supabaseAdmin();
   await db.from("whatsapp_messages").insert({
     phone_number: phoneNumber,
     direction,
-    message: message.substring(0, 5000),
+    message: (message || "").substring(0, 5000),
     session_id: sessionId,
     status,
     error_message: errorMessage,
@@ -62,7 +92,7 @@ async function logMessage(
   });
 }
 
-async function sendWhatsAppReply(config: any, phone: string, text: string) {
+async function sendWhatsAppReply(config: any, phone: string, text: string, delay = 1200) {
   const url = `${config.server_url}/message/sendText/${config.instance_name}`;
   const res = await fetch(url, {
     method: "POST",
@@ -72,15 +102,24 @@ async function sendWhatsAppReply(config: any, phone: string, text: string) {
     },
     body: JSON.stringify({
       number: phone,
-      text: text,
-      delay: 1200, // typing simulation delay in ms
+      text,
+      delay,
     }),
   });
-  if (!res.ok) {
-    const err = await res.text();
-    throw new Error(`Evolution API error: ${res.status} - ${err}`);
+
+  const bodyText = await res.text();
+  let parsed: any = null;
+  try {
+    parsed = bodyText ? JSON.parse(bodyText) : null;
+  } catch {
+    parsed = { raw: bodyText };
   }
-  return await res.json();
+
+  if (!res.ok) {
+    throw new Error(`Evolution API error: ${res.status} - ${bodyText}`);
+  }
+
+  return { status: res.status, data: parsed };
 }
 
 async function callChatbotApi(sessionId: string, message: string) {
@@ -94,15 +133,24 @@ async function callChatbotApi(sessionId: string, message: string) {
     body: JSON.stringify({
       action: "message",
       session_id: sessionId,
-      message: message,
+      message,
       platform: "whatsapp",
     }),
   });
-  if (!res.ok) {
-    const err = await res.text();
-    throw new Error(`Chatbot API error: ${res.status} - ${err}`);
+
+  const bodyText = await res.text();
+  let parsed: any = null;
+  try {
+    parsed = bodyText ? JSON.parse(bodyText) : null;
+  } catch {
+    parsed = { raw: bodyText };
   }
-  return await res.json();
+
+  if (!res.ok) {
+    throw new Error(`Chatbot API error: ${res.status} - ${bodyText}`);
+  }
+
+  return parsed;
 }
 
 function ok(data: any, status = 200) {
@@ -111,6 +159,287 @@ function ok(data: any, status = 200) {
 
 function err(message: string, status = 400) {
   return new Response(JSON.stringify({ error: message }), { status, headers: corsHeaders });
+}
+
+function normalizeEvent(event: unknown): string {
+  return String(event || "").toLowerCase().replace(/[_-]/g, ".");
+}
+
+function getMessageText(messageObj: any): { text: string; type: string } {
+  if (!messageObj || typeof messageObj !== "object") {
+    return { text: "", type: "unknown" };
+  }
+
+  if (typeof messageObj.conversation === "string") {
+    return { text: messageObj.conversation, type: "conversation" };
+  }
+
+  if (typeof messageObj.extendedTextMessage?.text === "string") {
+    return { text: messageObj.extendedTextMessage.text, type: "extendedTextMessage" };
+  }
+
+  if (typeof messageObj.imageMessage?.caption === "string") {
+    return { text: messageObj.imageMessage.caption, type: "imageMessage" };
+  }
+
+  if (typeof messageObj.videoMessage?.caption === "string") {
+    return { text: messageObj.videoMessage.caption, type: "videoMessage" };
+  }
+
+  if (typeof messageObj.buttonsResponseMessage?.selectedDisplayText === "string") {
+    return {
+      text: messageObj.buttonsResponseMessage.selectedDisplayText,
+      type: "buttonsResponseMessage",
+    };
+  }
+
+  if (typeof messageObj.listResponseMessage?.title === "string") {
+    return { text: messageObj.listResponseMessage.title, type: "listResponseMessage" };
+  }
+
+  if (typeof messageObj.templateButtonReplyMessage?.selectedDisplayText === "string") {
+    return {
+      text: messageObj.templateButtonReplyMessage.selectedDisplayText,
+      type: "templateButtonReplyMessage",
+    };
+  }
+
+  const firstKey = Object.keys(messageObj)[0] || "unknown";
+  return { text: "", type: firstKey };
+}
+
+function parseIncomingMessage(body: any): IncomingMessagePayload | null {
+  const normalized = normalizeEvent(body?.event);
+  const event = normalized || "messages.upsert";
+
+  const firstArrayMessage = Array.isArray(body?.data?.messages)
+    ? body.data.messages[0]
+    : null;
+
+  const rootData = firstArrayMessage || body?.data || {};
+  const key = rootData?.key || body?.data?.key || {};
+  const remoteJid =
+    key?.remoteJid ||
+    rootData?.remoteJid ||
+    body?.data?.sender?.jid ||
+    body?.data?.sender?.id ||
+    "";
+
+  const fromMe = Boolean(key?.fromMe ?? rootData?.fromMe ?? false);
+  if (fromMe) return null;
+
+  if (typeof remoteJid === "string" && (remoteJid.endsWith("@g.us") || remoteJid === "status@broadcast")) {
+    return null;
+  }
+
+  let phone = "";
+  if (typeof remoteJid === "string" && remoteJid) {
+    phone = remoteJid.split("@")[0] || "";
+  }
+
+  if (!phone && body?.data?.sender?.number) {
+    phone = String(body.data.sender.number).replace(/\D/g, "");
+  }
+
+  const messageObj = rootData?.message || body?.data?.message || {};
+  const { text, type } = getMessageText(messageObj);
+  const instanceName =
+    body?.instance ||
+    body?.instanceName ||
+    body?.data?.instanceName ||
+    body?.data?.instance?.instanceName ||
+    null;
+
+  const timestampRaw =
+    rootData?.messageTimestamp ||
+    rootData?.timestamp ||
+    body?.data?.messageTimestamp ||
+    body?.data?.timestamp ||
+    Date.now();
+
+  const timestamp = new Date(
+    typeof timestampRaw === "number" && timestampRaw < 1000000000000
+      ? timestampRaw * 1000
+      : Number(timestampRaw) || Date.now(),
+  ).toISOString();
+
+  if (!phone) return null;
+
+  return {
+    phone,
+    text: (text || "").trim(),
+    messageType: type,
+    timestamp,
+    event,
+    instanceName,
+    remoteJid: String(remoteJid || ""),
+  };
+}
+
+async function processIncomingMessage(
+  config: any,
+  incoming: IncomingMessagePayload,
+  body: any,
+  isSimulated = false,
+) {
+  const sessionId = `wa-${incoming.phone}`;
+
+  if (!checkRateLimit(incoming.phone)) {
+    await logMessage(
+      incoming.phone,
+      "inbound",
+      incoming.text || "(rate limited)",
+      sessionId,
+      "rate_limited",
+      undefined,
+      {
+        webhook_event: incoming.event,
+        message_type: incoming.messageType,
+        instance_name: incoming.instanceName || config.instance_name,
+        simulated: isSimulated,
+      },
+    );
+    return { ok: true, skipped: "rate_limited" };
+  }
+
+  await logMessage(
+    incoming.phone,
+    "inbound",
+    incoming.text || "(no text)",
+    sessionId,
+    incoming.text ? "received" : "ignored_no_text",
+    undefined,
+    {
+      webhook_event: incoming.event,
+      message_type: incoming.messageType,
+      remote_jid: incoming.remoteJid,
+      instance_name: incoming.instanceName || config.instance_name,
+      webhook_timestamp: incoming.timestamp,
+      simulated: isSimulated,
+      raw_payload_preview: payloadPreview(body),
+    },
+  );
+
+  if (!incoming.text) {
+    return { ok: true, skipped: "no_text" };
+  }
+
+  try {
+    const chatResponse = await callChatbotApi(sessionId, incoming.text);
+    const replyText =
+      chatResponse?.reply ||
+      chatResponse?.message ||
+      "Sorry, I could not process your request.";
+
+    const evolutionResponse = await sendWhatsAppReply(config, incoming.phone, replyText, 1200);
+
+    await logMessage(incoming.phone, "outbound", replyText, sessionId, "sent", undefined, {
+      webhook_event: incoming.event,
+      provider: "evolution",
+      provider_status: evolutionResponse.status,
+      provider_response_preview: payloadPreview(evolutionResponse.data),
+      simulated: isSimulated,
+    });
+
+    return { ok: true, reply: replyText };
+  } catch (error) {
+    const errorMessage = safeErrorMessage(error);
+    await logMessage(incoming.phone, "outbound", "", sessionId, "failed", errorMessage, {
+      webhook_event: incoming.event,
+      stage: "chatbot_or_send",
+      simulated: isSimulated,
+    });
+
+    try {
+      const fallback = "Sorry, I'm having trouble right now. Please try again later or visit our website.";
+      const fallbackRes = await sendWhatsAppReply(config, incoming.phone, fallback, 500);
+      await logMessage(incoming.phone, "outbound", fallback, sessionId, "sent", undefined, {
+        provider: "evolution",
+        provider_status: fallbackRes.status,
+        fallback: true,
+        simulated: isSimulated,
+      });
+    } catch (fallbackError) {
+      await logMessage(
+        incoming.phone,
+        "outbound",
+        "",
+        sessionId,
+        "failed",
+        safeErrorMessage(fallbackError),
+        {
+          stage: "fallback_send",
+          simulated: isSimulated,
+        },
+      );
+    }
+
+    return { ok: true, error: errorMessage };
+  }
+}
+
+async function getWebhookHealth(config: any) {
+  const db = supabaseAdmin();
+  const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+
+  const [lastInboundRes, lastOutboundRes, failedRes, inboundLastHourRes] = await Promise.all([
+    db
+      .from("whatsapp_messages")
+      .select("created_at, status, metadata, phone_number")
+      .eq("direction", "inbound")
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+    db
+      .from("whatsapp_messages")
+      .select("created_at, status, metadata")
+      .eq("direction", "outbound")
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+    db
+      .from("whatsapp_messages")
+      .select("created_at, error_message, phone_number", { head: false })
+      .eq("status", "failed")
+      .order("created_at", { ascending: false })
+      .limit(10),
+    db
+      .from("whatsapp_messages")
+      .select("id", { count: "exact", head: true })
+      .eq("direction", "inbound")
+      .gte("created_at", oneHourAgo),
+  ]);
+
+  const lastInbound = lastInboundRes.data;
+  const lastOutbound = lastOutboundRes.data;
+  const failedMessages = failedRes.data || [];
+  const inboundLastHour = inboundLastHourRes.count || 0;
+
+  let status: "connected" | "not_receiving" | "error" | "disabled" = "not_receiving";
+
+  if (!config?.is_enabled) {
+    status = "disabled";
+  } else if (failedMessages.length > 0 && !lastInbound) {
+    status = "error";
+  } else if (lastInbound) {
+    const minutesSinceInbound =
+      (Date.now() - new Date(lastInbound.created_at).getTime()) / 60000;
+    status = minutesSinceInbound <= 30 ? "connected" : "not_receiving";
+  }
+
+  return {
+    success: true,
+    status,
+    config_enabled: Boolean(config?.is_enabled),
+    connection_status: config?.connection_status || "unknown",
+    last_webhook_event: (lastInbound?.metadata as any)?.webhook_event || null,
+    last_webhook_event_received_at: lastInbound?.created_at || null,
+    last_message_timestamp: lastInbound?.created_at || null,
+    last_message_phone: lastInbound?.phone_number || null,
+    last_response_status: lastOutbound?.status || null,
+    inbound_last_hour: inboundLastHour,
+    recent_errors: failedMessages,
+  };
 }
 
 Deno.serve(async (req) => {
@@ -140,29 +469,28 @@ Deno.serve(async (req) => {
           try {
             const res = await fetch(
               `${config.server_url}/instance/connectionState/${config.instance_name}`,
-              { headers: { apikey: config.api_key } }
+              { headers: { apikey: config.api_key } },
             );
             const data = await res.json();
 
-            // Update config status based on response
             const db = supabaseAdmin();
             const state = data?.instance?.state || data?.state;
-            if (state === "open") {
-              await db.from("whatsapp_config").update({
-                connection_status: "connected",
+            await db
+              .from("whatsapp_config")
+              .update({
+                connection_status: state === "open" ? "connected" : "disconnected",
                 updated_at: new Date().toISOString(),
-              }).eq("id", config.id);
-            }
+              })
+              .eq("id", config.id);
 
             return ok({ success: true, data });
-          } catch (e) {
-            return err(e.message, 500);
+          } catch (error) {
+            return err(safeErrorMessage(error), 500);
           }
         }
 
         case "get-qr": {
           try {
-            // Create instance if needed
             await fetch(`${config.server_url}/instance/create`, {
               method: "POST",
               headers: { "Content-Type": "application/json", apikey: config.api_key },
@@ -173,22 +501,24 @@ Deno.serve(async (req) => {
               }),
             });
 
-            // Connect to get QR
             const connectRes = await fetch(
               `${config.server_url}/instance/connect/${config.instance_name}`,
-              { headers: { apikey: config.api_key } }
+              { headers: { apikey: config.api_key } },
             );
             const connectData = await connectRes.json();
 
             const db = supabaseAdmin();
-            await db.from("whatsapp_config").update({
-              connection_status: "connecting",
-              updated_at: new Date().toISOString(),
-            }).eq("id", config.id);
+            await db
+              .from("whatsapp_config")
+              .update({
+                connection_status: "connecting",
+                updated_at: new Date().toISOString(),
+              })
+              .eq("id", config.id);
 
             return ok({ success: true, qr: connectData });
-          } catch (e) {
-            return err(e.message, 500);
+          } catch (error) {
+            return err(safeErrorMessage(error), 500);
           }
         }
 
@@ -198,15 +528,20 @@ Deno.serve(async (req) => {
               method: "DELETE",
               headers: { apikey: config.api_key },
             });
+
             const db = supabaseAdmin();
-            await db.from("whatsapp_config").update({
-              connection_status: "disconnected",
-              connected_number: null,
-              updated_at: new Date().toISOString(),
-            }).eq("id", config.id);
+            await db
+              .from("whatsapp_config")
+              .update({
+                connection_status: "disconnected",
+                connected_number: null,
+                updated_at: new Date().toISOString(),
+              })
+              .eq("id", config.id);
+
             return ok({ success: true });
-          } catch (e) {
-            return err(e.message, 500);
+          } catch (error) {
+            return err(safeErrorMessage(error), 500);
           }
         }
 
@@ -225,45 +560,95 @@ Deno.serve(async (req) => {
                 },
               }),
             });
+
             const data = await res.json();
 
-            // Also update webhook_url in config
             const db = supabaseAdmin();
-            await db.from("whatsapp_config").update({
-              webhook_url: webhookUrl,
-              updated_at: new Date().toISOString(),
-            }).eq("id", config.id);
+            await db
+              .from("whatsapp_config")
+              .update({
+                webhook_url: webhookUrl,
+                updated_at: new Date().toISOString(),
+              })
+              .eq("id", config.id);
 
             return ok({ success: true, data, webhook_url: webhookUrl });
-          } catch (e) {
-            return err(e.message, 500);
+          } catch (error) {
+            return err(safeErrorMessage(error), 500);
           }
         }
 
         case "fetch-instance-info": {
           try {
-            const res = await fetch(
-              `${config.server_url}/instance/fetchInstances`,
-              { headers: { apikey: config.api_key } }
-            );
+            const res = await fetch(`${config.server_url}/instance/fetchInstances`, {
+              headers: { apikey: config.api_key },
+            });
             const data = await res.json();
             return ok({ success: true, data });
-          } catch (e) {
-            return err(e.message, 500);
+          } catch (error) {
+            return err(safeErrorMessage(error), 500);
           }
         }
 
         case "send-message": {
-          // Admin sends a manual message to a phone number
           const { phone, message } = body;
           if (!phone || !message) return err("phone and message are required");
+
           try {
-            await sendWhatsAppReply(config, phone, message);
+            const sendResult = await sendWhatsAppReply(config, String(phone), String(message), 600);
             const sessionId = `wa-${phone}`;
-            await logMessage(phone, "outbound", message, sessionId, "sent", undefined, { manual: true });
+            await logMessage(String(phone), "outbound", String(message), sessionId, "sent", undefined, {
+              manual: true,
+              provider_status: sendResult.status,
+              provider_response_preview: payloadPreview(sendResult.data),
+            });
             return ok({ success: true });
-          } catch (e) {
-            return err(e.message, 500);
+          } catch (error) {
+            return err(safeErrorMessage(error), 500);
+          }
+        }
+
+        case "test-webhook": {
+          const phone = String(body.phone || config.connected_number || "").replace(/\D/g, "");
+          const message = String(body.message || "Hello from webhook test").trim();
+
+          if (!phone) {
+            return err("Phone number is required for webhook test", 400);
+          }
+
+          const simulatedIncoming: IncomingMessagePayload = {
+            phone,
+            text: message,
+            messageType: "conversation",
+            timestamp: new Date().toISOString(),
+            event: "messages.upsert",
+            instanceName: config.instance_name,
+            remoteJid: `${phone}@s.whatsapp.net`,
+          };
+
+          const result = await processIncomingMessage(
+            config,
+            simulatedIncoming,
+            {
+              event: "MESSAGES_UPSERT",
+              data: {
+                key: { fromMe: false, remoteJid: `${phone}@s.whatsapp.net` },
+                message: { conversation: message },
+              },
+              simulated: true,
+            },
+            true,
+          );
+
+          return ok({ success: true, result });
+        }
+
+        case "health-check": {
+          try {
+            const health = await getWebhookHealth(config);
+            return ok(health);
+          } catch (error) {
+            return err(safeErrorMessage(error), 500);
           }
         }
 
@@ -273,87 +658,73 @@ Deno.serve(async (req) => {
     }
 
     // ── Webhook events from Evolution API ──
+    const config = await getWhatsAppConfig();
+    if (!config) return ok({ ok: true, skipped: "missing_config" });
 
-    // Normalize Evolution v2 event names
-    const event = body.event || "";
-    const normalizedEvent = event.toLowerCase().replace(/_/g, ".");
+    // Optional signature check (if Evolution sends apikey header/body)
+    const incomingApiKey = req.headers.get("apikey") || body?.apikey || body?.data?.apikey;
+    if (incomingApiKey && incomingApiKey !== config.api_key) {
+      return err("Invalid webhook signature", 401);
+    }
 
-    // Handle connection updates
+    const normalizedEvent = normalizeEvent(body.event);
+
     if (normalizedEvent === "connection.update") {
       const db = supabaseAdmin();
-      const state = body.data?.state || body.data?.status;
+      const state = body?.data?.state || body?.data?.status;
+
       if (state === "open") {
-        const jid = body.data?.instance?.wuid || body.data?.wuid || "";
-        const number = jid.split("@")[0] || "";
-        await db.from("whatsapp_config").update({
-          connection_status: "connected",
-          connected_number: number,
-          updated_at: new Date().toISOString(),
-        }).eq("instance_name", body.instance || "ugc-topup");
+        const jid = body?.data?.instance?.wuid || body?.data?.wuid || "";
+        const number = typeof jid === "string" ? jid.split("@")[0] || "" : "";
+
+        await db
+          .from("whatsapp_config")
+          .update({
+            connection_status: "connected",
+            connected_number: number || config.connected_number,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("instance_name", body.instance || config.instance_name);
       } else if (state === "close") {
-        await db.from("whatsapp_config").update({
-          connection_status: "disconnected",
-          updated_at: new Date().toISOString(),
-        }).eq("instance_name", body.instance || "ugc-topup");
-      }
-      return ok({ ok: true });
-    }
-
-    // Handle incoming messages (Evolution v2: MESSAGES_UPSERT or messages.upsert)
-    if (normalizedEvent === "messages.upsert" || body.data?.message || body.data?.key) {
-      const config = await getWhatsAppConfig();
-      if (!config || !config.is_enabled) {
-        return ok({ ok: true, skipped: "disabled" });
-      }
-
-      const msgData = body.data;
-      if (!msgData) return ok({ ok: true });
-
-      const key = msgData.key || {};
-      if (key.fromMe) return ok({ ok: true });
-
-      const remoteJid = key.remoteJid || "";
-      // Skip group messages and status broadcasts
-      if (remoteJid.endsWith("@g.us") || remoteJid === "status@broadcast") {
-        return ok({ ok: true, skipped: "group_or_status" });
-      }
-
-      const phone = remoteJid.split("@")[0];
-      if (!phone) return ok({ ok: true });
-
-      const msgContent = msgData.message || {};
-      const text =
-        msgContent.conversation ||
-        msgContent.extendedTextMessage?.text ||
-        msgContent.imageMessage?.caption ||
-        msgContent.videoMessage?.caption ||
-        "";
-
-      if (!text.trim()) return ok({ ok: true, skipped: "no_text" });
-      if (!checkRateLimit(phone)) return ok({ ok: true, skipped: "rate_limited" });
-
-      const sessionId = `wa-${phone}`;
-      await logMessage(phone, "inbound", text, sessionId);
-
-      try {
-        const chatResponse = await callChatbotApi(sessionId, text);
-        const replyText = chatResponse.reply || chatResponse.message || "Sorry, I could not process your request.";
-        await sendWhatsAppReply(config, phone, replyText);
-        await logMessage(phone, "outbound", replyText, sessionId);
-      } catch (e) {
-        console.error("WhatsApp message processing error:", e);
-        await logMessage(phone, "outbound", "", sessionId, "failed", e.message);
-        try {
-          await sendWhatsAppReply(config, phone, "Sorry, I'm having trouble right now. Please try again later or visit our website.");
-        } catch { /* ignore */ }
+        await db
+          .from("whatsapp_config")
+          .update({
+            connection_status: "disconnected",
+            updated_at: new Date().toISOString(),
+          })
+          .eq("instance_name", body.instance || config.instance_name);
       }
 
       return ok({ ok: true });
     }
 
-    return ok({ ok: true });
-  } catch (e) {
-    console.error("WhatsApp webhook error:", e);
+    const incoming = parseIncomingMessage(body);
+
+    if (!incoming) {
+      return ok({ ok: true, skipped: "ignored_event_or_message" });
+    }
+
+    if (!config.is_enabled) {
+      await logMessage(
+        incoming.phone,
+        "inbound",
+        incoming.text || "(disabled)",
+        `wa-${incoming.phone}`,
+        "ignored_disabled",
+        undefined,
+        {
+          webhook_event: incoming.event,
+          message_type: incoming.messageType,
+          raw_payload_preview: payloadPreview(body),
+        },
+      );
+      return ok({ ok: true, skipped: "disabled" });
+    }
+
+    const processed = await processIncomingMessage(config, incoming, body, false);
+    return ok(processed);
+  } catch (error) {
+    console.error("WhatsApp webhook error:", error);
     return err("Internal error", 500);
   }
 });
