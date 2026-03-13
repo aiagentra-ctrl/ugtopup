@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { toast } from 'sonner';
-import { Bot, Save, Eye, Brain, MessageCircle, Package, CreditCard, Mail, Loader2, Send, Play, User } from 'lucide-react';
+import { Bot, Save, Eye, Brain, MessageCircle, Package, CreditCard, Mail, Loader2, Send, Play, User, Zap, CheckCircle, XCircle } from 'lucide-react';
 
 interface Settings {
   id: string;
@@ -38,11 +38,28 @@ interface TestMessage {
   text: string;
 }
 
-const AI_MODELS = [
+const AI_PROVIDERS = [
+  { value: 'openrouter', label: 'OpenRouter (Default)', description: 'Access 100+ models via OpenRouter API' },
+  { value: 'lovable_ai', label: 'Lovable AI (Built-in)', description: 'Powered by OpenAI & Google Gemini' },
+  { value: 'custom', label: 'Custom API', description: 'Point to any OpenAI-compatible endpoint' },
+];
+
+const OPENROUTER_MODELS = [
+  { value: 'arcee-ai/trinity-mini:free', label: 'Arcee Trinity Mini (Free)' },
+  { value: 'arcee-ai/trinity-mini', label: 'Arcee Trinity Mini' },
+  { value: 'openai/gpt-4o-mini', label: 'OpenAI GPT-4o Mini' },
+  { value: 'openai/gpt-4o', label: 'OpenAI GPT-4o' },
+  { value: 'google/gemini-flash-1.5', label: 'Google Gemini Flash 1.5' },
+  { value: 'google/gemini-2.5-flash', label: 'Google Gemini 2.5 Flash' },
+  { value: 'meta-llama/llama-3.1-8b-instruct:free', label: 'Llama 3.1 8B (Free)' },
+  { value: 'mistralai/mistral-7b-instruct:free', label: 'Mistral 7B (Free)' },
+  { value: 'deepseek/deepseek-chat', label: 'DeepSeek Chat' },
+];
+
+const LOVABLE_AI_MODELS = [
   { value: 'google/gemini-3-flash-preview', label: 'Gemini 3 Flash (Fast, Recommended)' },
   { value: 'google/gemini-2.5-flash', label: 'Gemini 2.5 Flash (Balanced)' },
   { value: 'google/gemini-2.5-pro', label: 'Gemini 2.5 Pro (Best Quality)' },
-  { value: 'google/gemini-3-pro-preview', label: 'Gemini 3 Pro (Next-Gen)' },
   { value: 'openai/gpt-5-nano', label: 'GPT-5 Nano (Fast & Cheap)' },
   { value: 'openai/gpt-5-mini', label: 'GPT-5 Mini (Balanced)' },
   { value: 'openai/gpt-5', label: 'GPT-5 (Best Quality)' },
@@ -60,6 +77,9 @@ export const ChatbotSettings = () => {
   const [testMessages, setTestMessages] = useState<TestMessage[]>([]);
   const [testInput, setTestInput] = useState('');
   const [testLoading, setTestLoading] = useState(false);
+  const [connectionTestResult, setConnectionTestResult] = useState<{ success: boolean; message: string } | null>(null);
+  const [testingConnection, setTestingConnection] = useState(false);
+  const [customModelInput, setCustomModelInput] = useState('');
   const testEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -216,33 +236,56 @@ export const ChatbotSettings = () => {
             </CardContent>
           </Card>
 
-          {/* AI Configuration */}
+          {/* AI API Configuration */}
           <Card>
             <CardHeader>
               <CardTitle className="text-base flex items-center gap-2">
-                <Brain className="h-4 w-4" /> AI Engine
+                <Brain className="h-4 w-4" /> AI API Configuration
               </CardTitle>
-              <CardDescription>Direct AI integration — no n8n or webhooks needed</CardDescription>
+              <CardDescription>Configure AI provider, API key, and model — easy setup for admins</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
+              {/* Provider Selection */}
               <div>
                 <Label>AI Provider</Label>
-                <Select value={settings.ai_provider} onValueChange={(v) => update('ai_provider', v)}>
+                <Select value={settings.ai_provider} onValueChange={(v) => {
+                  update('ai_provider', v);
+                  setConnectionTestResult(null);
+                  // Set sensible default model when switching
+                  if (v === 'openrouter') update('ai_model', 'arcee-ai/trinity-mini:free');
+                  else if (v === 'lovable_ai') update('ai_model', 'google/gemini-3-flash-preview');
+                }}>
                   <SelectTrigger className="mt-1">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="lovable_ai">Lovable AI (Built-in, Recommended)</SelectItem>
-                    <SelectItem value="custom">Custom API (OpenAI-compatible)</SelectItem>
+                    {AI_PROVIDERS.map(p => (
+                      <SelectItem key={p.value} value={p.value}>
+                        {p.label}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
                 <p className="text-xs text-muted-foreground mt-1">
-                  {settings.ai_provider === 'custom' 
-                    ? 'Point to any OpenAI-compatible API endpoint'
-                    : 'Powered by OpenAI & Google Gemini — no API key needed'}
+                  {AI_PROVIDERS.find(p => p.value === settings.ai_provider)?.description || ''}
                 </p>
               </div>
 
+              {/* OpenRouter Info */}
+              {settings.ai_provider === 'openrouter' && (
+                <div className="space-y-3 p-3 rounded-lg border border-border bg-muted/30">
+                  <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+                    <Zap className="h-4 w-4 text-primary" />
+                    OpenRouter Connected
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    API key is securely stored as an Edge Function secret (OPENROUTER_API_KEY). 
+                    To change the key, update it in your Supabase Dashboard → Edge Functions → Secrets.
+                  </p>
+                </div>
+              )}
+
+              {/* Custom Provider Config */}
               {settings.ai_provider === 'custom' && (
                 <div className="space-y-3 p-3 rounded-lg border border-border bg-muted/30">
                   <div>
@@ -269,20 +312,110 @@ export const ChatbotSettings = () => {
                 </div>
               )}
 
+              {/* Model Selection */}
               <div>
                 <Label>AI Model</Label>
-                <Select value={settings.ai_model} onValueChange={(v) => update('ai_model', v)}>
+                <Select value={settings.ai_model} onValueChange={(v) => {
+                  if (v === '__custom__') return;
+                  update('ai_model', v);
+                }}>
                   <SelectTrigger className="mt-1">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {AI_MODELS.map(m => (
+                    {(settings.ai_provider === 'openrouter' ? OPENROUTER_MODELS : LOVABLE_AI_MODELS).map(m => (
                       <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
 
+              {/* Manual model input for OpenRouter/Custom */}
+              {(settings.ai_provider === 'openrouter' || settings.ai_provider === 'custom') && (
+                <div>
+                  <Label>Or enter model manually</Label>
+                  <div className="flex gap-2 mt-1">
+                    <Input
+                      value={customModelInput}
+                      onChange={(e) => setCustomModelInput(e.target.value)}
+                      placeholder="e.g. openai/gpt-4o-mini"
+                    />
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={!customModelInput.trim()}
+                      onClick={() => {
+                        update('ai_model', customModelInput.trim());
+                        setCustomModelInput('');
+                        toast.success(`Model set to: ${customModelInput.trim()}`);
+                      }}
+                    >
+                      Set
+                    </Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Current model: <span className="font-mono text-foreground">{settings.ai_model}</span>
+                  </p>
+                </div>
+              )}
+
+              {/* Test Connection Button */}
+              <div className="pt-2 border-t border-border">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={testingConnection}
+                  onClick={async () => {
+                    setTestingConnection(true);
+                    setConnectionTestResult(null);
+                    try {
+                      // Save settings first
+                      await handleSave();
+                      // Then test
+                      const response = await fetch(EDGE_FUNCTION_URL, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'apikey': API_KEY },
+                        body: JSON.stringify({ action: 'test-connection' }),
+                      });
+                      const data = await response.json();
+                      setConnectionTestResult({
+                        success: data.success,
+                        message: data.message || data.error || 'Unknown result',
+                      });
+                    } catch (err: any) {
+                      setConnectionTestResult({
+                        success: false,
+                        message: err.message || 'Connection test failed',
+                      });
+                    } finally {
+                      setTestingConnection(false);
+                    }
+                  }}
+                >
+                  {testingConnection ? (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  ) : (
+                    <Zap className="h-4 w-4 mr-2" />
+                  )}
+                  Test API Connection
+                </Button>
+
+                {connectionTestResult && (
+                  <div className={`mt-2 p-2 rounded-lg text-sm flex items-start gap-2 ${
+                    connectionTestResult.success 
+                      ? 'bg-green-500/10 text-green-700 dark:text-green-400'
+                      : 'bg-destructive/10 text-destructive'
+                  }`}>
+                    {connectionTestResult.success 
+                      ? <CheckCircle className="h-4 w-4 mt-0.5 shrink-0" />
+                      : <XCircle className="h-4 w-4 mt-0.5 shrink-0" />
+                    }
+                    <span>{connectionTestResult.message}</span>
+                  </div>
+                )}
+              </div>
+
+              {/* System Prompt */}
               <div>
                 <Label>AI System Prompt</Label>
                 <Textarea
@@ -424,7 +557,7 @@ export const ChatbotSettings = () => {
                     <div className="flex items-center gap-1.5 mt-0.5">
                       <span className="w-2 h-2 rounded-full bg-green-400" />
                       <span className="text-xs opacity-90">
-                        {AI_MODELS.find(m => m.value === settings.ai_model)?.label || settings.ai_model}
+                        {[...OPENROUTER_MODELS, ...LOVABLE_AI_MODELS].find(m => m.value === settings.ai_model)?.label || settings.ai_model}
                       </span>
                     </div>
                   </div>
@@ -545,7 +678,7 @@ export const ChatbotSettings = () => {
                 {/* AI Model info */}
                 <div className="mt-3 p-2 bg-muted rounded-lg">
                   <p className="text-[10px] text-muted-foreground text-center">
-                    Powered by <span className="font-medium">{AI_MODELS.find(m => m.value === settings.ai_model)?.label || settings.ai_model}</span>
+                    Powered by <span className="font-medium">{[...OPENROUTER_MODELS, ...LOVABLE_AI_MODELS].find(m => m.value === settings.ai_model)?.label || settings.ai_model}</span>
                   </p>
                 </div>
               </CardContent>
