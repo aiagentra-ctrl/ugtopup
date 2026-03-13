@@ -2086,6 +2086,81 @@ export type Database = {
           },
         ]
       }
+      whatsapp_config: {
+        Row: {
+          api_key: string | null
+          connected_number: string | null
+          connection_status: string
+          created_at: string
+          id: string
+          instance_name: string
+          is_enabled: boolean
+          server_url: string | null
+          updated_at: string
+          webhook_url: string | null
+        }
+        Insert: {
+          api_key?: string | null
+          connected_number?: string | null
+          connection_status?: string
+          created_at?: string
+          id?: string
+          instance_name?: string
+          is_enabled?: boolean
+          server_url?: string | null
+          updated_at?: string
+          webhook_url?: string | null
+        }
+        Update: {
+          api_key?: string | null
+          connected_number?: string | null
+          connection_status?: string
+          created_at?: string
+          id?: string
+          instance_name?: string
+          is_enabled?: boolean
+          server_url?: string | null
+          updated_at?: string
+          webhook_url?: string | null
+        }
+        Relationships: []
+      }
+      whatsapp_messages: {
+        Row: {
+          created_at: string
+          direction: string
+          error_message: string | null
+          id: string
+          message: string
+          metadata: Json | null
+          phone_number: string
+          session_id: string | null
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          direction: string
+          error_message?: string | null
+          id?: string
+          message: string
+          metadata?: Json | null
+          phone_number: string
+          session_id?: string | null
+          status?: string
+        }
+        Update: {
+          created_at?: string
+          direction?: string
+          error_message?: string | null
+          id?: string
+          message?: string
+          metadata?: Json | null
+          phone_number?: string
+          session_id?: string | null
+          status?: string
+        }
+        Relationships: []
+      }
       wishlists: {
         Row: {
           created_at: string
