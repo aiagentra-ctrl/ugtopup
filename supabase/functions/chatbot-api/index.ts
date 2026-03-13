@@ -285,6 +285,28 @@ async function storeMessage(sessionId: string, platform: string, role: string, m
 
 // ── AI Call ──
 
+function getAIConfig(settings: any): { apiUrl: string; apiKey: string } {
+  const provider = settings?.ai_provider || "lovable_ai";
+
+  if (provider === "openrouter") {
+    const apiKey = Deno.env.get("OPENROUTER_API_KEY") || "";
+    if (!apiKey) throw new Error("OpenRouter API key not configured. Add OPENROUTER_API_KEY secret.");
+    return { apiUrl: "https://openrouter.ai/api/v1/chat/completions", apiKey };
+  }
+
+  if (provider === "custom" && settings?.custom_api_url) {
+    const keyName = settings.custom_api_key_name || "CUSTOM_AI_API_KEY";
+    const apiKey = Deno.env.get(keyName) || "";
+    if (!apiKey) throw new Error(`Custom AI API key not configured. Add secret: ${keyName}`);
+    return { apiUrl: settings.custom_api_url, apiKey };
+  }
+
+  // Default: Lovable AI
+  const apiKey = Deno.env.get("LOVABLE_API_KEY") || "";
+  if (!apiKey) throw new Error("AI is not configured. LOVABLE_API_KEY missing.");
+  return { apiUrl: "https://ai.gateway.lovable.dev/v1/chat/completions", apiKey };
+}
+
 async function callAI(
   message: string,
   settings: any,
@@ -292,25 +314,7 @@ async function callAI(
   knowledgeContext?: string,
   conversationHistory?: ConversationMessage[]
 ): Promise<string> {
-  const isCustom = settings?.ai_provider === "custom" && settings?.custom_api_url;
-  
-  let apiUrl: string;
-  let apiKey: string;
-
-  if (isCustom) {
-    apiUrl = settings.custom_api_url;
-    const keyName = settings.custom_api_key_name || "CUSTOM_AI_API_KEY";
-    apiKey = Deno.env.get(keyName) || "";
-    if (!apiKey) {
-      throw new Error(`Custom AI API key not configured. Add secret: ${keyName}`);
-    }
-  } else {
-    apiUrl = "https://ai.gateway.lovable.dev/v1/chat/completions";
-    apiKey = Deno.env.get("LOVABLE_API_KEY") || "";
-    if (!apiKey) {
-      throw new Error("AI is not configured. LOVABLE_API_KEY missing.");
-    }
-  }
+  const { apiUrl, apiKey } = getAIConfig(settings);
 
   const model = settings?.ai_model || "google/gemini-3-flash-preview";
   const systemPrompt =
