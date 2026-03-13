@@ -1042,6 +1042,8 @@ Deno.serve(async (req) => {
         return await handleFeedback(body);
       case "cleanup-conversations":
         return await handleCleanupConversations();
+      case "test-connection":
+        return await handleTestConnection();
       default:
         return new Response(
           JSON.stringify({ error: `Unknown action: ${action}` }),
