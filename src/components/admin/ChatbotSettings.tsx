@@ -77,6 +77,9 @@ export const ChatbotSettings = () => {
   const [testMessages, setTestMessages] = useState<TestMessage[]>([]);
   const [testInput, setTestInput] = useState('');
   const [testLoading, setTestLoading] = useState(false);
+  const [connectionTestResult, setConnectionTestResult] = useState<{ success: boolean; message: string } | null>(null);
+  const [testingConnection, setTestingConnection] = useState(false);
+  const [customModelInput, setCustomModelInput] = useState('');
   const testEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
