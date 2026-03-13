@@ -173,6 +173,8 @@ const AdminPanel = () => {
         return <DatabaseManagement />;
       case "advanced-analytics":
         return <AdvancedAnalytics />;
+      case "whatsapp":
+        return <WhatsAppChatbot />;
       default:
         return <EnhancedDashboard />;
     }
