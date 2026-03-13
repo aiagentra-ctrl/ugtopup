@@ -1014,6 +1014,67 @@ async function handleCleanupConversations() {
   );
 }
 
+// ── Test Connection ──
+
+async function handleTestConnection() {
+  try {
+    const settings = await getSettings();
+    const { apiUrl, apiKey } = getAIConfig(settings);
+    const model = settings?.ai_model || "google/gemini-3-flash-preview";
+
+    const response = await fetch(apiUrl, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model,
+        messages: [
+          { role: "system", content: "You are a test assistant." },
+          { role: "user", content: "Say hello in one word." },
+        ],
+        max_tokens: 10,
+      }),
+    });
+
+    if (!response.ok) {
+      const errText = await response.text();
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: `API returned ${response.status}: ${errText.slice(0, 200)}`,
+          provider: settings?.ai_provider || "lovable_ai",
+          model,
+        }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const data = await response.json();
+    const reply = data.choices?.[0]?.message?.content || "OK";
+
+    return new Response(
+      JSON.stringify({
+        success: true,
+        message: `Connection successful! Model responded: "${reply}"`,
+        provider: settings?.ai_provider || "lovable_ai",
+        model,
+        timestamp: new Date().toISOString(),
+      }),
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  } catch (err: any) {
+    return new Response(
+      JSON.stringify({
+        success: false,
+        error: err.message || "Connection test failed",
+      }),
+      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
+}
+
 // ── Main Router ──
 
 Deno.serve(async (req) => {
