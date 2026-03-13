@@ -1,96 +1,132 @@
 
-# Dynamic Website with Advanced Admin Panel
+
+# WhatsApp Chatbot System
 
 ## Overview
-Make the entire website content dynamic and admin-controlled by creating two new admin sections and supporting database tables. The existing "Products (New)" page (GameProductPrices) will remain completely untouched.
 
-## What Changes
+Add a WhatsApp chatbot integration that reuses the existing `chatbot-api` edge function as the AI brain. The system uses Evolution API (already provided credentials) as the WhatsApp provider, with a new webhook edge function to receive/send WhatsApp messages, and an admin UI to configure and monitor everything.
 
-### Phase 1: Database Setup
+## Architecture
 
-**New table: `dynamic_products`** - stores products displayed on the homepage
-- `id`, `title`, `description`, `image_url`, `link`, `category` (topup/voucher/subscription/design), `price`, `discount_price`, `features` (jsonb array), `tags` (text array), `plans` (jsonb array), `display_order`, `is_active`, `created_at`, `updated_at`
+```text
+User sends WhatsApp message
+  → Evolution API receives it
+  → Sends webhook to /whatsapp-webhook edge function
+  → whatsapp-webhook calls chatbot-api (message action) with platform="whatsapp"
+  → AI response returned
+  → whatsapp-webhook sends reply back via Evolution API
+  → User receives reply on WhatsApp
+```
 
-**New table: `product_categories`** - dynamic categories
-- `id`, `name`, `slug`, `display_order`, `is_active`, `created_at`, `updated_at`
+No new chatbot API needed — the existing `chatbot-api` already handles messages, orders, order tracking, payments, and credit requests with platform awareness.
 
-**New table: `offers`** - dynamic offer/deal sections
-- `id`, `title`, `subtitle`, `description`, `image_url`, `offer_type` (flash_sale/limited_time/daily_deal/discount_bundle), `timer_enabled`, `timer_type` (hours/days/both/none), `timer_end_date`, `product_link`, `custom_icon_url`, `display_order`, `is_active`, `show_on_homepage`, `show_on_product_page`, `created_at`, `updated_at`
+## Database Changes (1 migration)
 
-RLS: Public SELECT for active items, admin ALL for management.
+### New table: `whatsapp_config`
+- `id` uuid PK
+- `is_enabled` boolean DEFAULT false
+- `instance_name` text DEFAULT 'ugc-topup'
+- `server_url` text (Evolution API server URL)
+- `api_key` text (Evolution API key — stored in DB since admin needs to change it freely)
+- `webhook_url` text (auto-generated, points to our edge function)
+- `connected_number` text (the WhatsApp number)
+- `connection_status` text DEFAULT 'disconnected' (connected/disconnected/connecting)
+- `created_at` / `updated_at` timestamps
+- RLS: admin SELECT/UPDATE only
 
-**Seed `dynamic_products`** with current hardcoded data from ProductTabs so nothing changes visually on day one.
+### New table: `whatsapp_messages`
+- `id` uuid PK
+- `phone_number` text NOT NULL
+- `direction` text NOT NULL (inbound/outbound)
+- `message` text NOT NULL
+- `session_id` text (maps to chatbot_conversations session)
+- `status` text DEFAULT 'sent' (sent/delivered/read/failed)
+- `error_message` text
+- `metadata` jsonb DEFAULT '{}'
+- `created_at` timestamptz DEFAULT now()
+- RLS: admin SELECT only, service role INSERT
+- Auto-delete after 15 days (reuse cleanup logic)
 
-### Phase 2: Admin Panel - Product Update Page (new section)
+## Secrets
 
-Add a new sidebar menu item **"Product Update"** in AdminLayout.
+The Evolution API key and server URL will be stored in the `whatsapp_config` table (not as edge function secrets) so the admin can change them from the UI without developer intervention.
 
-New component: `src/components/admin/DynamicProductManager.tsx`
-- Full CRUD table listing all dynamic products
-- Inline editing with image upload (to `product-images` storage bucket)
-- Fields: title, description, image, link, category, price, discount price, features (add/remove chips), tags (add/remove), plans (JSON editor)
-- Product preview panel showing how it looks on the frontend
-- Search, filter by category, drag-to-reorder
+## New Edge Function: `whatsapp-webhook`
 
-New component: `src/components/admin/CategoryManager.tsx`
-- Add/rename/delete categories
-- Reorder categories via drag or arrows
-- Auto-updates category options across the product form
+Receives incoming WhatsApp messages from Evolution API webhook, processes them through the chatbot-api, and sends replies back.
 
-### Phase 3: Admin Panel - Offer Management Page (new section)
+**Flow:**
+1. Receive POST from Evolution API with message payload
+2. Extract sender phone number and message text
+3. Generate session_id from phone number (e.g., `wa-{phone}`)
+4. Load whatsapp_config to check if enabled
+5. Call chatbot-api logic internally (reuse handleMessage with platform="whatsapp")
+6. Send AI reply back via Evolution API `POST /message/sendText/{instance}`
+7. Log both messages in `whatsapp_messages` table
 
-Add a new sidebar menu item **"Offers"** in AdminLayout.
+**Handles:** text messages, ignores media/status updates gracefully.
 
-New component: `src/components/admin/OfferManager.tsx`
-- List all offers with enable/disable toggle
-- Add new offer with form: title, subtitle, description, image upload, offer type selector, timer controls (enable/disable, type, end date), product link picker
-- Edit existing offers inline
-- Reorder offers
-- Toggle homepage/product page visibility
+## New Admin Component: `WhatsAppChatbot.tsx`
 
-### Phase 4: Frontend - Make ProductTabs Dynamic
+### Configuration Tab
+- Server URL input (pre-filled with provided URL)
+- API Key input (masked, with show/hide toggle)
+- Instance name input
+- WhatsApp number display
+- Enable/Disable toggle
+- Save Configuration button
+- Test Connection button (calls Evolution API `/instance/connectionState`)
 
-Update `src/components/ProductTabs.tsx`:
-- Fetch products from `dynamic_products` table instead of hardcoded `productData`
-- Fetch categories from `product_categories` table for tab names
-- Keep the exact same visual layout, just swap data source
-- Real-time subscription so admin changes appear instantly
+### Number Management Tab
+- Connect new number (generates QR code via Evolution API)
+- View connected number and status
+- Disconnect number button
+- Replace number flow
 
-### Phase 5: Frontend - Make BestDeals/Offers Dynamic
+### Message Logs Tab
+- Table showing: phone number, direction (in/out), message preview, timestamp, status
+- Filter by date range
+- Filter by phone number
+- Auto-refresh every 30 seconds
+- Error highlighting for failed messages
 
-Update `src/components/BestDeals.tsx`:
-- Fetch active homepage offers from `offers` table
-- Render offer blocks dynamically with optional countdown timers
-- Keep existing visual style, just make content admin-controlled
+### Statistics Cards (top)
+- Total messages today
+- Active conversations
+- Messages this week
+- Error count
 
-### What Will NOT Change
-- **"Products (New)" page** (`GameProductPrices` component) -- zero modifications
-- **Existing `ProductsList`** component -- untouched
-- **Game pricing system** (`game_product_prices` table) -- untouched
-- **Overall website design/layout** -- only data sources change
+## Admin Panel Integration
 
-## Technical Details
+Add to `AdminLayout.tsx` menu items:
+- `{ id: "whatsapp", title: "WhatsApp Chatbot", icon: MessageSquare }`
 
-### New Files
-- `src/components/admin/DynamicProductManager.tsx` - Product Update admin page
-- `src/components/admin/CategoryManager.tsx` - Category management
-- `src/components/admin/OfferManager.tsx` - Offer management admin page
-- `src/lib/dynamicProductApi.ts` - API functions for dynamic products/categories
-- `src/lib/offerApi.ts` - API functions for offers
-- `src/hooks/useDynamicProducts.ts` - Frontend hook with real-time subscriptions
-- `src/hooks/useOffers.ts` - Frontend hook for offers
+Add to `AdminPanel.tsx` switch case:
+- `case "whatsapp": return <WhatsAppChatbot />`
 
-### Modified Files
-- `src/components/admin/AdminLayout.tsx` - Add 3 new sidebar items (Product Update, Categories, Offers)
-- `src/pages/AdminPanel.tsx` - Add new section cases in switch
-- `src/components/ProductTabs.tsx` - Replace hardcoded data with database fetch
-- `src/components/BestDeals.tsx` - Replace hardcoded deals with database fetch
+## File Changes
 
-### New Storage Bucket
-- `product-images` (public) for product image uploads
+| File | Action |
+|------|--------|
+| Migration SQL | Create `whatsapp_config` + `whatsapp_messages` tables, seed default config |
+| `supabase/functions/whatsapp-webhook/index.ts` | New edge function for webhook processing |
+| `supabase/config.toml` | Add whatsapp-webhook with verify_jwt=false |
+| `src/components/admin/WhatsAppChatbot.tsx` | New admin component with 3 tabs |
+| `src/components/admin/AdminLayout.tsx` | Add menu item |
+| `src/pages/AdminPanel.tsx` | Add route case |
 
-### Database Migration
-- Create `dynamic_products`, `product_categories`, `offers` tables
-- Create `product-images` storage bucket
-- RLS policies for all new tables
-- Seed initial data from current hardcoded products
+## Security
+
+- Webhook validates requests by checking a shared token in the URL query parameter
+- Rate limiting per phone number (reuses existing rate limiter pattern)
+- API key stored in database, accessed only by service role
+- Message logs auto-cleanup after 15 days
+- Input sanitization on all incoming messages
+
+## Implementation Order
+
+1. Database migration (tables + seed)
+2. WhatsApp webhook edge function
+3. Admin UI component
+4. Wire into AdminLayout + AdminPanel
+
