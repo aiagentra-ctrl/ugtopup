@@ -557,7 +557,7 @@ export const ChatbotSettings = () => {
                     <div className="flex items-center gap-1.5 mt-0.5">
                       <span className="w-2 h-2 rounded-full bg-green-400" />
                       <span className="text-xs opacity-90">
-                        {AI_MODELS.find(m => m.value === settings.ai_model)?.label || settings.ai_model}
+                        {[...OPENROUTER_MODELS, ...LOVABLE_AI_MODELS].find(m => m.value === settings.ai_model)?.label || settings.ai_model}
                       </span>
                     </div>
                   </div>
