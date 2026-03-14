@@ -464,11 +464,23 @@ async function processIncomingMessage(
       chatResponse?.message ||
       "Sorry, I could not process your request.";
 
-    const evolutionResponse = await sendWhatsAppReply(config, incoming.phone, replyText, 1200);
+    const resolvedInstanceName = await getResolvedInstanceName(config);
+    const evolutionResponse = await sendWhatsAppReply(
+      config,
+      incoming.phone,
+      replyText,
+      1200,
+      resolvedInstanceName,
+    );
 
     await logMessage(incoming.phone, "outbound", replyText, sessionId, "sent", undefined, {
       webhook_event: incoming.event,
       provider: "evolution",
+      stage: "send_message",
+      ai_input_preview: payloadPreview(incoming.text, 1200),
+      ai_reply_preview: payloadPreview(replyText, 1200),
+      ai_response_preview: payloadPreview(chatResponse),
+      instance_name_used: evolutionResponse.instanceNameUsed,
       provider_status: evolutionResponse.status,
       provider_response_preview: payloadPreview(evolutionResponse.data),
       simulated: isSimulated,
