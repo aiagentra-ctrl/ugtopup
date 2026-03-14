@@ -19,16 +19,13 @@ import {
   BarChart3,
   Wifi,
   WifiOff,
-  QrCode,
   Eye,
   EyeOff,
   RefreshCw,
   Send,
-  Trash2,
   Loader2,
   ArrowDownUp,
   CheckCircle2,
-  XCircle,
   AlertTriangle,
   Copy,
   ExternalLink,
@@ -100,7 +97,6 @@ export function WhatsAppChatbot() {
   const [disconnecting, setDisconnecting] = useState(false);
   const [settingWebhook, setSettingWebhook] = useState(false);
   const [showApiKey, setShowApiKey] = useState(false);
-  const [qrData, setQrData] = useState<string | null>(null);
   const [phoneFilter, setPhoneFilter] = useState("");
   const [stats, setStats] = useState({ today: 0, week: 0, active: 0, errors: 0 });
   const [health, setHealth] = useState<WebhookHealth | null>(null);
@@ -300,35 +296,6 @@ export function WhatsAppChatbot() {
     }
   };
 
-  const handleGetQR = async () => {
-    setGettingQr(true);
-    setQrData(null);
-    try {
-      const { data, error } = await supabase.functions.invoke("whatsapp-webhook", {
-        body: { admin_action: "get-qr" },
-      });
-      if (error) throw error;
-      if (data?.success) {
-        const base64 = data.qr?.base64 || data.qr?.qrcode?.base64 || null;
-        const pairingCode = data.qr?.pairingCode || data.qr?.code || null;
-        if (base64) {
-          setQrData(base64);
-          toast.success("QR code generated");
-        } else if (pairingCode) {
-          toast.success(`Pairing code: ${pairingCode}`);
-        } else {
-          toast.info("Instance updated. Please check status.");
-        }
-      } else {
-        toast.error(`Failed: ${data?.error || "Unknown"}`);
-      }
-    } catch (e: any) {
-      toast.error(`Failed to get QR: ${e.message}`);
-    } finally {
-      setGettingQr(false);
-    }
-  };
-
   const handleDisconnect = async () => {
     if (!confirm("Disconnect this WhatsApp number?")) return;
     setDisconnecting(true);
@@ -338,7 +305,6 @@ export function WhatsAppChatbot() {
       });
       if (error) throw error;
       toast.success("Disconnected");
-      setQrData(null);
       await Promise.all([loadConfig(), loadHealth()]);
     } catch (e: any) {
       toast.error(`Failed: ${e.message}`);
@@ -518,9 +484,8 @@ export function WhatsAppChatbot() {
       )}
 
       <Tabs defaultValue="config" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="config" className="flex items-center gap-2"><Settings className="h-4 w-4" />Config</TabsTrigger>
-          <TabsTrigger value="number" className="flex items-center gap-2"><Phone className="h-4 w-4" />Number</TabsTrigger>
           <TabsTrigger value="conversations" className="flex items-center gap-2"><MessageSquare className="h-4 w-4" />Chats</TabsTrigger>
           <TabsTrigger value="logs" className="flex items-center gap-2"><BarChart3 className="h-4 w-4" />Logs</TabsTrigger>
           <TabsTrigger value="debug" className="flex items-center gap-2"><Bug className="h-4 w-4" />Debug</TabsTrigger>
@@ -581,6 +546,7 @@ export function WhatsAppChatbot() {
           <Card>
             <CardHeader>
               <CardTitle>API Configuration</CardTitle>
+              <CardDescription>Connected number: <span className="font-mono font-bold">+9779826884653</span> (9779826884653@s.whatsapp.net)</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex items-center justify-between">
@@ -624,62 +590,7 @@ export function WhatsAppChatbot() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="number" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>WhatsApp Number Management</CardTitle>
-              <CardDescription>Connect, disconnect, and verify active WhatsApp device</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              {config?.connection_status === "connected" ? (
-                <div className="space-y-4">
-                  <div className="p-4 rounded-lg bg-muted border">
-                    <div className="flex items-center gap-3">
-                      <CheckCircle2 className="h-5 w-5 text-primary" />
-                      <div>
-                        <p className="font-medium">Connected</p>
-                        <p className="text-sm text-muted-foreground">Number: {config.connected_number ? `+${config.connected_number}` : "unknown"}</p>
-                        <p className="text-xs text-muted-foreground">Instance: {config.instance_name}</p>
-                      </div>
-                    </div>
-                  </div>
-                  <Button variant="destructive" onClick={handleDisconnect} disabled={disconnecting}>
-                    {disconnecting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}<Trash2 className="h-4 w-4 mr-2" />Disconnect Number
-                  </Button>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  <div className="p-4 rounded-lg bg-muted border">
-                    <div className="flex items-center gap-3">
-                      <XCircle className="h-5 w-5 text-muted-foreground" />
-                      <div>
-                        <p className="font-medium">Not Connected</p>
-                        <p className="text-sm text-muted-foreground">Generate QR and link from WhatsApp app</p>
-                      </div>
-                    </div>
-                  </div>
-                  <Button onClick={handleGetQR} disabled={gettingQr}>
-                    {gettingQr ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <QrCode className="h-4 w-4 mr-2" />}Generate QR
-                  </Button>
-                  {qrData && (
-                    <div className="flex flex-col items-center gap-3 p-6 bg-background rounded-lg border">
-                      <p className="font-medium">Scan with WhatsApp</p>
-                      <img
-                        src={qrData.startsWith("data:") ? qrData : `data:image/png;base64,${qrData}`}
-                        alt="WhatsApp QR code"
-                        className="w-64 h-64"
-                      />
-                      <p className="text-sm text-muted-foreground">WhatsApp → Linked Devices → Link a Device</p>
-                    </div>
-                  )}
-                  <Button variant="outline" onClick={() => Promise.all([loadConfig(), loadHealth()])} className="w-full">
-                    <RefreshCw className="h-4 w-4 mr-2" />Refresh Status
-                  </Button>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
+        {/* Number tab removed - webhook-only integration */}
 
         <TabsContent value="conversations" className="space-y-4">
           <Card>

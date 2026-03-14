@@ -490,36 +490,8 @@ Deno.serve(async (req) => {
         }
 
         case "get-qr": {
-          try {
-            await fetch(`${config.server_url}/instance/create`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json", apikey: config.api_key },
-              body: JSON.stringify({
-                instanceName: config.instance_name,
-                integration: "WHATSAPP-BAILEYS",
-                qrcode: true,
-              }),
-            });
-
-            const connectRes = await fetch(
-              `${config.server_url}/instance/connect/${config.instance_name}`,
-              { headers: { apikey: config.api_key } },
-            );
-            const connectData = await connectRes.json();
-
-            const db = supabaseAdmin();
-            await db
-              .from("whatsapp_config")
-              .update({
-                connection_status: "connecting",
-                updated_at: new Date().toISOString(),
-              })
-              .eq("id", config.id);
-
-            return ok({ success: true, qr: connectData });
-          } catch (error) {
-            return err(safeErrorMessage(error), 500);
-          }
+          // QR system removed - webhook-only integration
+          return ok({ success: false, error: "QR system has been removed. This is a webhook-only integration." });
         }
 
         case "disconnect": {
