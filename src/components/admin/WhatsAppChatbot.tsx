@@ -567,7 +567,10 @@ export function WhatsAppChatbot() {
           <Card>
             <CardHeader>
               <CardTitle>API Configuration</CardTitle>
-              <CardDescription>Connected number: <span className="font-mono font-bold">+9779826884653</span> (9779826884653@s.whatsapp.net)</CardDescription>
+              <CardDescription>
+                Connected number: <span className="font-mono font-bold">{config?.connected_number ? `+${config.connected_number}` : "Not detected yet"}</span>
+                {" "}• Instance: <span className="font-mono">{formInstanceName || "—"}</span>
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex items-center justify-between">
