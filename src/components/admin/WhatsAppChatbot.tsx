@@ -296,35 +296,6 @@ export function WhatsAppChatbot() {
     }
   };
 
-  const handleGetQR = async () => {
-    setGettingQr(true);
-    setQrData(null);
-    try {
-      const { data, error } = await supabase.functions.invoke("whatsapp-webhook", {
-        body: { admin_action: "get-qr" },
-      });
-      if (error) throw error;
-      if (data?.success) {
-        const base64 = data.qr?.base64 || data.qr?.qrcode?.base64 || null;
-        const pairingCode = data.qr?.pairingCode || data.qr?.code || null;
-        if (base64) {
-          setQrData(base64);
-          toast.success("QR code generated");
-        } else if (pairingCode) {
-          toast.success(`Pairing code: ${pairingCode}`);
-        } else {
-          toast.info("Instance updated. Please check status.");
-        }
-      } else {
-        toast.error(`Failed: ${data?.error || "Unknown"}`);
-      }
-    } catch (e: any) {
-      toast.error(`Failed to get QR: ${e.message}`);
-    } finally {
-      setGettingQr(false);
-    }
-  };
-
   const handleDisconnect = async () => {
     if (!confirm("Disconnect this WhatsApp number?")) return;
     setDisconnecting(true);
@@ -334,7 +305,6 @@ export function WhatsAppChatbot() {
       });
       if (error) throw error;
       toast.success("Disconnected");
-      setQrData(null);
       await Promise.all([loadConfig(), loadHealth()]);
     } catch (e: any) {
       toast.error(`Failed: ${e.message}`);
