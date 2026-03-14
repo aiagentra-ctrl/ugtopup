@@ -293,23 +293,6 @@ export function WhatsAppChatbot() {
     }
   };
 
-  const handleDisconnect = async () => {
-    if (!confirm("Disconnect this WhatsApp number?")) return;
-    setDisconnecting(true);
-    try {
-      const { error } = await supabase.functions.invoke("whatsapp-webhook", {
-        body: { admin_action: "disconnect" },
-      });
-      if (error) throw error;
-      toast.success("Disconnected");
-      await Promise.all([loadConfig(), loadHealth()]);
-    } catch (e: any) {
-      toast.error(`Failed: ${e.message}`);
-    } finally {
-      setDisconnecting(false);
-    }
-  };
-
   const handleSetWebhook = async () => {
     setSettingWebhook(true);
     try {
