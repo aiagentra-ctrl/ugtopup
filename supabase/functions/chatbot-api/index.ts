@@ -941,8 +941,8 @@ Website: https://ugtopups.lovable.app
     console.error("Brain error:", err.message);
 
     // Fallback: if we have product data, return it even without AI
-    if (productResults && productResults.length > 0) {
-      const fallbackReply = `Here are the available packages:\n${productResults.map((p: any) => `• ${p.name} — ${p.price_display}`).join("\n")}\n\nDelivery: ${productResults[0].delivery_time}`;
+    if (effectiveProducts && effectiveProducts.length > 0) {
+      const fallbackReply = formatProductResponse(effectiveProducts);
 
       if (session_id) {
         await storeMessage(session_id, effectivePlatform, "assistant", fallbackReply);
@@ -950,8 +950,8 @@ Website: https://ugtopups.lovable.app
 
       return jsonResponse({
         success: true, reply: fallbackReply, action: "product_search",
-        data: { products: productResults },
-        products: productResults, product: productResults[0],
+        data: { products: effectiveProducts },
+        products: effectiveProducts, product: effectiveProducts[0],
         timestamp: new Date().toISOString(),
       });
     }
