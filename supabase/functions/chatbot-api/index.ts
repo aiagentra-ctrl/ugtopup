@@ -102,60 +102,159 @@ async function searchKnowledgeBase(message: string): Promise<string | null> {
   return scored.slice(0, 5).map((e: any) => `[${e.category.toUpperCase()}] ${e.title}\n${e.content}`).join("\n\n---\n\n");
 }
 
-// ── Product Search ──
+// ── Product Search (Fuzzy + DB) ──
+
+// Common typos and synonyms for fuzzy matching
+const FUZZY_ALIASES: Record<string, string[]> = {
+  freefire: ["free fire", "freefire", "ff", "free fir", "frefire", "fre fire"],
+  mobile_legends: ["mobile legends", "mobile legend", "ml", "mlbb", "mobi legends"],
+  pubg: ["pubg", "pubg mobile", "pubgm", "battleground"],
+  roblox: ["roblox", "robux", "rblx"],
+  netflix: ["netflix", "netflex", "netfix"],
+  tiktok: ["tiktok", "tik tok", "tikto", "tiktk"],
+  youtube: ["youtube", "yt", "you tube", "youtub"],
+  chatgpt: ["chatgpt", "chat gpt", "gpt", "openai"],
+  garena: ["garena", "garena shell", "shell"],
+  smilecoin: ["smile", "smilecoin", "smile coin", "smile one"],
+  unipin: ["unipin", "uni pin", "unipi"],
+};
+
+function fuzzyMatchGame(query: string): string | null {
+  const lower = query.toLowerCase().replace(/[^a-z0-9\s]/g, "").trim();
+  // Direct keyword match first
+  const directMatch = PRODUCT_KEYWORDS.find((kw) => lower.includes(kw));
+  if (directMatch) return KEYWORD_TO_GAME[directMatch] || directMatch;
+  // Fuzzy alias match
+  for (const [game, aliases] of Object.entries(FUZZY_ALIASES)) {
+    for (const alias of aliases) {
+      if (lower.includes(alias)) return game;
+    }
+  }
+  return null;
+}
+
+function getRouteForGame(game: string): string | null {
+  const gameToRoute: Record<string, string> = {
+    freefire: "/freefire-diamond", mobile_legends: "/mobile-legends",
+    pubg: "/pubg-mobile", roblox: "/roblox-topup", netflix: "/netflix",
+    tiktok: "/tiktok-coins", youtube: "/youtube", chatgpt: "/chatgpt",
+    garena: "/garena-shell", smilecoin: "/smile-coin", unipin: "/unipin-uc",
+  };
+  return gameToRoute[game] || null;
+}
 
 async function searchProducts(query: string) {
   const sb = supabaseAdmin();
-  const lowerMsg = query.toLowerCase();
+  const lowerMsg = query.toLowerCase().replace(/[^a-z0-9\s]/g, "").trim();
+  if (!lowerMsg || lowerMsg.length < 2) return null;
 
-  const matchedKeyword = PRODUCT_KEYWORDS.find((kw) => lowerMsg.includes(kw));
-  if (!matchedKeyword) return null;
+  // Step 1: Try fuzzy keyword match to game
+  const matchedGame = fuzzyMatchGame(lowerMsg);
+  const route = matchedGame ? getRouteForGame(matchedGame) : null;
 
-  const gameName = KEYWORD_TO_GAME[matchedKeyword] || matchedKeyword;
-  const route = PRODUCT_ROUTES[matchedKeyword] || null;
+  if (matchedGame) {
+    // Fetch real-time prices from game_product_prices
+    const { data: gamePrices } = await sb.from("game_product_prices")
+      .select("package_name, package_id, price, currency, game, quantity, package_type")
+      .eq("is_active", true).eq("game", matchedGame)
+      .order("display_order", { ascending: true }).limit(20);
 
-  const { data: gamePrices } = await sb.from("game_product_prices")
-    .select("package_name, package_id, price, currency, game, quantity")
-    .eq("is_active", true).eq("game", gameName)
-    .order("display_order", { ascending: true }).limit(10);
+    if (gamePrices && gamePrices.length > 0) {
+      // Get product image
+      const { data: productInfo } = await sb.from("dynamic_products")
+        .select("image_url, description").eq("is_active", true)
+        .or(PRODUCT_KEYWORDS.filter(kw => KEYWORD_TO_GAME[kw] === matchedGame).map(kw => `title.ilike.%${kw}%`).join(","))
+        .limit(1);
+      const imageUrl = productInfo?.[0]?.image_url || null;
+      const description = productInfo?.[0]?.description || null;
 
-  if (gamePrices && gamePrices.length > 0) {
-    const { data: productInfo } = await sb.from("dynamic_products")
-      .select("image_url").eq("is_active", true).ilike("title", `%${matchedKeyword}%`).limit(1);
-    let imageUrl = productInfo?.[0]?.image_url || null;
-    if (!imageUrl) {
-      const { data: legacyProduct } = await sb.from("products")
-        .select("image_url").eq("is_active", true).ilike("name", `%${matchedKeyword}%`).limit(1);
-      imageUrl = legacyProduct?.[0]?.image_url || null;
+      return gamePrices.map((p: any) => ({
+        name: p.package_name,
+        package_id: p.package_id,
+        price: p.price,
+        currency: p.currency || "NPR",
+        price_display: `${p.currency || "NPR"} ${p.price}`,
+        image_url: imageUrl,
+        link: route,
+        delivery_time: "5–10 minutes",
+        description,
+        package_type: p.package_type,
+        quantity: p.quantity,
+      }));
     }
-
-    return gamePrices.map((p: any) => ({
-      name: p.package_name,
-      package_id: p.package_id,
-      price: p.price,
-      currency: p.currency || "NPR",
-      price_display: `${p.currency || "NPR"} ${p.price}`,
-      image_url: imageUrl,
-      link: route,
-      delivery_time: "5–10 minutes",
-    }));
   }
 
-  const { data: dynProducts } = await sb.from("dynamic_products")
-    .select("title, price, discount_price, image_url, link, description")
-    .eq("is_active", true).ilike("title", `%${matchedKeyword}%`).limit(3);
+  // Step 2: Broad text search across game_product_prices (fuzzy)
+  const searchWords = lowerMsg.split(/\s+/).filter(w => w.length >= 3);
+  if (searchWords.length > 0) {
+    const orFilters = searchWords.flatMap(w => [`package_name.ilike.%${w}%`, `game.ilike.%${w}%`]).join(",");
+    const { data: broadPrices } = await sb.from("game_product_prices")
+      .select("package_name, package_id, price, currency, game, quantity, package_type")
+      .eq("is_active", true).or(orFilters)
+      .order("display_order", { ascending: true }).limit(15);
 
-  if (dynProducts && dynProducts.length > 0) {
-    return dynProducts.map((p: any) => ({
-      name: p.title,
-      price: p.discount_price || p.price || 0,
-      currency: "NPR",
-      price_display: (p.discount_price || p.price) ? `NPR ${p.discount_price || p.price}` : "See product page",
-      image_url: p.image_url,
-      link: p.link || route,
-      delivery_time: "5–10 minutes",
-    }));
+    if (broadPrices && broadPrices.length > 0) {
+      const gameKey = broadPrices[0].game;
+      const broadRoute = getRouteForGame(gameKey);
+      return broadPrices.map((p: any) => ({
+        name: p.package_name,
+        package_id: p.package_id,
+        price: p.price,
+        currency: p.currency || "NPR",
+        price_display: `${p.currency || "NPR"} ${p.price}`,
+        image_url: null,
+        link: broadRoute,
+        delivery_time: "5–10 minutes",
+        package_type: p.package_type,
+        quantity: p.quantity,
+      }));
+    }
   }
+
+  // Step 3: Search dynamic_products catalog
+  if (searchWords.length > 0) {
+    const dynFilters = searchWords.map(w => `title.ilike.%${w}%`).join(",");
+    const { data: dynProducts } = await sb.from("dynamic_products")
+      .select("title, price, discount_price, image_url, link, description, features")
+      .eq("is_active", true).or(dynFilters).limit(5);
+
+    if (dynProducts && dynProducts.length > 0) {
+      return dynProducts.map((p: any) => ({
+        name: p.title,
+        price: p.discount_price || p.price || 0,
+        currency: "NPR",
+        price_display: (p.discount_price || p.price) ? `NPR ${p.discount_price || p.price}` : "See product page",
+        image_url: p.image_url,
+        link: p.link,
+        delivery_time: "5–10 minutes",
+        description: p.description,
+        features: p.features,
+      }));
+    }
+  }
+
+  // Step 4: Search products table as final fallback
+  if (searchWords.length > 0) {
+    const prodFilters = searchWords.flatMap(w => [`name.ilike.%${w}%`, `description.ilike.%${w}%`]).join(",");
+    const { data: products } = await sb.from("products")
+      .select("name, price, original_price, image_url, description, product_id, category")
+      .eq("is_active", true).or(prodFilters).limit(5);
+
+    if (products && products.length > 0) {
+      return products.map((p: any) => ({
+        name: p.name,
+        package_id: p.product_id,
+        price: p.price,
+        currency: "NPR",
+        price_display: `NPR ${p.price}`,
+        image_url: p.image_url,
+        link: getRouteForGame(p.category) || null,
+        delivery_time: "5–10 minutes",
+        description: p.description,
+      }));
+    }
+  }
+
   return null;
 }
 
