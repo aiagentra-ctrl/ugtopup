@@ -25,7 +25,6 @@ import {
   Send,
   Loader2,
   ArrowDownUp,
-  CheckCircle2,
   AlertTriangle,
   Copy,
   ExternalLink,
