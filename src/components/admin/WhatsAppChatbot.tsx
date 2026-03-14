@@ -504,9 +504,10 @@ export function WhatsAppChatbot() {
       )}
 
       <Tabs defaultValue="config" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="config" className="flex items-center gap-2"><Settings className="h-4 w-4" />Config</TabsTrigger>
           <TabsTrigger value="conversations" className="flex items-center gap-2"><MessageSquare className="h-4 w-4" />Chats</TabsTrigger>
+          <TabsTrigger value="flow" className="flex items-center gap-2"><Activity className="h-4 w-4" />Flow</TabsTrigger>
           <TabsTrigger value="logs" className="flex items-center gap-2"><BarChart3 className="h-4 w-4" />Logs</TabsTrigger>
           <TabsTrigger value="debug" className="flex items-center gap-2"><Bug className="h-4 w-4" />Debug</TabsTrigger>
         </TabsList>
