@@ -92,8 +92,6 @@ export function WhatsAppChatbot() {
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
   const [testingWebhook, setTestingWebhook] = useState(false);
-  const [gettingQr, setGettingQr] = useState(false);
-  const [disconnecting, setDisconnecting] = useState(false);
   const [settingWebhook, setSettingWebhook] = useState(false);
   const [showApiKey, setShowApiKey] = useState(false);
   const [phoneFilter, setPhoneFilter] = useState("");
