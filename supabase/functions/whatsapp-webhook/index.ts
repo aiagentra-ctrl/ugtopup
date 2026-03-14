@@ -71,6 +71,106 @@ async function getWhatsAppConfig() {
   return data;
 }
 
+function normalizePhoneValue(value: unknown): string {
+  const raw = String(value || "");
+  const numberPart = raw.includes("@") ? raw.split("@")[0] : raw;
+  return numberPart.replace(/\D/g, "");
+}
+
+function parseJsonSafely(raw: string): any {
+  try {
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return { raw };
+  }
+}
+
+async function fetchEvolutionInstances(config: any): Promise<any[]> {
+  if (!config?.server_url || !config?.api_key) return [];
+
+  const res = await fetch(`${config.server_url}/instance/fetchInstances`, {
+    headers: { apikey: config.api_key },
+  });
+
+  const raw = await res.text();
+  const parsed = parseJsonSafely(raw);
+
+  if (!res.ok) {
+    throw new Error(`Failed to fetch instances: ${res.status} - ${raw}`);
+  }
+
+  if (Array.isArray(parsed)) return parsed;
+  if (Array.isArray(parsed?.data)) return parsed.data;
+  return [];
+}
+
+async function getResolvedInstanceName(config: any): Promise<string> {
+  const configured = String(config?.instance_name || "").trim();
+  if (!configured && !config?.server_url) return configured;
+
+  try {
+    const instances = await fetchEvolutionInstances(config);
+    if (!instances.length) return configured;
+
+    const configuredLower = configured.toLowerCase();
+    const configuredDigits = normalizePhoneValue(configured);
+    const connectedDigits = normalizePhoneValue(config?.connected_number);
+
+    const byName = instances.find((instance: any) =>
+      String(instance?.name || "").toLowerCase() === configuredLower,
+    );
+
+    const byProfileName = instances.find((instance: any) =>
+      String(instance?.profileName || "").toLowerCase() === configuredLower,
+    );
+
+    const byNumber = instances.find((instance: any) => {
+      const instanceNumber = normalizePhoneValue(instance?.number);
+      const ownerNumber = normalizePhoneValue(instance?.ownerJid);
+      if (connectedDigits && (instanceNumber === connectedDigits || ownerNumber === connectedDigits)) {
+        return true;
+      }
+      if (configuredDigits && (instanceNumber === configuredDigits || ownerNumber === configuredDigits)) {
+        return true;
+      }
+      return false;
+    });
+
+    const byOpenState = instances.find((instance: any) =>
+      String(instance?.connectionStatus || "").toLowerCase() === "open",
+    );
+
+    const chosen = byName || byProfileName || byNumber || byOpenState || instances[0];
+    const resolvedName = String(chosen?.name || configured).trim();
+
+    if (!resolvedName) return configured;
+
+    if (resolvedName !== configured) {
+      const db = supabaseAdmin();
+      await db
+        .from("whatsapp_config")
+        .update({
+          instance_name: resolvedName,
+          connected_number:
+            normalizePhoneValue(chosen?.ownerJid) ||
+            normalizePhoneValue(chosen?.number) ||
+            config?.connected_number ||
+            null,
+          connection_status:
+            String(chosen?.connectionStatus || "").toLowerCase() === "open"
+              ? "connected"
+              : config?.connection_status || "disconnected",
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", config.id);
+    }
+
+    return resolvedName;
+  } catch {
+    return configured;
+  }
+}
+
 async function logMessage(
   phoneNumber: string,
   direction: "inbound" | "outbound",
