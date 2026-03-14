@@ -491,7 +491,8 @@ async function processIncomingMessage(
     const errorMessage = safeErrorMessage(error);
     await logMessage(incoming.phone, "outbound", "", sessionId, "failed", errorMessage, {
       webhook_event: incoming.event,
-      stage: "chatbot_or_send",
+      stage: "ai_or_send",
+      ai_input_preview: payloadPreview(incoming.text, 1200),
       simulated: isSimulated,
     });
 
