@@ -661,15 +661,23 @@ Deno.serve(async (req) => {
 
         case "disconnect": {
           try {
-            await fetch(`${config.server_url}/instance/logout/${config.instance_name}`, {
+            const instanceName = await getResolvedInstanceName(config);
+            const encodedInstanceName = encodeURIComponent(instanceName);
+            const logoutRes = await fetch(`${config.server_url}/instance/logout/${encodedInstanceName}`, {
               method: "DELETE",
               headers: { apikey: config.api_key },
             });
+
+            const logoutRaw = await logoutRes.text();
+            if (!logoutRes.ok) {
+              return err(`Evolution API error: ${logoutRes.status} - ${logoutRaw}`, 502);
+            }
 
             const db = supabaseAdmin();
             await db
               .from("whatsapp_config")
               .update({
+                instance_name: instanceName,
                 connection_status: "disconnected",
                 connected_number: null,
                 updated_at: new Date().toISOString(),
