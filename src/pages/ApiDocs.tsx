@@ -435,6 +435,71 @@ curl -X POST "${BASE_URL}" \\
           </CardContent>
         </Card>
 
+        {/* Endpoint: submit-feedback */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <MessageSquare className="h-5 w-5" />
+              <Badge>action: "submit-feedback"</Badge>
+              — Rate Bot Response
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4 text-sm">
+            <p className="text-muted-foreground">Submit feedback on a bot response. Use this to track chatbot quality.</p>
+            <div>
+              <p className="font-medium text-foreground mb-1">Request</p>
+              <CodeBlock>{`{
+  "action": "submit-feedback",
+  "message_id": "bot-1710000000000",
+  "session_id": "wa-9779708562001",
+  "user_message": "What is Free Fire?",
+  "bot_response": "Free Fire is a popular battle royale game...",
+  "rating": "helpful",
+  "comment": "Great answer!"
+}`}</CodeBlock>
+            </div>
+            <div>
+              <p className="font-medium text-foreground mb-1">Response</p>
+              <CodeBlock>{`{
+  "success": true,
+  "message": "Feedback recorded. Thank you!",
+  "timestamp": "2026-03-08T12:00:00.000Z"
+}`}</CodeBlock>
+            </div>
+            <p className="text-muted-foreground text-xs">Rating must be <code className="bg-muted px-1 rounded text-foreground">"helpful"</code> or <code className="bg-muted px-1 rounded text-foreground">"not_helpful"</code>.</p>
+          </CardContent>
+        </Card>
+
+        {/* Endpoint: test-connection */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Zap className="h-5 w-5" />
+              <Badge>action: "test-connection"</Badge>
+              — Verify AI Provider
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4 text-sm">
+            <p className="text-muted-foreground">Test that the AI provider is reachable and responding. No parameters needed.</p>
+            <div>
+              <p className="font-medium text-foreground mb-1">Request</p>
+              <CodeBlock>{`{
+  "action": "test-connection"
+}`}</CodeBlock>
+            </div>
+            <div>
+              <p className="font-medium text-foreground mb-1">Response</p>
+              <CodeBlock>{`{
+  "success": true,
+  "message": "Connection successful! Model responded: \\"Hello\\"",
+  "provider": "openrouter",
+  "model": "google/gemini-3-flash-preview",
+  "timestamp": "2026-03-08T12:00:00.000Z"
+}`}</CodeBlock>
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Error Codes */}
         <Card>
           <CardHeader>
