@@ -776,38 +776,38 @@ async function handleUnifiedMessage(body: any) {
   let systemPrompt = settings?.ai_system_prompt ||
     "You are UIQ, a helpful AI sales assistant for UGC-Topup. Help users with products, pricing, orders, and account questions.";
 
-  systemPrompt += `\n\nYou have access to tools to perform actions. IMPORTANT RULES:
-- When user asks about products, prices, or packages, use the search_products tool.
-- When user wants to buy/order something and provides email + package_id, use place_order tool.
-- When user asks about order status or tracking, use check_order_status tool.
-- When user wants to pay or add credits and provides email + amount, use initiate_payment tool.
-- When user asks about a payment status with an identifier, use check_payment_status tool.
-- When user wants to submit a credit request with name, email, amount, use request_credit tool.
+  systemPrompt += `\n\nIMPORTANT RULES:
+- ALWAYS use the product data provided in the AVAILABLE PRODUCTS section below. NEVER say a product is "not found" or "not available" if product data is listed.
+- When showing products, format them clearly with bullet points, prices, and buy links.
+- When user wants to buy/order something, collect required details step-by-step:
+  1. Which specific package they want (show options if unclear)
+  2. Their registered email address
+  3. Player ID (for games like Free Fire, Mobile Legends, PUBG)
+  4. Zone/Server ID (if applicable, e.g., Mobile Legends)
+  Only use place_order tool AFTER collecting all required info.
+- When user asks about order status, use check_order_status tool.
+- When user wants to pay/add credits with email + amount, use initiate_payment tool.
 - For general conversation, greetings, or questions, respond directly WITHOUT tools.
-- Always format responses clearly for chat. Use emoji where appropriate.
-- When showing products, list all available packages with prices.
-- If you need more info from the user (like their email or which package), ASK them first before using a tool.`;
+- Format all responses with markdown: **bold** for headings, bullet points for lists, emoji for visual appeal.
+- Always include the buy link when showing products.`;
 
   if (knowledgeContext) {
     systemPrompt += `\n\n--- KNOWLEDGE BASE ---\n${knowledgeContext}\n--- END ---`;
   }
 
-  // If we already found products via keyword search, inject as context
-  let preloadedProductContext = "";
-  if (productResults && productResults.length > 0) {
-    preloadedProductContext = `\n\n--- AVAILABLE PRODUCTS (from database) ---\n` +
-      productResults.map((p: any) => `• ${p.name} | ${p.price_display} | Package ID: ${p.package_id || 'N/A'} | Link: ${p.link || 'N/A'}`).join("\n") +
-      `\n--- END PRODUCTS ---\nUse this data to answer. Include prices and links. If user wants to order, ask for their email and use place_order with the package_id.`;
-  }
-
-  if (preloadedProductContext) {
-    systemPrompt += preloadedProductContext;
+  // Inject pre-fetched products as context
+  if (effectiveProducts && effectiveProducts.length > 0) {
+    const productContext = effectiveProducts.map((p: any) =>
+      `• ${p.name} | ${p.currency || "NPR"} ${p.price} | Package ID: ${p.package_id || 'N/A'} | Link: ${p.link || 'N/A'} | Game: ${p.game || 'N/A'}`
+    ).join("\n");
+    systemPrompt += `\n\n--- AVAILABLE PRODUCTS (from database — this is REAL data, use it!) ---\n${productContext}\n--- END PRODUCTS ---\nIMPORTANT: Present these products to the user with prices and links. Do NOT say products are not found. Do NOT use search_products tool since data is already provided above.`;
   } else {
     systemPrompt += `\n\nIf the user asks about a product not in our database, say: "This product is not currently available on our website. It may be added soon."`;
   }
 
   systemPrompt += `\n\n--- PAYMENT & SERVICE ---
 Payment options: Online (eSewa/Khalti via API Nepal), manual QR, bank transfer. Guide users to Dashboard > Add Credit.
+Website: https://ugtopups.lovable.app
 --- END ---`;
 
   // Build messages array
