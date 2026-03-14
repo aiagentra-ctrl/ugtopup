@@ -106,12 +106,12 @@ async function searchKnowledgeBase(message: string): Promise<string | null> {
 
 // Common typos and synonyms for fuzzy matching
 const FUZZY_ALIASES: Record<string, string[]> = {
-  freefire: ["free fire", "freefire", "ff", "free fir", "frefire", "fre fire"],
-  mobile_legends: ["mobile legends", "mobile legend", "ml", "mlbb", "mobi legends"],
-  pubg: ["pubg", "pubg mobile", "pubgm", "battleground"],
+  freefire: ["free fire", "freefire", "ff", "free fir", "frefire", "fre fire", "diamond", "diamonds", "diamon", "diamnd", "diamons"],
+  mobile_legends: ["mobile legends", "mobile legend", "ml", "mlbb", "mobi legends", "diamond", "diamonds", "diamon", "diamnd", "diamons"],
+  pubg: ["pubg", "pubg mobile", "pubgm", "battleground", "uc"],
   roblox: ["roblox", "robux", "rblx"],
   netflix: ["netflix", "netflex", "netfix"],
-  tiktok: ["tiktok", "tik tok", "tikto", "tiktk"],
+  tiktok: ["tiktok", "tik tok", "tikto", "tiktk", "tiktok coins"],
   youtube: ["youtube", "yt", "you tube", "youtub"],
   chatgpt: ["chatgpt", "chat gpt", "gpt", "openai"],
   garena: ["garena", "garena shell", "shell"],
