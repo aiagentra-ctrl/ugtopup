@@ -1,96 +1,89 @@
 
-# Dynamic Website with Advanced Admin Panel
 
-## Overview
-Make the entire website content dynamic and admin-controlled by creating two new admin sections and supporting database tables. The existing "Products (New)" page (GameProductPrices) will remain completely untouched.
+# Fix Chatbot "Diamond package not found" Issue
 
-## What Changes
+## Root Cause Analysis
 
-### Phase 1: Database Setup
+The chatbot uses `arcee-ai/trinity-mini:free` (OpenRouter). This free model has poor/no tool-calling support. Here's what happens:
 
-**New table: `dynamic_products`** - stores products displayed on the homepage
-- `id`, `title`, `description`, `image_url`, `link`, `category` (topup/voucher/subscription/design), `price`, `discount_price`, `features` (jsonb array), `tags` (text array), `plans` (jsonb array), `display_order`, `is_active`, `created_at`, `updated_at`
+1. **Pre-fetch works correctly** -- `searchProducts("diamond package price")` finds 20+ diamond packages from `game_product_prices` via the broad text search (`package_name.ilike.%diamond%`).
+2. **Products are injected into the system prompt** as context.
+3. **The free AI model ignores the injected context** and responds with "not found" because it doesn't understand the structured data in the prompt.
+4. The fallback path (which formats products without AI) only triggers on AI **errors**, not when the AI returns a wrong answer.
 
-**New table: `product_categories`** - dynamic categories
-- `id`, `name`, `slug`, `display_order`, `is_active`, `created_at`, `updated_at`
+The database has real data: Free Fire (25-50600 Diamonds, NPR 29-39999), Mobile Legends (55-565 Diamonds, NPR 150-1250), etc.
 
-**New table: `offers`** - dynamic offer/deal sections
-- `id`, `title`, `subtitle`, `description`, `image_url`, `offer_type` (flash_sale/limited_time/daily_deal/discount_bundle), `timer_enabled`, `timer_type` (hours/days/both/none), `timer_end_date`, `product_link`, `custom_icon_url`, `display_order`, `is_active`, `show_on_homepage`, `show_on_product_page`, `created_at`, `updated_at`
+## Plan
 
-RLS: Public SELECT for active items, admin ALL for management.
+### 1. Add "diamond/diamonds" to fuzzy aliases
 
-**Seed `dynamic_products`** with current hardcoded data from ProductTabs so nothing changes visually on day one.
+Add "diamond" and "diamonds" as aliases for both `freefire` and `mobile_legends` in `FUZZY_ALIASES`. Also add common typos like "diamon", "diamnd".
 
-### Phase 2: Admin Panel - Product Update Page (new section)
+### 2. Smart product-first response (bypass weak AI for product queries)
 
-Add a new sidebar menu item **"Product Update"** in AdminLayout.
+The key fix: when `searchProducts()` returns results during pre-fetch, **format and return them directly** using a structured template instead of relying on the AI model. Use the AI only to polish the greeting/intro, not to decide whether products exist.
 
-New component: `src/components/admin/DynamicProductManager.tsx`
-- Full CRUD table listing all dynamic products
-- Inline editing with image upload (to `product-images` storage bucket)
-- Fields: title, description, image, link, category, price, discount price, features (add/remove chips), tags (add/remove), plans (JSON editor)
-- Product preview panel showing how it looks on the frontend
-- Search, filter by category, drag-to-reorder
+New flow:
+```text
+User: "diamond package price"
+  ↓
+Pre-fetch finds 20+ diamond packages
+  ↓
+Format directly using template (no AI dependency)
+  ↓
+Return structured response with real prices
+```
 
-New component: `src/components/admin/CategoryManager.tsx`
-- Add/rename/delete categories
-- Reorder categories via drag or arrows
-- Auto-updates category options across the product form
+Template format:
+```
+💎 Diamond Packages
 
-### Phase 3: Admin Panel - Offer Management Page (new section)
+📦 Free Fire Diamonds
+• 25 Diamonds — NPR 29
+• 50 Diamonds — NPR 49
+• 115 Diamonds — NPR 99
+...
 
-Add a new sidebar menu item **"Offers"** in AdminLayout.
+📦 Mobile Legends Diamonds
+• 55 Diamonds — NPR 150
+• 86 Diamonds — NPR 199
+...
 
-New component: `src/components/admin/OfferManager.tsx`
-- List all offers with enable/disable toggle
-- Add new offer with form: title, subtitle, description, image upload, offer type selector, timer controls (enable/disable, type, end date), product link picker
-- Edit existing offers inline
-- Reorder offers
-- Toggle homepage/product page visibility
+🛒 Buy now: https://ugtopups.lovable.app/#/freefire-diamond
+⏱ Delivery: 5–10 minutes
 
-### Phase 4: Frontend - Make ProductTabs Dynamic
+Reply with the package you want to order!
+```
 
-Update `src/components/ProductTabs.tsx`:
-- Fetch products from `dynamic_products` table instead of hardcoded `productData`
-- Fetch categories from `product_categories` table for tab names
-- Keep the exact same visual layout, just swap data source
-- Real-time subscription so admin changes appear instantly
+### 3. Conversational order flow
 
-### Phase 5: Frontend - Make BestDeals/Offers Dynamic
+When user says "buy diamond package" or "I want to buy", the AI should ask for required details step by step:
+1. Which specific package? (show options)
+2. Email address
+3. Player ID (for games that need it)
+4. Zone/Server ID (if applicable)
 
-Update `src/components/BestDeals.tsx`:
-- Fetch active homepage offers from `offers` table
-- Render offer blocks dynamically with optional countdown timers
-- Keep existing visual style, just make content admin-controlled
+Only call `place_order` tool after all info is collected.
 
-### What Will NOT Change
-- **"Products (New)" page** (`GameProductPrices` component) -- zero modifications
-- **Existing `ProductsList`** component -- untouched
-- **Game pricing system** (`game_product_prices` table) -- untouched
-- **Overall website design/layout** -- only data sources change
+### 4. Improve AI system prompt
 
-## Technical Details
+Make the prompt more directive:
+- "ALWAYS use the product data provided in AVAILABLE PRODUCTS section"
+- "NEVER say a product is not found if product data is listed above"
+- Add formatting instructions for chat-friendly output
 
-### New Files
-- `src/components/admin/DynamicProductManager.tsx` - Product Update admin page
-- `src/components/admin/CategoryManager.tsx` - Category management
-- `src/components/admin/OfferManager.tsx` - Offer management admin page
-- `src/lib/dynamicProductApi.ts` - API functions for dynamic products/categories
-- `src/lib/offerApi.ts` - API functions for offers
-- `src/hooks/useDynamicProducts.ts` - Frontend hook with real-time subscriptions
-- `src/hooks/useOffers.ts` - Frontend hook for offers
+### 5. Better fallback when AI gives wrong answers
 
-### Modified Files
-- `src/components/admin/AdminLayout.tsx` - Add 3 new sidebar items (Product Update, Categories, Offers)
-- `src/pages/AdminPanel.tsx` - Add new section cases in switch
-- `src/components/ProductTabs.tsx` - Replace hardcoded data with database fetch
-- `src/components/BestDeals.tsx` - Replace hardcoded deals with database fetch
+After AI responds, check if the response contains negative phrases like "not found", "not available", "don't have" BUT pre-fetched products exist. If so, override with the formatted product template.
 
-### New Storage Bucket
-- `product-images` (public) for product image uploads
+### Changes
 
-### Database Migration
-- Create `dynamic_products`, `product_categories`, `offers` tables
-- Create `product-images` storage bucket
-- RLS policies for all new tables
-- Seed initial data from current hardcoded products
+**File: `supabase/functions/chatbot-api/index.ts`**
+
+- Add "diamond", "diamonds", "diamon", "diamnd" to `FUZZY_ALIASES` for freefire and mobile_legends
+- New function `formatProductResponse(products)` -- groups by game, formats with emoji and structure
+- In `handleUnifiedMessage`: if pre-fetched products found AND they match the query well, use `formatProductResponse` as the primary reply, optionally enhanced by AI
+- Add post-AI safety check: if AI says "not found" but products were pre-fetched, override response
+- Update system prompt to be more directive about using injected product data
+- Add order conversation flow instructions to prompt (ask for details step-by-step)
+
