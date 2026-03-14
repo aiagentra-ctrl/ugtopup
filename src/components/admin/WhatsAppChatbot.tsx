@@ -386,6 +386,46 @@ export function WhatsAppChatbot() {
     [inboundMessages],
   );
 
+  const flowRows = useMemo(() => {
+    const inbound = messages
+      .filter((m) => m.direction === "inbound" && m.phone_number !== "webhook")
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+      .slice(0, 40);
+
+    const outboundBySession = new Map<string, WhatsAppMessage[]>();
+    for (const message of messages) {
+      if (message.direction !== "outbound") continue;
+      const key = message.session_id || `phone:${message.phone_number}`;
+      if (!outboundBySession.has(key)) {
+        outboundBySession.set(key, []);
+      }
+      outboundBySession.get(key)!.push(message);
+    }
+
+    for (const group of outboundBySession.values()) {
+      group.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+    }
+
+    const usedOutboundIds = new Set<string>();
+
+    return inbound.map((incoming) => {
+      const key = incoming.session_id || `phone:${incoming.phone_number}`;
+      const candidates = (outboundBySession.get(key) || []).filter(
+        (outgoing) =>
+          !usedOutboundIds.has(outgoing.id) &&
+          new Date(outgoing.created_at).getTime() >= new Date(incoming.created_at).getTime() - 1000,
+      );
+
+      const outbound = candidates[0] || null;
+      if (outbound) usedOutboundIds.add(outbound.id);
+
+      return {
+        incoming,
+        outbound,
+      };
+    });
+  }, [messages]);
+
   const lastInbound = inboundMessages[0];
   const showNotReceivingAlert =
     Boolean(formEnabled) && (!lastInbound || (Date.now() - new Date(lastInbound.created_at).getTime()) / 60000 > 30);
