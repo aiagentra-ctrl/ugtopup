@@ -912,7 +912,17 @@ Website: https://ugtopups.lovable.app
     }
 
     // No tool calls - direct AI response
-    const aiReply = choice?.message?.content || "I couldn't generate a response.";
+    let aiReply = choice?.message?.content || "I couldn't generate a response.";
+
+    // SAFETY CHECK: If AI says "not found" but we have products, override with formatted response
+    const NOT_FOUND_PHRASES = ["not found", "not available", "don't have", "doesn't exist", "isn't found", "no product", "not currently available", "couldn't find"];
+    const aiReplyLower = aiReply.toLowerCase();
+    const aiSaysNotFound = NOT_FOUND_PHRASES.some(phrase => aiReplyLower.includes(phrase));
+    
+    if (aiSaysNotFound && effectiveProducts && effectiveProducts.length > 0) {
+      console.log("AI safety check triggered: overriding 'not found' with real product data");
+      aiReply = formatProductResponse(effectiveProducts);
+    }
 
     if (session_id) {
       await storeMessage(session_id, effectivePlatform, "assistant", aiReply);
@@ -921,11 +931,10 @@ Website: https://ugtopups.lovable.app
     return jsonResponse({
       success: true,
       reply: aiReply,
-      action: "message",
-      data: {},
+      action: effectiveProducts && effectiveProducts.length > 0 ? "product_search" : "message",
+      data: effectiveProducts && effectiveProducts.length > 0 ? { products: effectiveProducts } : {},
       timestamp: new Date().toISOString(),
-      // Backward compat: include products if found via keyword search
-      ...(productResults && productResults.length > 0 ? { products: productResults, product: productResults[0] } : {}),
+      ...(effectiveProducts && effectiveProducts.length > 0 ? { products: effectiveProducts, product: effectiveProducts[0] } : {}),
     });
 
   } catch (err: any) {
