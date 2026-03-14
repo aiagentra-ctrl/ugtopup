@@ -1,8 +1,11 @@
 import { ProductCardData } from '@/components/chat/ProductCardBubble';
 
 export interface ChatApiResponse {
+  success?: boolean;
   reply: string;
   timestamp: string;
+  action?: string;
+  data?: Record<string, any>;
   product?: ProductCardData;
   products?: ProductCardData[];
   error?: boolean;

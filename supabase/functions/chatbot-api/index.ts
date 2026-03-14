@@ -16,8 +16,8 @@ function supabaseAdmin() {
 // ── Rate Limiting ──
 
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
-const RATE_LIMIT_WINDOW_MS = 60_000; // 1 minute
-const RATE_LIMIT_MAX = 15; // max requests per window per session
+const RATE_LIMIT_WINDOW_MS = 60_000;
+const RATE_LIMIT_MAX = 15;
 
 function checkRateLimit(sessionId: string): boolean {
   const now = Date.now();
@@ -27,11 +27,9 @@ function checkRateLimit(sessionId: string): boolean {
     return true;
   }
   entry.count++;
-  if (entry.count > RATE_LIMIT_MAX) return false;
-  return true;
+  return entry.count <= RATE_LIMIT_MAX;
 }
 
-// Clean stale entries periodically
 setInterval(() => {
   const now = Date.now();
   for (const [key, val] of rateLimitMap) {
@@ -48,36 +46,20 @@ const PRODUCT_KEYWORDS = [
 ];
 
 const PRODUCT_ROUTES: Record<string, string> = {
-  chatgpt: "/chatgpt",
-  netflix: "/netflix",
-  tiktok: "/tiktok-coins",
-  "free fire": "/freefire-diamond",
-  freefire: "/freefire-diamond",
-  "mobile legends": "/mobile-legends",
-  ml: "/mobile-legends",
-  roblox: "/roblox-topup",
-  pubg: "/pubg-mobile",
-  garena: "/garena-shell",
-  youtube: "/youtube",
-  smile: "/smile-coin",
-  smilecoin: "/smile-coin",
+  chatgpt: "/chatgpt", netflix: "/netflix", tiktok: "/tiktok-coins",
+  "free fire": "/freefire-diamond", freefire: "/freefire-diamond",
+  "mobile legends": "/mobile-legends", ml: "/mobile-legends",
+  roblox: "/roblox-topup", pubg: "/pubg-mobile", garena: "/garena-shell",
+  youtube: "/youtube", smile: "/smile-coin", smilecoin: "/smile-coin",
   unipin: "/unipin-uc",
 };
 
 const KEYWORD_TO_GAME: Record<string, string> = {
-  chatgpt: "chatgpt",
-  netflix: "netflix",
-  tiktok: "tiktok",
-  "free fire": "freefire",
-  freefire: "freefire",
-  "mobile legends": "mobile_legends",
-  ml: "mobile_legends",
-  roblox: "roblox",
-  pubg: "pubg",
-  garena: "garena",
-  youtube: "youtube",
-  smile: "smilecoin",
-  smilecoin: "smilecoin",
+  chatgpt: "chatgpt", netflix: "netflix", tiktok: "tiktok",
+  "free fire": "freefire", freefire: "freefire",
+  "mobile legends": "mobile_legends", ml: "mobile_legends",
+  roblox: "roblox", pubg: "pubg", garena: "garena",
+  youtube: "youtube", smile: "smilecoin", smilecoin: "smilecoin",
   unipin: "unipin",
 };
 
@@ -85,84 +67,46 @@ const KEYWORD_TO_GAME: Record<string, string> = {
 
 async function getSettings() {
   const sb = supabaseAdmin();
-  const { data } = await sb
-    .from("chatbot_settings")
-    .select("*")
-    .limit(1)
-    .single();
+  const { data } = await sb.from("chatbot_settings").select("*").limit(1).single();
   return data;
 }
 
-async function logActivity(description: string, metadata?: Record<string, unknown>) {
-  try {
-    const sb = supabaseAdmin();
-    await sb.from("chatbot_conversations").insert({
-      session_id: "__system__",
-      platform: "system",
-      role: "system",
-      message: description,
-      metadata: metadata || {},
-    });
-  } catch (_e) {
-    // non-critical, don't block
-  }
-}
-
-// ── RAG: Knowledge Base Search (scored) ──
+// ── RAG: Knowledge Base Search ──
 
 async function searchKnowledgeBase(message: string): Promise<string | null> {
   const sb = supabaseAdmin();
   const lowerMsg = message.toLowerCase();
 
   const stopWords = new Set(["the", "and", "for", "are", "but", "not", "you", "all", "can", "had", "her", "was", "one", "our", "out", "how", "what", "when", "where", "who", "why", "this", "that", "with", "have", "from", "will", "your", "about", "does", "please", "help", "want", "need"]);
-  const keywords = lowerMsg
-    .replace(/[^a-z0-9\s]/g, "")
-    .split(/\s+/)
-    .filter((w) => w.length >= 3 && !stopWords.has(w));
-
+  const keywords = lowerMsg.replace(/[^a-z0-9\s]/g, "").split(/\s+/).filter((w) => w.length >= 3 && !stopWords.has(w));
   if (keywords.length === 0) return null;
 
   const searchKeywords = keywords.slice(0, 6);
-  const orFilters = searchKeywords
-    .flatMap((kw) => [`title.ilike.%${kw}%`, `content.ilike.%${kw}%`])
-    .join(",");
+  const orFilters = searchKeywords.flatMap((kw) => [`title.ilike.%${kw}%`, `content.ilike.%${kw}%`]).join(",");
 
-  const { data, error } = await sb
-    .from("knowledge_base")
-    .select("title, content, category, tags")
-    .eq("is_active", true)
-    .or(orFilters)
-    .limit(8);
-
+  const { data, error } = await sb.from("knowledge_base").select("title, content, category, tags").eq("is_active", true).or(orFilters).limit(8);
   if (error || !data || data.length === 0) return null;
 
-  // Score results by keyword match count
   const scored = data.map((entry: any) => {
     const text = `${entry.title} ${entry.content} ${(entry.tags || []).join(" ")}`.toLowerCase();
     let score = 0;
     for (const kw of searchKeywords) {
       if (text.includes(kw)) score++;
-      // Bonus for title match
       if (entry.title.toLowerCase().includes(kw)) score += 2;
-      // Bonus for tag match
       if ((entry.tags || []).some((t: string) => t.toLowerCase().includes(kw))) score += 1;
     }
     return { ...entry, score };
   });
-
   scored.sort((a: any, b: any) => b.score - a.score);
 
-  return scored
-    .slice(0, 5)
-    .map((entry: any) => `[${entry.category.toUpperCase()}] ${entry.title}\n${entry.content}`)
-    .join("\n\n---\n\n");
+  return scored.slice(0, 5).map((e: any) => `[${e.category.toUpperCase()}] ${e.title}\n${e.content}`).join("\n\n---\n\n");
 }
 
 // ── Product Search ──
 
-async function searchProducts(message: string) {
+async function searchProducts(query: string) {
   const sb = supabaseAdmin();
-  const lowerMsg = message.toLowerCase();
+  const lowerMsg = query.toLowerCase();
 
   const matchedKeyword = PRODUCT_KEYWORDS.find((kw) => lowerMsg.includes(kw));
   if (!matchedKeyword) return null;
@@ -170,83 +114,49 @@ async function searchProducts(message: string) {
   const gameName = KEYWORD_TO_GAME[matchedKeyword] || matchedKeyword;
   const route = PRODUCT_ROUTES[matchedKeyword] || null;
 
-  const { data: gamePrices } = await sb
-    .from("game_product_prices")
-    .select("package_name, price, currency, game, quantity")
-    .eq("is_active", true)
-    .eq("game", gameName)
-    .order("display_order", { ascending: true })
-    .limit(6);
+  const { data: gamePrices } = await sb.from("game_product_prices")
+    .select("package_name, package_id, price, currency, game, quantity")
+    .eq("is_active", true).eq("game", gameName)
+    .order("display_order", { ascending: true }).limit(10);
 
   if (gamePrices && gamePrices.length > 0) {
-    const { data: productInfo } = await sb
-      .from("dynamic_products")
-      .select("image_url")
-      .eq("is_active", true)
-      .ilike("title", `%${matchedKeyword}%`)
-      .limit(1);
-
+    const { data: productInfo } = await sb.from("dynamic_products")
+      .select("image_url").eq("is_active", true).ilike("title", `%${matchedKeyword}%`).limit(1);
     let imageUrl = productInfo?.[0]?.image_url || null;
     if (!imageUrl) {
-      const { data: legacyProduct } = await sb
-        .from("products")
-        .select("image_url")
-        .eq("is_active", true)
-        .ilike("name", `%${matchedKeyword}%`)
-        .limit(1);
+      const { data: legacyProduct } = await sb.from("products")
+        .select("image_url").eq("is_active", true).ilike("name", `%${matchedKeyword}%`).limit(1);
       imageUrl = legacyProduct?.[0]?.image_url || null;
     }
 
     return gamePrices.map((p: any) => ({
       name: p.package_name,
-      price: `${p.currency || "NPR"} ${p.price}`,
+      package_id: p.package_id,
+      price: p.price,
+      currency: p.currency || "NPR",
+      price_display: `${p.currency || "NPR"} ${p.price}`,
       image_url: imageUrl,
       link: route,
       delivery_time: "5–10 minutes",
     }));
   }
 
-  const { data: dynProducts } = await sb
-    .from("dynamic_products")
+  const { data: dynProducts } = await sb.from("dynamic_products")
     .select("title, price, discount_price, image_url, link, description")
-    .eq("is_active", true)
-    .ilike("title", `%${matchedKeyword}%`)
-    .limit(3);
+    .eq("is_active", true).ilike("title", `%${matchedKeyword}%`).limit(3);
 
   if (dynProducts && dynProducts.length > 0) {
-    const validProducts = dynProducts.filter(
-      (p: any) => (p.discount_price && p.discount_price > 0) || (p.price && p.price > 0)
-    );
-
-    if (validProducts.length > 0) {
-      return validProducts.map((p: any) => ({
-        name: p.title,
-        price: `NPR ${p.discount_price || p.price}`,
-        image_url: p.image_url,
-        link: p.link || route,
-        delivery_time: "5–10 minutes",
-      }));
-    }
-
     return dynProducts.map((p: any) => ({
       name: p.title,
-      price: "See pricing on product page",
+      price: p.discount_price || p.price || 0,
+      currency: "NPR",
+      price_display: (p.discount_price || p.price) ? `NPR ${p.discount_price || p.price}` : "See product page",
       image_url: p.image_url,
       link: p.link || route,
       delivery_time: "5–10 minutes",
     }));
   }
-
   return null;
-}
-
-function buildProductContext(products: any[]): string {
-  return products
-    .map(
-      (p: any) =>
-        `Product: ${p.name} | Price: ${p.price} | Delivery: ${p.delivery_time || "5-10 minutes"} | Link: ${p.link || "N/A"}`
-    )
-    .join("\n");
 }
 
 // ── Conversation Memory ──
@@ -258,413 +168,169 @@ interface ConversationMessage {
 
 async function loadServerHistory(sessionId: string): Promise<ConversationMessage[]> {
   const sb = supabaseAdmin();
-  const { data } = await sb
-    .from("chatbot_conversations")
-    .select("role, message")
-    .eq("session_id", sessionId)
-    .order("created_at", { ascending: false })
-    .limit(10);
-
+  const { data } = await sb.from("chatbot_conversations").select("role, message")
+    .eq("session_id", sessionId).order("created_at", { ascending: false }).limit(10);
   if (!data || data.length === 0) return [];
-
-  return data.reverse().map((r: any) => ({
-    role: r.role as "user" | "assistant",
-    content: r.message,
-  }));
+  return data.reverse().map((r: any) => ({ role: r.role as "user" | "assistant", content: r.message }));
 }
 
 async function storeMessage(sessionId: string, platform: string, role: string, message: string) {
   const sb = supabaseAdmin();
-  await sb.from("chatbot_conversations").insert({
-    session_id: sessionId,
-    platform,
-    role,
-    message,
-  });
+  await sb.from("chatbot_conversations").insert({ session_id: sessionId, platform, role, message });
 }
 
-// ── AI Call ──
+// ── AI Config ──
 
 function getAIConfig(settings: any): { apiUrl: string; apiKey: string } {
   const provider = settings?.ai_provider || "lovable_ai";
-
   if (provider === "openrouter") {
     const apiKey = Deno.env.get("OPENROUTER_API_KEY") || "";
-    if (!apiKey) throw new Error("OpenRouter API key not configured. Add OPENROUTER_API_KEY secret.");
+    if (!apiKey) throw new Error("OpenRouter API key not configured.");
     return { apiUrl: "https://openrouter.ai/api/v1/chat/completions", apiKey };
   }
-
   if (provider === "custom" && settings?.custom_api_url) {
     const keyName = settings.custom_api_key_name || "CUSTOM_AI_API_KEY";
     const apiKey = Deno.env.get(keyName) || "";
-    if (!apiKey) throw new Error(`Custom AI API key not configured. Add secret: ${keyName}`);
+    if (!apiKey) throw new Error(`Custom AI API key not configured: ${keyName}`);
     return { apiUrl: settings.custom_api_url, apiKey };
   }
-
-  // Default: Lovable AI
   const apiKey = Deno.env.get("LOVABLE_API_KEY") || "";
-  if (!apiKey) throw new Error("AI is not configured. LOVABLE_API_KEY missing.");
+  if (!apiKey) throw new Error("AI not configured. LOVABLE_API_KEY missing.");
   return { apiUrl: "https://ai.gateway.lovable.dev/v1/chat/completions", apiKey };
 }
 
-async function callAI(
-  message: string,
-  settings: any,
-  productContext?: string,
-  knowledgeContext?: string,
-  conversationHistory?: ConversationMessage[]
-): Promise<string> {
-  const { apiUrl, apiKey } = getAIConfig(settings);
+// ── Tool Definitions for AI ──
 
-  const model = settings?.ai_model || "google/gemini-3-flash-preview";
-  const systemPrompt =
-    settings?.ai_system_prompt ||
-    "You are UIQ, a helpful AI sales assistant for UGC-Topup. Help users with products, pricing, orders, and account questions.";
-
-  let fullSystemPrompt = systemPrompt;
-
-  if (knowledgeContext) {
-    fullSystemPrompt += `\n\n--- KNOWLEDGE BASE ---\nThe following information comes from our knowledge base. Use it to provide accurate answers:\n\n${knowledgeContext}\n--- END KNOWLEDGE BASE ---`;
-  }
-
-  if (productContext) {
-    fullSystemPrompt += `\n\nRelevant product data from our database:\n${productContext}\n\nUse this data to answer the user's question accurately. Include the price and delivery time in your response. If a price says "See pricing on product page", tell the user to visit the product page for detailed pricing and provide the link.`;
-  } else {
-    fullSystemPrompt += `\n\nIf the user asks about a product that is not found in our database, respond with: "This product is not currently available on our website. It may be added soon."`;
-  }
-
-  // Add Nepali payment/service context
-  fullSystemPrompt += `\n\n--- PAYMENT & SERVICE INTEGRATION ---
-You can help users with:
-- Payment: Users can pay online via API Nepal gateway or manual bank transfer. Guide them to the Dashboard > Add Credit section.
-- Order tracking: Users can track orders by order number or email.
-- Credit requests: Users can request credit top-ups with payment screenshots.
-- Available payment methods: Online payment (eSewa, Khalti, etc. via API Nepal), manual QR payment, bank transfer.
-When users ask about payments or adding credits, provide helpful guidance about these options.
---- END PAYMENT & SERVICE INTEGRATION ---`;
-
-  const messages: { role: string; content: string }[] = [
-    { role: "system", content: fullSystemPrompt },
-  ];
-
-  if (conversationHistory && conversationHistory.length > 0) {
-    const recentHistory = conversationHistory.slice(-10);
-    for (const msg of recentHistory) {
-      messages.push({ role: msg.role, content: msg.content });
-    }
-  }
-
-  messages.push({ role: "user", content: message });
-
-  const response = await fetch(apiUrl, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
+const AI_TOOLS = [
+  {
+    type: "function",
+    function: {
+      name: "search_products",
+      description: "Search for products and their prices. Use when user asks about any product, game, pricing, packages, diamonds, coins, subscriptions, or top-ups.",
+      parameters: {
+        type: "object",
+        properties: {
+          query: { type: "string", description: "Product search query (e.g. 'free fire diamonds', 'netflix', 'roblox robux')" },
+        },
+        required: ["query"],
+        additionalProperties: false,
+      },
     },
-    body: JSON.stringify({ model, messages }),
-  });
+  },
+  {
+    type: "function",
+    function: {
+      name: "place_order",
+      description: "Place an order for a product. Use when user wants to buy, order, or purchase something and provides their email and the package they want.",
+      parameters: {
+        type: "object",
+        properties: {
+          email: { type: "string", description: "User's registered email address" },
+          package_id: { type: "string", description: "The package_id of the product to order" },
+          player_id: { type: "string", description: "Game player ID (if applicable)" },
+          zone_id: { type: "string", description: "Game zone/server ID (if applicable)" },
+        },
+        required: ["email", "package_id"],
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "check_order_status",
+      description: "Check the status of an order. Use when user asks about their order status, tracking, or provides an order number or email to check orders.",
+      parameters: {
+        type: "object",
+        properties: {
+          order_id: { type: "string", description: "Order number or user email to look up orders" },
+        },
+        required: ["order_id"],
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "initiate_payment",
+      description: "Generate a payment link for credit top-up. Use when user wants to pay, add credits, top up their wallet, or make a payment.",
+      parameters: {
+        type: "object",
+        properties: {
+          email: { type: "string", description: "User's registered email address" },
+          amount: { type: "number", description: "Payment amount in NPR (1-100000)" },
+        },
+        required: ["email", "amount"],
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "check_payment_status",
+      description: "Check payment transaction status. Use when user asks about their payment status and provides a payment identifier.",
+      parameters: {
+        type: "object",
+        properties: {
+          identifier: { type: "string", description: "Payment transaction identifier" },
+        },
+        required: ["identifier"],
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "request_credit",
+      description: "Submit a credit top-up request after manual payment. Use when user wants to request credit, has paid manually, or wants to submit a payment proof.",
+      parameters: {
+        type: "object",
+        properties: {
+          name: { type: "string", description: "User's full name" },
+          email: { type: "string", description: "User's registered email" },
+          amount: { type: "number", description: "Amount in NPR" },
+          whatsapp: { type: "string", description: "User's WhatsApp number (optional)" },
+          screenshot_url: { type: "string", description: "URL of payment screenshot (optional)" },
+        },
+        required: ["name", "email", "amount"],
+        additionalProperties: false,
+      },
+    },
+  },
+];
 
-  if (!response.ok) {
-    const errText = await response.text();
-    console.error("AI gateway error:", response.status, errText);
-    if (response.status === 429)
-      throw new Error("AI is busy. Please try again in a moment.");
-    if (response.status === 402)
-      throw new Error("AI service quota reached. Please try later.");
-    throw new Error("Failed to get AI response");
+// ── Tool Execution ──
+
+async function executeSearchProducts(args: any): Promise<any> {
+  const products = await searchProducts(args.query);
+  if (!products || products.length === 0) {
+    return { found: false, message: "No products found matching this query." };
   }
-
-  const data = await response.json();
-  return (
-    data.choices?.[0]?.message?.content ||
-    "I couldn't generate a response. Please try again."
-  );
+  return { found: true, products, count: products.length };
 }
 
-// ── Message Handler ──
-
-async function handleMessage(body: any) {
-  const { message, session_id, history, platform } = body;
-  const effectivePlatform = platform || "web";
-  const effectiveSessionId = session_id || "anonymous";
-
-  if (!message) {
-    return new Response(
-      JSON.stringify({ error: "message is required" }),
-      { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
-  }
-
-  // Input validation
-  if (typeof message !== "string" || message.length > 2000) {
-    return new Response(
-      JSON.stringify({ error: "Message must be a string under 2000 characters" }),
-      { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
-  }
-
-  // Rate limiting
-  if (!checkRateLimit(effectiveSessionId)) {
-    return new Response(
-      JSON.stringify({
-        reply: "⏳ You're sending messages too quickly. Please wait a moment and try again.",
-        timestamp: new Date().toISOString(),
-        error: true,
-      }),
-      { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
-  }
-
-  const settings = await getSettings();
-
-  if (settings && !settings.is_enabled) {
-    return new Response(
-      JSON.stringify({
-        reply: "Chatbot is currently offline. Please try again later.",
-        timestamp: new Date().toISOString(),
-      }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
-  }
-
-  // Run RAG search and product search in parallel
-  const [products, knowledgeContext] = await Promise.all([
-    searchProducts(message),
-    searchKnowledgeBase(message),
-  ]);
-
-  // Determine conversation history source
-  let conversationHistory: ConversationMessage[] | undefined;
-
-  if (effectivePlatform !== "web" && session_id) {
-    conversationHistory = await loadServerHistory(session_id);
-  } else if (Array.isArray(history)) {
-    conversationHistory = history as ConversationMessage[];
-  }
-
-  // Store inbound user message
-  if (session_id) {
-    await storeMessage(session_id, effectivePlatform, "user", message);
-  }
-
-  try {
-    const productContext = products ? buildProductContext(products) : undefined;
-    const aiReply = await callAI(
-      message,
-      settings,
-      productContext,
-      knowledgeContext || undefined,
-      conversationHistory
-    );
-
-    if (session_id) {
-      await storeMessage(session_id, effectivePlatform, "assistant", aiReply);
-    }
-
-    const responseBody: any = {
-      reply: aiReply,
-      timestamp: new Date().toISOString(),
-    };
-
-    if (products && products.length > 0) {
-      responseBody.products = products;
-      responseBody.product = products[0];
-    }
-
-    return new Response(JSON.stringify(responseBody), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
-  } catch (err: any) {
-    console.error("AI error:", err.message);
-
-    if (products && products.length > 0) {
-      const firstProduct = products[0];
-      const fallbackReply = `Here are some options for ${firstProduct.name}:\n${products.map((p: any) => `• ${p.name} — ${p.price}`).join("\n")}\n\nDelivery usually takes ${firstProduct.delivery_time || "5–10 minutes"}.`;
-
-      if (session_id) {
-        await storeMessage(session_id, effectivePlatform, "assistant", fallbackReply);
-      }
-
-      return new Response(
-        JSON.stringify({
-          reply: fallbackReply,
-          products,
-          product: firstProduct,
-          timestamp: new Date().toISOString(),
-        }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    return new Response(
-      JSON.stringify({
-        reply: `❌ ${err.message}`,
-        timestamp: new Date().toISOString(),
-        error: true,
-      }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
-  }
-}
-
-// ── Feedback Handler ──
-
-async function handleFeedback(body: any) {
-  const { message_id, session_id, user_message, bot_response, rating, comment } = body;
-
-  if (!message_id || !session_id || !rating) {
-    return new Response(
-      JSON.stringify({ error: "message_id, session_id, and rating are required" }),
-      { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
-  }
-
-  if (!["helpful", "not_helpful"].includes(rating)) {
-    return new Response(
-      JSON.stringify({ error: "rating must be 'helpful' or 'not_helpful'" }),
-      { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
-  }
-
+async function executePlaceOrder(args: any, platform: string, sessionId: string): Promise<any> {
   const sb = supabaseAdmin();
-  const { error } = await sb.from("chatbot_feedback").insert({
-    message_id,
-    session_id,
-    user_message: user_message || null,
-    bot_response: bot_response || null,
-    rating,
-    comment: comment || null,
-  });
+  const { email, package_id, player_id, zone_id } = args;
 
-  if (error) {
-    console.error("Feedback insert error:", error);
-    return new Response(
-      JSON.stringify({ error: "Failed to save feedback" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
-  }
+  const { data: pkg } = await sb.from("game_product_prices").select("*")
+    .eq("package_id", package_id).eq("is_active", true).single();
+  if (!pkg) return { success: false, error: "Package not found or inactive.", package_id };
 
-  return new Response(
-    JSON.stringify({ success: true, message: "Feedback recorded. Thank you!", timestamp: new Date().toISOString() }),
-    { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-  );
-}
-
-// ── Order Status ──
-
-async function handleOrderStatus(body: any) {
-  const { order_id } = body;
-  if (!order_id) {
-    return new Response(
-      JSON.stringify({ error: "order_id is required" }),
-      { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
-  }
-
-  const sb = supabaseAdmin();
-  const { data, error } = await sb
-    .from("product_orders")
-    .select(
-      "order_number, product_name, package_name, status, price, created_at, confirmed_at, completed_at, canceled_at, cancellation_reason"
-    )
-    .or(
-      `order_number.eq.${order_id.trim()},user_email.eq.${order_id.trim()}`
-    )
-    .order("created_at", { ascending: false })
-    .limit(5);
-
-  if (error) {
-    return new Response(JSON.stringify({ error: error.message }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
-  }
-
-  if (!data || data.length === 0) {
-    return new Response(
-      JSON.stringify({
-        orders: [],
-        message: `No orders found for "${order_id.trim()}".`,
-      }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
-  }
-
-  const orders = data.map((o: any) => ({
-    order_number: o.order_number,
-    product: o.product_name,
-    package: o.package_name,
-    status: o.status,
-    price: o.price,
-    created_at: o.created_at,
-    confirmed_at: o.confirmed_at,
-    completed_at: o.completed_at,
-    canceled_at: o.canceled_at,
-    cancellation_reason: o.cancellation_reason,
-  }));
-
-  return new Response(
-    JSON.stringify({ orders, timestamp: new Date().toISOString() }),
-    { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-  );
-}
-
-// ── Order Placement ──
-
-async function handleOrder(body: any) {
-  const { email, package_id, player_id, zone_id, product_name } = body;
-
-  if (!email || !package_id) {
-    return new Response(
-      JSON.stringify({ error: "email and package_id are required" }),
-      { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
-  }
-
-  const sb = supabaseAdmin();
-
-  const { data: pkg } = await sb
-    .from("game_product_prices")
-    .select("*")
-    .eq("package_id", package_id)
-    .eq("is_active", true)
-    .single();
-
-  if (!pkg) {
-    return new Response(
-      JSON.stringify({ error: "Package not found or inactive.", package_id }),
-      { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
-  }
-
-  const { data: profile } = await sb
-    .from("profiles")
-    .select("id, email, username, balance")
-    .eq("email", email)
-    .single();
-
-  if (!profile) {
-    return new Response(
-      JSON.stringify({ error: "No account found with this email. Please register at our website first." }),
-      { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
-  }
+  const { data: profile } = await sb.from("profiles").select("id, email, username, balance")
+    .eq("email", email).single();
+  if (!profile) return { success: false, error: "No account found with this email. Please register first." };
 
   const price = Number(pkg.price);
-
   if ((profile.balance || 0) < price) {
-    return new Response(
-      JSON.stringify({
-        error: "insufficient_credits",
-        message: `Insufficient credits. You have NPR ${profile.balance || 0} but need NPR ${price}. Please top up your account first.`,
-        balance: profile.balance || 0,
-        required: price,
-        top_up_url: "https://ugtopups.lovable.app/#/dashboard",
-        timestamp: new Date().toISOString(),
-      }),
-      { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    return {
+      success: false, error: "insufficient_credits",
+      message: `Insufficient credits. Balance: NPR ${profile.balance || 0}, Required: NPR ${price}. Please top up first.`,
+      balance: profile.balance || 0, required: price,
+    };
   }
 
   const productDetails: any = { player_id: player_id || "" };
@@ -676,142 +342,97 @@ async function handleOrder(body: any) {
     chatgpt: "chatgpt", garena: "garena", smilecoin: "smilecoin", unipin: "unipin",
   };
   const category = gameToCategoryMap[pkg.game] || pkg.game;
-
   const orderNumber = (profile.username || email.split("@")[0]).toLowerCase() + "-" + Math.random().toString(36).slice(2, 5);
 
-  const { data: updatedProfile, error: deductErr } = await sb
-    .from("profiles")
-    .update({ balance: profile.balance - price })
-    .eq("id", profile.id)
-    .gte("balance", price)
-    .select("balance")
-    .single();
+  const { data: updatedProfile, error: deductErr } = await sb.from("profiles")
+    .update({ balance: profile.balance - price }).eq("id", profile.id).gte("balance", price)
+    .select("balance").single();
 
   if (deductErr || !updatedProfile) {
-    return new Response(
-      JSON.stringify({ error: "insufficient_credits", message: "Balance changed. Please try again." }),
-      { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    return { success: false, error: "Balance changed during order. Please try again." };
   }
 
-  const { data: order, error: orderErr } = await sb
-    .from("product_orders")
-    .insert({
-      user_id: profile.id,
-      user_email: profile.email,
-      user_name: profile.username || email.split("@")[0],
-      order_number: orderNumber,
-      product_category: category,
-      product_name: product_name || pkg.package_name,
-      package_name: pkg.package_name,
-      quantity: pkg.quantity,
-      price: price,
-      credits_deducted: price,
-      product_details: productDetails,
-      payment_method: "credit",
-      status: "pending",
-      metadata: { source: body.platform || "chatbot_api", session_id: body.session_id || null },
-    })
-    .select("id, order_number")
-    .single();
+  const { data: order, error: orderErr } = await sb.from("product_orders").insert({
+    user_id: profile.id, user_email: profile.email,
+    user_name: profile.username || email.split("@")[0],
+    order_number: orderNumber, product_category: category,
+    product_name: pkg.package_name, package_name: pkg.package_name,
+    quantity: pkg.quantity, price, credits_deducted: price,
+    product_details: productDetails, payment_method: "credit", status: "pending",
+    metadata: { source: platform || "chatbot_api", session_id: sessionId || null },
+  }).select("id, order_number").single();
 
   if (orderErr) {
     await sb.from("profiles").update({ balance: profile.balance }).eq("id", profile.id);
-    console.error("Order insert error:", orderErr);
-    return new Response(
-      JSON.stringify({ error: "Failed to create order. " + orderErr.message }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    return { success: false, error: "Failed to create order. " + orderErr.message };
   }
 
   await sb.from("activity_logs").insert({
-    actor_id: profile.id,
-    actor_email: profile.email,
-    activity_type: "order_created",
-    action: "Chatbot Order Placed",
+    actor_id: profile.id, actor_email: profile.email,
+    activity_type: "order_created", action: "Chatbot Order Placed",
     description: `Order ${orderNumber} placed via chatbot API. ${price} credits deducted.`,
-    target_type: "order",
-    target_id: order.id,
+    target_type: "order", target_id: order.id,
     metadata: { order_number: orderNumber, price, product: pkg.package_name, source: "chatbot_api" },
   });
 
-  return new Response(
-    JSON.stringify({
-      success: true,
-      message: `Order placed successfully! Order number: ${orderNumber}. ${price} credits deducted.`,
-      order_number: orderNumber,
-      order_id: order.id,
-      product: pkg.package_name,
-      price,
-      new_balance: updatedProfile.balance,
-      timestamp: new Date().toISOString(),
-    }),
-    { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-  );
+  return {
+    success: true, order_number: orderNumber, order_id: order.id,
+    product: pkg.package_name, price, new_balance: updatedProfile.balance,
+  };
 }
 
-// ── Payment Initiation (Nepali API Nepal Gateway) ──
-
-async function handleInitiatePayment(body: any) {
-  const { email, amount } = body;
-
-  if (!email || !amount || amount < 1 || amount > 100000) {
-    return new Response(
-      JSON.stringify({ error: "email and amount (1-100000) are required" }),
-      { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
-  }
-
+async function executeCheckOrderStatus(args: any): Promise<any> {
   const sb = supabaseAdmin();
+  const orderId = args.order_id?.trim();
+  if (!orderId) return { error: "Order ID or email is required." };
 
-  const { data: profile } = await sb
-    .from("profiles")
-    .select("id, email, username, full_name")
-    .eq("email", email)
-    .single();
+  const { data, error } = await sb.from("product_orders")
+    .select("order_number, product_name, package_name, status, price, created_at, confirmed_at, completed_at, canceled_at, cancellation_reason")
+    .or(`order_number.eq.${orderId},user_email.eq.${orderId}`)
+    .order("created_at", { ascending: false }).limit(5);
 
-  if (!profile) {
-    return new Response(
-      JSON.stringify({ error: "No account found with this email." }),
-      { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+  if (error) return { error: error.message };
+  if (!data || data.length === 0) return { found: false, message: `No orders found for "${orderId}".` };
+
+  return {
+    found: true,
+    orders: data.map((o: any) => ({
+      order_number: o.order_number, product: o.product_name, package: o.package_name,
+      status: o.status, price: o.price, created_at: o.created_at,
+      confirmed_at: o.confirmed_at, completed_at: o.completed_at,
+      canceled_at: o.canceled_at, cancellation_reason: o.cancellation_reason,
+    })),
+  };
+}
+
+async function executeInitiatePayment(args: any): Promise<any> {
+  const sb = supabaseAdmin();
+  const { email, amount } = args;
+  if (!email || !amount || amount < 1 || amount > 100000) {
+    return { success: false, error: "Valid email and amount (1-100000) are required." };
   }
+
+  const { data: profile } = await sb.from("profiles").select("id, email, username, full_name")
+    .eq("email", email).single();
+  if (!profile) return { success: false, error: "No account found with this email." };
 
   const identifier = `UG${profile.id.slice(0, 4)}${Date.now().toString(36)}`;
 
-  const { error: insertErr } = await sb
-    .from("payment_transactions")
-    .insert({
-      user_id: profile.id,
-      user_email: email,
-      identifier,
-      amount: Number(amount),
-      credits: Number(amount),
-      status: "initiated",
-    });
-
-  if (insertErr) {
-    return new Response(
-      JSON.stringify({ error: "Failed to create payment record." }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
-  }
+  const { error: insertErr } = await sb.from("payment_transactions").insert({
+    user_id: profile.id, user_email: email, identifier,
+    amount: Number(amount), credits: Number(amount), status: "initiated",
+  });
+  if (insertErr) return { success: false, error: "Failed to create payment record." };
 
   const mode = Deno.env.get("APINEPAL_MODE") || "test";
   const publicKey = Deno.env.get("APINEPAL_PUBLIC_KEY");
   const secretKey = Deno.env.get("APINEPAL_SECRET_KEY");
 
   if (!publicKey || !secretKey) {
-    return new Response(
-      JSON.stringify({
-        success: true,
-        payment_method: "manual",
-        message: `Payment gateway not configured. Please use manual payment: send NPR ${amount} via bank transfer and submit a credit request with your email.`,
-        identifier,
-        timestamp: new Date().toISOString(),
-      }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    return {
+      success: true, payment_method: "manual", identifier,
+      message: `Payment gateway not configured. Please send NPR ${amount} via bank transfer and submit a credit request with your email.`,
+    };
   }
 
   const apiEndpoint = mode === "live"
@@ -854,167 +475,306 @@ async function handleInitiatePayment(body: any) {
         .update({ redirect_url: result.redirect_url, status: "pending" })
         .eq("identifier", identifier);
 
-      return new Response(
-        JSON.stringify({
-          success: true,
-          payment_method: "online",
-          payment_url: result.redirect_url,
-          identifier,
-          message: `Payment link generated. Complete payment of NPR ${amount} using this link.`,
-          timestamp: new Date().toISOString(),
-        }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return {
+        success: true, payment_method: "online", payment_url: result.redirect_url,
+        identifier, message: `Payment link generated for NPR ${amount}.`,
+      };
     } else {
       await sb.from("payment_transactions")
         .update({ status: "failed", api_response: result })
         .eq("identifier", identifier);
-
-      return new Response(
-        JSON.stringify({
-          error: result.message?.[0] || "Payment initiation failed",
-          identifier,
-        }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return { success: false, error: result.message?.[0] || "Payment initiation failed." };
     }
   } catch (err: any) {
-    console.error("Payment initiation error:", err);
-    return new Response(
-      JSON.stringify({ error: "Payment service unavailable. Please try manual payment." }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    return { success: false, error: "Payment service unavailable. Please try manual payment." };
   }
 }
 
-// ── Payment Status ──
-
-async function handlePaymentStatus(body: any) {
-  const { identifier } = body;
-
-  if (!identifier) {
-    return new Response(
-      JSON.stringify({ error: "identifier is required" }),
-      { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
-  }
-
+async function executeCheckPaymentStatus(args: any): Promise<any> {
   const sb = supabaseAdmin();
-  const { data, error } = await sb
-    .from("payment_transactions")
+  const { data, error } = await sb.from("payment_transactions")
     .select("identifier, amount, credits, status, payment_gateway, created_at, completed_at")
-    .eq("identifier", identifier)
-    .single();
-
-  if (error || !data) {
-    return new Response(
-      JSON.stringify({ error: "Transaction not found." }),
-      { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
-  }
-
-  return new Response(
-    JSON.stringify({
-      ...data,
-      timestamp: new Date().toISOString(),
-    }),
-    { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-  );
+    .eq("identifier", args.identifier).single();
+  if (error || !data) return { found: false, error: "Transaction not found." };
+  return { found: true, ...data };
 }
 
-// ── Credit Request ──
-
-async function handleCreditRequest(body: any) {
-  const { name, email, whatsapp, amount, screenshot_url } = body;
-
-  if (!name || !email || !amount) {
-    return new Response(
-      JSON.stringify({ error: "name, email, and amount are required" }),
-      { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
-  }
-
+async function executeRequestCredit(args: any): Promise<any> {
   const sb = supabaseAdmin();
+  const { name, email, amount, whatsapp, screenshot_url } = args;
 
-  const { data: profile } = await sb
-    .from("profiles")
-    .select("id")
-    .eq("email", email)
-    .single();
+  const { data: profile } = await sb.from("profiles").select("id").eq("email", email).single();
+  if (!profile) return { success: false, error: "No account found with this email." };
 
-  if (!profile) {
-    return new Response(
-      JSON.stringify({ error: "No account found with this email. Please register first." }),
-      { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
-  }
+  const { data: request, error } = await sb.from("payment_requests").insert({
+    user_id: profile.id, user_email: email, user_name: name,
+    amount: Number(amount), credits: Number(amount),
+    remarks: whatsapp ? `WhatsApp: ${whatsapp}` : null,
+    screenshot_url: screenshot_url || null, status: "pending",
+  }).select("id").single();
 
-  const { data: request, error } = await sb
-    .from("payment_requests")
-    .insert({
-      user_id: profile.id,
-      user_email: email,
-      user_name: name,
-      amount: parseFloat(amount),
-      credits: parseFloat(amount),
-      remarks: whatsapp ? `WhatsApp: ${whatsapp}` : null,
-      screenshot_url: screenshot_url || null,
-      status: "pending",
-    })
-    .select()
-    .single();
+  if (error) return { success: false, error: "Failed to create credit request." };
 
-  if (error) {
-    console.error("Credit request error:", error);
-    return new Response(
-      JSON.stringify({ error: "Failed to create credit request. " + error.message }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
-  }
-
-  return new Response(
-    JSON.stringify({
-      success: true,
-      message: `Credit request of NPR ${amount} submitted successfully! Request ID: ${request.id.slice(0, 8)}. Our team will review it shortly.`,
-      request_id: request.id,
-      timestamp: new Date().toISOString(),
-    }),
-    { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-  );
+  return {
+    success: true, request_id: request.id,
+    message: `Credit request of NPR ${amount} submitted. Request ID: ${request.id.slice(0, 8)}.`,
+  };
 }
 
-// ── Conversation Cleanup (15 days) ──
+async function executeTool(name: string, args: any, platform: string, sessionId: string): Promise<any> {
+  switch (name) {
+    case "search_products": return executeSearchProducts(args);
+    case "place_order": return executePlaceOrder(args, platform, sessionId);
+    case "check_order_status": return executeCheckOrderStatus(args);
+    case "initiate_payment": return executeInitiatePayment(args);
+    case "check_payment_status": return executeCheckPaymentStatus(args);
+    case "request_credit": return executeRequestCredit(args);
+    default: return { error: `Unknown tool: ${name}` };
+  }
+}
 
-async function handleCleanupConversations() {
+// ── Unified AI Brain ──
+
+async function handleUnifiedMessage(body: any) {
+  const { message, session_id, history, platform } = body;
+  const effectivePlatform = platform || "web";
+  const effectiveSessionId = session_id || "anonymous";
+
+  if (!message || typeof message !== "string" || message.length > 2000) {
+    return jsonResponse({ success: false, error: "message is required (string, max 2000 chars)" }, 400);
+  }
+
+  if (!checkRateLimit(effectiveSessionId)) {
+    return jsonResponse({
+      success: false, action: "rate_limited",
+      reply: "⏳ You're sending messages too quickly. Please wait a moment.",
+    }, 429);
+  }
+
+  const settings = await getSettings();
+  if (settings && !settings.is_enabled) {
+    return jsonResponse({ success: false, reply: "Chatbot is currently offline.", action: "disabled" });
+  }
+
+  // Load conversation history
+  let conversationHistory: ConversationMessage[] = [];
+  if (effectivePlatform !== "web" && session_id) {
+    conversationHistory = await loadServerHistory(session_id);
+  } else if (Array.isArray(history)) {
+    conversationHistory = history;
+  }
+
+  // Store user message
+  if (session_id) {
+    await storeMessage(session_id, effectivePlatform, "user", message);
+  }
+
+  // Pre-fetch RAG context in parallel
+  const [productResults, knowledgeContext] = await Promise.all([
+    searchProducts(message),
+    searchKnowledgeBase(message),
+  ]);
+
+  // Build system prompt
+  const { apiUrl, apiKey } = getAIConfig(settings);
+  const model = settings?.ai_model || "google/gemini-3-flash-preview";
+
+  let systemPrompt = settings?.ai_system_prompt ||
+    "You are UIQ, a helpful AI sales assistant for UGC-Topup. Help users with products, pricing, orders, and account questions.";
+
+  systemPrompt += `\n\nYou have access to tools to perform actions. IMPORTANT RULES:
+- When user asks about products, prices, or packages, use the search_products tool.
+- When user wants to buy/order something and provides email + package_id, use place_order tool.
+- When user asks about order status or tracking, use check_order_status tool.
+- When user wants to pay or add credits and provides email + amount, use initiate_payment tool.
+- When user asks about a payment status with an identifier, use check_payment_status tool.
+- When user wants to submit a credit request with name, email, amount, use request_credit tool.
+- For general conversation, greetings, or questions, respond directly WITHOUT tools.
+- Always format responses clearly for chat. Use emoji where appropriate.
+- When showing products, list all available packages with prices.
+- If you need more info from the user (like their email or which package), ASK them first before using a tool.`;
+
+  if (knowledgeContext) {
+    systemPrompt += `\n\n--- KNOWLEDGE BASE ---\n${knowledgeContext}\n--- END ---`;
+  }
+
+  // If we already found products via keyword search, inject as context
+  let preloadedProductContext = "";
+  if (productResults && productResults.length > 0) {
+    preloadedProductContext = `\n\n--- AVAILABLE PRODUCTS (from database) ---\n` +
+      productResults.map((p: any) => `• ${p.name} | ${p.price_display} | Package ID: ${p.package_id || 'N/A'} | Link: ${p.link || 'N/A'}`).join("\n") +
+      `\n--- END PRODUCTS ---\nUse this data to answer. Include prices and links. If user wants to order, ask for their email and use place_order with the package_id.`;
+  }
+
+  if (preloadedProductContext) {
+    systemPrompt += preloadedProductContext;
+  } else {
+    systemPrompt += `\n\nIf the user asks about a product not in our database, say: "This product is not currently available on our website. It may be added soon."`;
+  }
+
+  systemPrompt += `\n\n--- PAYMENT & SERVICE ---
+Payment options: Online (eSewa/Khalti via API Nepal), manual QR, bank transfer. Guide users to Dashboard > Add Credit.
+--- END ---`;
+
+  // Build messages array
+  const aiMessages: { role: string; content: string }[] = [{ role: "system", content: systemPrompt }];
+  if (conversationHistory.length > 0) {
+    for (const msg of conversationHistory.slice(-10)) {
+      aiMessages.push({ role: msg.role, content: msg.content });
+    }
+  }
+  aiMessages.push({ role: "user", content: message });
+
+  try {
+    // First AI call with tools
+    const aiResponse = await fetch(apiUrl, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ model, messages: aiMessages, tools: AI_TOOLS }),
+    });
+
+    if (!aiResponse.ok) {
+      const errText = await aiResponse.text();
+      console.error("AI error:", aiResponse.status, errText);
+      if (aiResponse.status === 429) throw new Error("AI is busy. Please try again.");
+      if (aiResponse.status === 402) throw new Error("AI quota reached.");
+      throw new Error("AI service error");
+    }
+
+    const aiData = await aiResponse.json();
+    const choice = aiData.choices?.[0];
+
+    // Check if AI wants to call tools
+    if (choice?.message?.tool_calls && choice.message.tool_calls.length > 0) {
+      const toolResults: any[] = [];
+      let detectedAction = "message";
+      let actionData: any = {};
+
+      // Execute all tool calls
+      for (const toolCall of choice.message.tool_calls) {
+        const toolName = toolCall.function.name;
+        let toolArgs: any;
+        try {
+          toolArgs = JSON.parse(toolCall.function.arguments);
+        } catch {
+          toolArgs = {};
+        }
+
+        console.log(`Tool call: ${toolName}`, toolArgs);
+        const result = await executeTool(toolName, toolArgs, effectivePlatform, effectiveSessionId);
+
+        // Track the action type
+        const actionMap: Record<string, string> = {
+          search_products: "product_search",
+          place_order: "order",
+          check_order_status: "order_status",
+          initiate_payment: "payment",
+          check_payment_status: "payment_status",
+          request_credit: "credit_request",
+        };
+        detectedAction = actionMap[toolName] || "message";
+        actionData = result;
+
+        toolResults.push({
+          role: "tool",
+          tool_call_id: toolCall.id,
+          content: JSON.stringify(result),
+        });
+      }
+
+      // Second AI call with tool results for natural language response
+      const followUpMessages = [
+        ...aiMessages,
+        choice.message,
+        ...toolResults,
+      ];
+
+      const followUpResponse = await fetch(apiUrl, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ model, messages: followUpMessages }),
+      });
+
+      let finalReply = "I processed your request.";
+      if (followUpResponse.ok) {
+        const followUpData = await followUpResponse.json();
+        finalReply = followUpData.choices?.[0]?.message?.content || finalReply;
+      }
+
+      // Store assistant response
+      if (session_id) {
+        await storeMessage(session_id, effectivePlatform, "assistant", finalReply);
+      }
+
+      return jsonResponse({
+        success: true,
+        reply: finalReply,
+        action: detectedAction,
+        data: actionData,
+        timestamp: new Date().toISOString(),
+        // Backward compat
+        ...(actionData.products ? { products: actionData.products, product: actionData.products[0] } : {}),
+      });
+    }
+
+    // No tool calls - direct AI response
+    const aiReply = choice?.message?.content || "I couldn't generate a response.";
+
+    if (session_id) {
+      await storeMessage(session_id, effectivePlatform, "assistant", aiReply);
+    }
+
+    return jsonResponse({
+      success: true,
+      reply: aiReply,
+      action: "message",
+      data: {},
+      timestamp: new Date().toISOString(),
+      // Backward compat: include products if found via keyword search
+      ...(productResults && productResults.length > 0 ? { products: productResults, product: productResults[0] } : {}),
+    });
+
+  } catch (err: any) {
+    console.error("Brain error:", err.message);
+
+    // Fallback: if we have product data, return it even without AI
+    if (productResults && productResults.length > 0) {
+      const fallbackReply = `Here are the available packages:\n${productResults.map((p: any) => `• ${p.name} — ${p.price_display}`).join("\n")}\n\nDelivery: ${productResults[0].delivery_time}`;
+
+      if (session_id) {
+        await storeMessage(session_id, effectivePlatform, "assistant", fallbackReply);
+      }
+
+      return jsonResponse({
+        success: true, reply: fallbackReply, action: "product_search",
+        data: { products: productResults },
+        products: productResults, product: productResults[0],
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    return jsonResponse({
+      success: false, reply: `❌ ${err.message}`,
+      action: "error", data: {}, timestamp: new Date().toISOString(),
+    });
+  }
+}
+
+// ── Legacy Direct Action Handlers (backward compat) ──
+
+async function handleFeedback(body: any) {
+  const { message_id, session_id, user_message, bot_response, rating, comment } = body;
+  if (!message_id || !session_id || !rating || !["helpful", "not_helpful"].includes(rating)) {
+    return jsonResponse({ success: false, error: "message_id, session_id, and valid rating required" }, 400);
+  }
   const sb = supabaseAdmin();
-  const fifteenDaysAgo = new Date(Date.now() - 15 * 24 * 60 * 60 * 1000).toISOString();
-
-  const { error, count } = await sb
-    .from("chatbot_conversations")
-    .delete()
-    .lt("created_at", fifteenDaysAgo);
-
-  if (error) {
-    return new Response(
-      JSON.stringify({ error: error.message }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
-  }
-
-  await logActivity(`Auto-cleanup: deleted ${count ?? 0} conversations older than 15 days`);
-
-  return new Response(
-    JSON.stringify({
-      success: true,
-      message: `Cleaned up conversations older than 15 days.`,
-      deleted: count ?? 0,
-      timestamp: new Date().toISOString(),
-    }),
-    { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-  );
+  const { error } = await sb.from("chatbot_feedback").insert({
+    message_id, session_id, user_message: user_message || null,
+    bot_response: bot_response || null, rating, comment: comment || null,
+  });
+  if (error) return jsonResponse({ success: false, error: "Failed to save feedback" }, 500);
+  return jsonResponse({ success: true, action: "feedback", reply: "Feedback recorded. Thank you!", timestamp: new Date().toISOString() });
 }
-
-// ── Test Connection ──
 
 async function handleTestConnection() {
   try {
@@ -1024,55 +784,53 @@ async function handleTestConnection() {
 
     const response = await fetch(apiUrl, {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
+      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
       body: JSON.stringify({
-        model,
-        messages: [
+        model, messages: [
           { role: "system", content: "You are a test assistant." },
           { role: "user", content: "Say hello in one word." },
-        ],
-        max_tokens: 10,
+        ], max_tokens: 10,
       }),
     });
 
     if (!response.ok) {
       const errText = await response.text();
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: `API returned ${response.status}: ${errText.slice(0, 200)}`,
-          provider: settings?.ai_provider || "lovable_ai",
-          model,
-        }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return jsonResponse({
+        success: false, error: `API returned ${response.status}: ${errText.slice(0, 200)}`,
+        provider: settings?.ai_provider || "lovable_ai", model,
+      });
     }
 
     const data = await response.json();
     const reply = data.choices?.[0]?.message?.content || "OK";
-
-    return new Response(
-      JSON.stringify({
-        success: true,
-        message: `Connection successful! Model responded: "${reply}"`,
-        provider: settings?.ai_provider || "lovable_ai",
-        model,
-        timestamp: new Date().toISOString(),
-      }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    return jsonResponse({
+      success: true, reply: `Connection successful! Model: "${reply}"`,
+      provider: settings?.ai_provider || "lovable_ai", model,
+      timestamp: new Date().toISOString(),
+    });
   } catch (err: any) {
-    return new Response(
-      JSON.stringify({
-        success: false,
-        error: err.message || "Connection test failed",
-      }),
-      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    return jsonResponse({ success: false, error: err.message || "Connection test failed" });
   }
+}
+
+async function handleCleanupConversations() {
+  const sb = supabaseAdmin();
+  const fifteenDaysAgo = new Date(Date.now() - 15 * 24 * 60 * 60 * 1000).toISOString();
+  const { error, count } = await sb.from("chatbot_conversations").delete().lt("created_at", fifteenDaysAgo);
+  if (error) return jsonResponse({ success: false, error: error.message }, 500);
+  return jsonResponse({
+    success: true, action: "cleanup", reply: `Cleaned ${count ?? 0} old conversations.`,
+    data: { deleted: count ?? 0 }, timestamp: new Date().toISOString(),
+  });
+}
+
+// ── Response Helper ──
+
+function jsonResponse(body: any, status = 200) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
 }
 
 // ── Main Router ──
@@ -1084,21 +842,10 @@ Deno.serve(async (req) => {
 
   try {
     const body = await req.json();
-    const action = body.action || "message";
+    const action = body.action;
 
+    // If action is explicitly set to a non-message action, use legacy handlers for backward compat
     switch (action) {
-      case "message":
-        return await handleMessage(body);
-      case "order-status":
-        return await handleOrderStatus(body);
-      case "order":
-        return await handleOrder(body);
-      case "credit-request":
-        return await handleCreditRequest(body);
-      case "initiate-payment":
-        return await handleInitiatePayment(body);
-      case "payment-status":
-        return await handlePaymentStatus(body);
       case "submit-feedback":
         return await handleFeedback(body);
       case "cleanup-conversations":
@@ -1106,15 +853,38 @@ Deno.serve(async (req) => {
       case "test-connection":
         return await handleTestConnection();
       default:
-        return new Response(
-          JSON.stringify({ error: `Unknown action: ${action}` }),
-          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
+        // ALL other actions (message, order, order-status, payment, etc.)
+        // now go through the unified AI brain.
+        // If action is explicitly set (e.g. "order"), we can still process it
+        // by converting it to a message for the AI, or handle directly.
+        
+        // For explicit legacy actions with structured data, handle them directly
+        // but ALSO go through unified brain for "message" or no action
+        if (action === "order") {
+          const result = await executePlaceOrder(body, body.platform || "api", body.session_id || "");
+          return jsonResponse({ success: result.success !== false, reply: result.message || result.error, action: "order", data: result, timestamp: new Date().toISOString() });
+        }
+        if (action === "order-status") {
+          const result = await executeCheckOrderStatus(body);
+          return jsonResponse({ success: !result.error, reply: result.message || (result.found ? `Found ${result.orders?.length} order(s).` : result.message), action: "order_status", data: result, timestamp: new Date().toISOString() });
+        }
+        if (action === "initiate-payment") {
+          const result = await executeInitiatePayment(body);
+          return jsonResponse({ success: result.success, reply: result.message || result.error, action: "payment", data: result, timestamp: new Date().toISOString() });
+        }
+        if (action === "payment-status") {
+          const result = await executeCheckPaymentStatus(body);
+          return jsonResponse({ success: result.found, reply: result.found ? `Payment ${result.status}` : result.error, action: "payment_status", data: result, timestamp: new Date().toISOString() });
+        }
+        if (action === "credit-request") {
+          const result = await executeRequestCredit(body);
+          return jsonResponse({ success: result.success, reply: result.message || result.error, action: "credit_request", data: result, timestamp: new Date().toISOString() });
+        }
+
+        // Default: unified AI brain handles everything
+        return await handleUnifiedMessage(body);
     }
   } catch (err: any) {
-    return new Response(
-      JSON.stringify({ error: err.message || "Internal server error" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    return jsonResponse({ success: false, error: err.message || "Internal server error" }, 500);
   }
 });
