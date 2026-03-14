@@ -106,12 +106,12 @@ async function searchKnowledgeBase(message: string): Promise<string | null> {
 
 // Common typos and synonyms for fuzzy matching
 const FUZZY_ALIASES: Record<string, string[]> = {
-  freefire: ["free fire", "freefire", "ff", "free fir", "frefire", "fre fire"],
-  mobile_legends: ["mobile legends", "mobile legend", "ml", "mlbb", "mobi legends"],
-  pubg: ["pubg", "pubg mobile", "pubgm", "battleground"],
+  freefire: ["free fire", "freefire", "ff", "free fir", "frefire", "fre fire", "diamond", "diamonds", "diamon", "diamnd", "diamons"],
+  mobile_legends: ["mobile legends", "mobile legend", "ml", "mlbb", "mobi legends", "diamond", "diamonds", "diamon", "diamnd", "diamons"],
+  pubg: ["pubg", "pubg mobile", "pubgm", "battleground", "uc"],
   roblox: ["roblox", "robux", "rblx"],
   netflix: ["netflix", "netflex", "netfix"],
-  tiktok: ["tiktok", "tik tok", "tikto", "tiktk"],
+  tiktok: ["tiktok", "tik tok", "tikto", "tiktk", "tiktok coins"],
   youtube: ["youtube", "yt", "you tube", "youtub"],
   chatgpt: ["chatgpt", "chat gpt", "gpt", "openai"],
   garena: ["garena", "garena shell", "shell"],
@@ -124,13 +124,100 @@ function fuzzyMatchGame(query: string): string | null {
   // Direct keyword match first
   const directMatch = PRODUCT_KEYWORDS.find((kw) => lower.includes(kw));
   if (directMatch) return KEYWORD_TO_GAME[directMatch] || directMatch;
-  // Fuzzy alias match
+  // Fuzzy alias match — skip shared aliases like "diamond" (they match multiple games)
+  const SHARED_ALIASES = new Set(["diamond", "diamonds", "diamon", "diamnd", "diamons"]);
   for (const [game, aliases] of Object.entries(FUZZY_ALIASES)) {
     for (const alias of aliases) {
+      if (SHARED_ALIASES.has(alias)) continue; // skip shared ones for single-game match
       if (lower.includes(alias)) return game;
     }
   }
+  // Check shared aliases — return null to trigger multi-game search
+  for (const alias of SHARED_ALIASES) {
+    if (lower.includes(alias)) return null; // will be caught by broad search
+  }
   return null;
+}
+
+// Multi-game search for shared keywords like "diamond"
+async function searchMultiGameProducts(query: string) {
+  const sb = supabaseAdmin();
+  const SHARED_ALIASES = new Set(["diamond", "diamonds", "diamon", "diamnd", "diamons"]);
+  const lower = query.toLowerCase().replace(/[^a-z0-9\s]/g, "").trim();
+  const words = lower.split(/\s+/);
+  const hasSharedAlias = words.some(w => SHARED_ALIASES.has(w));
+  if (!hasSharedAlias) return null;
+
+  // Search across ALL games for diamond packages
+  const { data: gamePrices } = await sb.from("game_product_prices")
+    .select("package_name, package_id, price, currency, game, quantity, package_type")
+    .eq("is_active", true)
+    .ilike("package_name", "%diamond%")
+    .order("game").order("display_order", { ascending: true })
+    .limit(50);
+
+  if (!gamePrices || gamePrices.length === 0) return null;
+  return gamePrices.map((p: any) => ({
+    name: p.package_name, package_id: p.package_id, price: p.price,
+    currency: p.currency || "NPR", price_display: `${p.currency || "NPR"} ${p.price}`,
+    image_url: null, link: getRouteForGame(p.game), delivery_time: "5–10 minutes",
+    package_type: p.package_type, quantity: p.quantity, game: p.game,
+  }));
+}
+
+// Format product results into a clean structured response
+function formatProductResponse(products: any[]): string {
+  if (!products || products.length === 0) return "";
+
+  // Group by game
+  const grouped: Record<string, any[]> = {};
+  for (const p of products) {
+    const game = p.game || "other";
+    if (!grouped[game]) grouped[game] = [];
+    grouped[game].push(p);
+  }
+
+  const GAME_LABELS: Record<string, { emoji: string; label: string; route: string }> = {
+    freefire: { emoji: "🔥", label: "Free Fire Diamonds", route: "/freefire-diamond" },
+    mobile_legends: { emoji: "⚔️", label: "Mobile Legends Diamonds", route: "/mobile-legends" },
+    pubg: { emoji: "🎯", label: "PUBG Mobile UC", route: "/pubg-mobile" },
+    roblox: { emoji: "🎮", label: "Roblox Robux", route: "/roblox-topup" },
+    netflix: { emoji: "🎬", label: "Netflix", route: "/netflix" },
+    tiktok: { emoji: "🎵", label: "TikTok Coins", route: "/tiktok-coins" },
+    youtube: { emoji: "📺", label: "YouTube Premium", route: "/youtube" },
+    chatgpt: { emoji: "🤖", label: "ChatGPT Plus", route: "/chatgpt" },
+    garena: { emoji: "🐚", label: "Garena Shells", route: "/garena-shell" },
+    smilecoin: { emoji: "😊", label: "Smile One", route: "/smile-coin" },
+    unipin: { emoji: "🎯", label: "UniPin", route: "/unipin-uc" },
+  };
+
+  const BASE_URL = "https://ugtopups.lovable.app/#";
+  const gameKeys = Object.keys(grouped);
+  let response = "💎 **Diamond Packages**\n\n";
+
+  for (const game of gameKeys) {
+    const info = GAME_LABELS[game] || { emoji: "📦", label: game, route: "" };
+    const packages = grouped[game];
+    response += `${info.emoji} **${info.label}**\n`;
+
+    // Show up to 8 packages per game for readability
+    const shown = packages.slice(0, 8);
+    for (const p of shown) {
+      response += `• ${p.name} — ${p.currency || "NPR"} ${p.price}\n`;
+    }
+    if (packages.length > 8) {
+      response += `• _...and ${packages.length - 8} more packages_\n`;
+    }
+    if (info.route) {
+      response += `🛒 Buy now: ${BASE_URL}${info.route}\n`;
+    }
+    response += "\n";
+  }
+
+  response += "⏱ **Delivery:** 5–10 minutes\n\n";
+  response += "💬 Reply with the package you want to order!";
+
+  return response;
 }
 
 function getRouteForGame(game: string): string | null {
@@ -673,10 +760,14 @@ async function handleUnifiedMessage(body: any) {
   }
 
   // Pre-fetch RAG context in parallel
-  const [productResults, knowledgeContext] = await Promise.all([
+  const [productResults, multiGameResults, knowledgeContext] = await Promise.all([
     searchProducts(message),
+    searchMultiGameProducts(message),
     searchKnowledgeBase(message),
   ]);
+
+  // Merge results: prefer specific game results, fallback to multi-game
+  const effectiveProducts = (productResults && productResults.length > 0) ? productResults : multiGameResults;
 
   // Build system prompt
   const { apiUrl, apiKey } = getAIConfig(settings);
@@ -685,38 +776,38 @@ async function handleUnifiedMessage(body: any) {
   let systemPrompt = settings?.ai_system_prompt ||
     "You are UIQ, a helpful AI sales assistant for UGC-Topup. Help users with products, pricing, orders, and account questions.";
 
-  systemPrompt += `\n\nYou have access to tools to perform actions. IMPORTANT RULES:
-- When user asks about products, prices, or packages, use the search_products tool.
-- When user wants to buy/order something and provides email + package_id, use place_order tool.
-- When user asks about order status or tracking, use check_order_status tool.
-- When user wants to pay or add credits and provides email + amount, use initiate_payment tool.
-- When user asks about a payment status with an identifier, use check_payment_status tool.
-- When user wants to submit a credit request with name, email, amount, use request_credit tool.
+  systemPrompt += `\n\nIMPORTANT RULES:
+- ALWAYS use the product data provided in the AVAILABLE PRODUCTS section below. NEVER say a product is "not found" or "not available" if product data is listed.
+- When showing products, format them clearly with bullet points, prices, and buy links.
+- When user wants to buy/order something, collect required details step-by-step:
+  1. Which specific package they want (show options if unclear)
+  2. Their registered email address
+  3. Player ID (for games like Free Fire, Mobile Legends, PUBG)
+  4. Zone/Server ID (if applicable, e.g., Mobile Legends)
+  Only use place_order tool AFTER collecting all required info.
+- When user asks about order status, use check_order_status tool.
+- When user wants to pay/add credits with email + amount, use initiate_payment tool.
 - For general conversation, greetings, or questions, respond directly WITHOUT tools.
-- Always format responses clearly for chat. Use emoji where appropriate.
-- When showing products, list all available packages with prices.
-- If you need more info from the user (like their email or which package), ASK them first before using a tool.`;
+- Format all responses with markdown: **bold** for headings, bullet points for lists, emoji for visual appeal.
+- Always include the buy link when showing products.`;
 
   if (knowledgeContext) {
     systemPrompt += `\n\n--- KNOWLEDGE BASE ---\n${knowledgeContext}\n--- END ---`;
   }
 
-  // If we already found products via keyword search, inject as context
-  let preloadedProductContext = "";
-  if (productResults && productResults.length > 0) {
-    preloadedProductContext = `\n\n--- AVAILABLE PRODUCTS (from database) ---\n` +
-      productResults.map((p: any) => `• ${p.name} | ${p.price_display} | Package ID: ${p.package_id || 'N/A'} | Link: ${p.link || 'N/A'}`).join("\n") +
-      `\n--- END PRODUCTS ---\nUse this data to answer. Include prices and links. If user wants to order, ask for their email and use place_order with the package_id.`;
-  }
-
-  if (preloadedProductContext) {
-    systemPrompt += preloadedProductContext;
+  // Inject pre-fetched products as context
+  if (effectiveProducts && effectiveProducts.length > 0) {
+    const productContext = effectiveProducts.map((p: any) =>
+      `• ${p.name} | ${p.currency || "NPR"} ${p.price} | Package ID: ${p.package_id || 'N/A'} | Link: ${p.link || 'N/A'} | Game: ${p.game || 'N/A'}`
+    ).join("\n");
+    systemPrompt += `\n\n--- AVAILABLE PRODUCTS (from database — this is REAL data, use it!) ---\n${productContext}\n--- END PRODUCTS ---\nIMPORTANT: Present these products to the user with prices and links. Do NOT say products are not found. Do NOT use search_products tool since data is already provided above.`;
   } else {
     systemPrompt += `\n\nIf the user asks about a product not in our database, say: "This product is not currently available on our website. It may be added soon."`;
   }
 
   systemPrompt += `\n\n--- PAYMENT & SERVICE ---
 Payment options: Online (eSewa/Khalti via API Nepal), manual QR, bank transfer. Guide users to Dashboard > Add Credit.
+Website: https://ugtopups.lovable.app
 --- END ---`;
 
   // Build messages array
@@ -821,7 +912,17 @@ Payment options: Online (eSewa/Khalti via API Nepal), manual QR, bank transfer. 
     }
 
     // No tool calls - direct AI response
-    const aiReply = choice?.message?.content || "I couldn't generate a response.";
+    let aiReply = choice?.message?.content || "I couldn't generate a response.";
+
+    // SAFETY CHECK: If AI says "not found" but we have products, override with formatted response
+    const NOT_FOUND_PHRASES = ["not found", "not available", "don't have", "doesn't exist", "isn't found", "no product", "not currently available", "couldn't find"];
+    const aiReplyLower = aiReply.toLowerCase();
+    const aiSaysNotFound = NOT_FOUND_PHRASES.some(phrase => aiReplyLower.includes(phrase));
+    
+    if (aiSaysNotFound && effectiveProducts && effectiveProducts.length > 0) {
+      console.log("AI safety check triggered: overriding 'not found' with real product data");
+      aiReply = formatProductResponse(effectiveProducts);
+    }
 
     if (session_id) {
       await storeMessage(session_id, effectivePlatform, "assistant", aiReply);
@@ -830,19 +931,18 @@ Payment options: Online (eSewa/Khalti via API Nepal), manual QR, bank transfer. 
     return jsonResponse({
       success: true,
       reply: aiReply,
-      action: "message",
-      data: {},
+      action: effectiveProducts && effectiveProducts.length > 0 ? "product_search" : "message",
+      data: effectiveProducts && effectiveProducts.length > 0 ? { products: effectiveProducts } : {},
       timestamp: new Date().toISOString(),
-      // Backward compat: include products if found via keyword search
-      ...(productResults && productResults.length > 0 ? { products: productResults, product: productResults[0] } : {}),
+      ...(effectiveProducts && effectiveProducts.length > 0 ? { products: effectiveProducts, product: effectiveProducts[0] } : {}),
     });
 
   } catch (err: any) {
     console.error("Brain error:", err.message);
 
     // Fallback: if we have product data, return it even without AI
-    if (productResults && productResults.length > 0) {
-      const fallbackReply = `Here are the available packages:\n${productResults.map((p: any) => `• ${p.name} — ${p.price_display}`).join("\n")}\n\nDelivery: ${productResults[0].delivery_time}`;
+    if (effectiveProducts && effectiveProducts.length > 0) {
+      const fallbackReply = formatProductResponse(effectiveProducts);
 
       if (session_id) {
         await storeMessage(session_id, effectivePlatform, "assistant", fallbackReply);
@@ -850,8 +950,8 @@ Payment options: Online (eSewa/Khalti via API Nepal), manual QR, bank transfer. 
 
       return jsonResponse({
         success: true, reply: fallbackReply, action: "product_search",
-        data: { products: productResults },
-        products: productResults, product: productResults[0],
+        data: { products: effectiveProducts },
+        products: effectiveProducts, product: effectiveProducts[0],
         timestamp: new Date().toISOString(),
       });
     }
