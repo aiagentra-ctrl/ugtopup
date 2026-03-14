@@ -832,6 +832,19 @@ Deno.serve(async (req) => {
     // Optional signature check (if Evolution sends apikey header/body)
     const incomingApiKey = req.headers.get("apikey") || body?.apikey || body?.data?.apikey;
     if (incomingApiKey && incomingApiKey !== config.api_key) {
+      await logMessage(
+        "webhook",
+        "inbound",
+        "(invalid signature)",
+        `wa-webhook-${Date.now()}`,
+        "invalid_signature",
+        "Webhook API key mismatch",
+        {
+          webhook_event: normalizeEvent(body?.event),
+          received_apikey_preview: String(incomingApiKey).slice(0, 6),
+          raw_payload_preview: payloadPreview(body),
+        },
+      );
       return err("Invalid webhook signature", 401);
     }
 
