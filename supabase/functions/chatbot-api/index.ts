@@ -8,6 +8,7 @@ const corsHeaders = {
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+const BASE_URL = "https://ugtopups.lovable.app/#";
 
 function supabaseAdmin() {
   return createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
@@ -63,6 +64,35 @@ const KEYWORD_TO_GAME: Record<string, string> = {
   unipin: "unipin",
 };
 
+const GAME_LABELS: Record<string, { emoji: string; label: string; route: string }> = {
+  freefire: { emoji: "🔥", label: "Free Fire Diamonds", route: "/freefire-diamond" },
+  mobile_legends: { emoji: "⚔️", label: "Mobile Legends Diamonds", route: "/mobile-legends" },
+  pubg: { emoji: "🎯", label: "PUBG Mobile UC", route: "/pubg-mobile" },
+  roblox: { emoji: "🎮", label: "Roblox Robux", route: "/roblox-topup" },
+  netflix: { emoji: "🎬", label: "Netflix", route: "/netflix" },
+  tiktok: { emoji: "🎵", label: "TikTok Coins", route: "/tiktok-coins" },
+  youtube: { emoji: "📺", label: "YouTube Premium", route: "/youtube" },
+  chatgpt: { emoji: "🤖", label: "ChatGPT Plus", route: "/chatgpt" },
+  garena: { emoji: "🐚", label: "Garena Shells", route: "/garena-shell" },
+  smilecoin: { emoji: "😊", label: "Smile One", route: "/smile-coin" },
+  unipin: { emoji: "🎯", label: "UniPin", route: "/unipin-uc" },
+};
+
+// Game-specific required fields for ordering
+const GAME_REQUIRED_FIELDS: Record<string, string[]> = {
+  freefire: ["email", "player_id"],
+  mobile_legends: ["email", "player_id", "zone_id"],
+  pubg: ["email", "player_id"],
+  roblox: ["email"],
+  netflix: ["email"],
+  tiktok: ["email"],
+  youtube: ["email"],
+  chatgpt: ["email"],
+  garena: ["email"],
+  smilecoin: ["email"],
+  unipin: ["email"],
+};
+
 // ── Helpers ──
 
 async function getSettings() {
@@ -104,7 +134,6 @@ async function searchKnowledgeBase(message: string): Promise<string | null> {
 
 // ── Product Search (Fuzzy + DB) ──
 
-// Common typos and synonyms for fuzzy matching
 const FUZZY_ALIASES: Record<string, string[]> = {
   freefire: ["free fire", "freefire", "ff", "free fir", "frefire", "fre fire", "diamond", "diamonds", "diamon", "diamnd", "diamons"],
   mobile_legends: ["mobile legends", "mobile legend", "ml", "mlbb", "mobi legends", "diamond", "diamonds", "diamon", "diamnd", "diamons"],
@@ -121,25 +150,21 @@ const FUZZY_ALIASES: Record<string, string[]> = {
 
 function fuzzyMatchGame(query: string): string | null {
   const lower = query.toLowerCase().replace(/[^a-z0-9\s]/g, "").trim();
-  // Direct keyword match first
   const directMatch = PRODUCT_KEYWORDS.find((kw) => lower.includes(kw));
   if (directMatch) return KEYWORD_TO_GAME[directMatch] || directMatch;
-  // Fuzzy alias match — skip shared aliases like "diamond" (they match multiple games)
   const SHARED_ALIASES = new Set(["diamond", "diamonds", "diamon", "diamnd", "diamons"]);
   for (const [game, aliases] of Object.entries(FUZZY_ALIASES)) {
     for (const alias of aliases) {
-      if (SHARED_ALIASES.has(alias)) continue; // skip shared ones for single-game match
+      if (SHARED_ALIASES.has(alias)) continue;
       if (lower.includes(alias)) return game;
     }
   }
-  // Check shared aliases — return null to trigger multi-game search
   for (const alias of SHARED_ALIASES) {
-    if (lower.includes(alias)) return null; // will be caught by broad search
+    if (lower.includes(alias)) return null;
   }
   return null;
 }
 
-// Multi-game search for shared keywords like "diamond"
 async function searchMultiGameProducts(query: string) {
   const sb = supabaseAdmin();
   const SHARED_ALIASES = new Set(["diamond", "diamonds", "diamon", "diamnd", "diamons"]);
@@ -148,7 +173,6 @@ async function searchMultiGameProducts(query: string) {
   const hasSharedAlias = words.some(w => SHARED_ALIASES.has(w));
   if (!hasSharedAlias) return null;
 
-  // Search across ALL games for diamond packages
   const { data: gamePrices } = await sb.from("game_product_prices")
     .select("package_name, package_id, price, currency, game, quantity, package_type")
     .eq("is_active", true)
@@ -177,45 +201,65 @@ function formatProductResponse(products: any[]): string {
     grouped[game].push(p);
   }
 
-  const GAME_LABELS: Record<string, { emoji: string; label: string; route: string }> = {
-    freefire: { emoji: "🔥", label: "Free Fire Diamonds", route: "/freefire-diamond" },
-    mobile_legends: { emoji: "⚔️", label: "Mobile Legends Diamonds", route: "/mobile-legends" },
-    pubg: { emoji: "🎯", label: "PUBG Mobile UC", route: "/pubg-mobile" },
-    roblox: { emoji: "🎮", label: "Roblox Robux", route: "/roblox-topup" },
-    netflix: { emoji: "🎬", label: "Netflix", route: "/netflix" },
-    tiktok: { emoji: "🎵", label: "TikTok Coins", route: "/tiktok-coins" },
-    youtube: { emoji: "📺", label: "YouTube Premium", route: "/youtube" },
-    chatgpt: { emoji: "🤖", label: "ChatGPT Plus", route: "/chatgpt" },
-    garena: { emoji: "🐚", label: "Garena Shells", route: "/garena-shell" },
-    smilecoin: { emoji: "😊", label: "Smile One", route: "/smile-coin" },
-    unipin: { emoji: "🎯", label: "UniPin", route: "/unipin-uc" },
-  };
-
-  const BASE_URL = "https://ugtopups.lovable.app/#";
   const gameKeys = Object.keys(grouped);
-  let response = "💎 **Diamond Packages**\n\n";
+  const isSingleGame = gameKeys.length === 1;
+  const gameInfo = GAME_LABELS[gameKeys[0]] || { emoji: "📦", label: gameKeys[0], route: "" };
 
-  for (const game of gameKeys) {
-    const info = GAME_LABELS[game] || { emoji: "📦", label: game, route: "" };
-    const packages = grouped[game];
-    response += `${info.emoji} **${info.label}**\n`;
+  let response = "";
 
-    // Show up to 8 packages per game for readability
-    const shown = packages.slice(0, 8);
-    for (const p of shown) {
-      response += `• ${p.name} — ${p.currency || "NPR"} ${p.price}\n`;
+  if (isSingleGame) {
+    response += `${gameInfo.emoji} **${gameInfo.label}**\n\n`;
+    response += `Here are the available packages with real-time pricing:\n\n`;
+
+    const packages = grouped[gameKeys[0]];
+    // Group by package_type if available
+    const byType: Record<string, any[]> = {};
+    for (const p of packages) {
+      const type = p.package_type || "topup";
+      if (!byType[type]) byType[type] = [];
+      byType[type].push(p);
     }
-    if (packages.length > 8) {
-      response += `• _...and ${packages.length - 8} more packages_\n`;
+
+    for (const [type, pkgs] of Object.entries(byType)) {
+      if (Object.keys(byType).length > 1) {
+        response += `**${type === "topup" ? "📦 Top-Up Packages" : type === "special" ? "⭐ Special Packages" : `📦 ${type}`}**\n`;
+      }
+      const shown = pkgs.slice(0, 10);
+      for (const p of shown) {
+        response += `• **${p.name}** — NPR ${p.price}\n`;
+      }
+      if (pkgs.length > 10) {
+        response += `• _...and ${pkgs.length - 10} more packages_\n`;
+      }
+      response += "\n";
     }
-    if (info.route) {
-      response += `🛒 Buy now: ${BASE_URL}${info.route}\n`;
+
+    if (gameInfo.route) {
+      response += `🛒 **Buy Now:** ${BASE_URL}${gameInfo.route}\n`;
     }
-    response += "\n";
+    response += `⏱ **Delivery:** 5–10 minutes\n\n`;
+    response += `💬 Want to order? Just tell me which package you'd like and I'll guide you through the process!`;
+  } else {
+    response += `💎 **Available Packages**\n\n`;
+    for (const game of gameKeys) {
+      const info = GAME_LABELS[game] || { emoji: "📦", label: game, route: "" };
+      const packages = grouped[game];
+      response += `${info.emoji} **${info.label}**\n`;
+      const shown = packages.slice(0, 6);
+      for (const p of shown) {
+        response += `• **${p.name}** — NPR ${p.price}\n`;
+      }
+      if (packages.length > 6) {
+        response += `• _...and ${packages.length - 6} more_\n`;
+      }
+      if (info.route) {
+        response += `🛒 Buy: ${BASE_URL}${info.route}\n`;
+      }
+      response += "\n";
+    }
+    response += `⏱ **Delivery:** 5–10 minutes\n\n`;
+    response += `💬 Tell me which game and package you'd like to order!`;
   }
-
-  response += "⏱ **Delivery:** 5–10 minutes\n\n";
-  response += "💬 Reply with the package you want to order!";
 
   return response;
 }
@@ -235,19 +279,16 @@ async function searchProducts(query: string) {
   const lowerMsg = query.toLowerCase().replace(/[^a-z0-9\s]/g, "").trim();
   if (!lowerMsg || lowerMsg.length < 2) return null;
 
-  // Step 1: Try fuzzy keyword match to game
   const matchedGame = fuzzyMatchGame(lowerMsg);
   const route = matchedGame ? getRouteForGame(matchedGame) : null;
 
   if (matchedGame) {
-    // Fetch real-time prices from game_product_prices
     const { data: gamePrices } = await sb.from("game_product_prices")
       .select("package_name, package_id, price, currency, game, quantity, package_type")
       .eq("is_active", true).eq("game", matchedGame)
       .order("display_order", { ascending: true }).limit(20);
 
     if (gamePrices && gamePrices.length > 0) {
-      // Get product image
       const { data: productInfo } = await sb.from("dynamic_products")
         .select("image_url, description").eq("is_active", true)
         .or(PRODUCT_KEYWORDS.filter(kw => KEYWORD_TO_GAME[kw] === matchedGame).map(kw => `title.ilike.%${kw}%`).join(","))
@@ -256,22 +297,15 @@ async function searchProducts(query: string) {
       const description = productInfo?.[0]?.description || null;
 
       return gamePrices.map((p: any) => ({
-        name: p.package_name,
-        package_id: p.package_id,
-        price: p.price,
-        currency: p.currency || "NPR",
-        price_display: `${p.currency || "NPR"} ${p.price}`,
-        image_url: imageUrl,
-        link: route,
-        delivery_time: "5–10 minutes",
-        description,
-        package_type: p.package_type,
-        quantity: p.quantity,
+        name: p.package_name, package_id: p.package_id, price: p.price,
+        currency: p.currency || "NPR", price_display: `${p.currency || "NPR"} ${p.price}`,
+        image_url: imageUrl, link: route, delivery_time: "5–10 minutes",
+        description, package_type: p.package_type, quantity: p.quantity, game: matchedGame,
       }));
     }
   }
 
-  // Step 2: Broad text search across game_product_prices (fuzzy)
+  // Broad text search
   const searchWords = lowerMsg.split(/\s+/).filter(w => w.length >= 3);
   if (searchWords.length > 0) {
     const orFilters = searchWords.flatMap(w => [`package_name.ilike.%${w}%`, `game.ilike.%${w}%`]).join(",");
@@ -281,24 +315,16 @@ async function searchProducts(query: string) {
       .order("display_order", { ascending: true }).limit(15);
 
     if (broadPrices && broadPrices.length > 0) {
-      const gameKey = broadPrices[0].game;
-      const broadRoute = getRouteForGame(gameKey);
       return broadPrices.map((p: any) => ({
-        name: p.package_name,
-        package_id: p.package_id,
-        price: p.price,
-        currency: p.currency || "NPR",
-        price_display: `${p.currency || "NPR"} ${p.price}`,
-        image_url: null,
-        link: broadRoute,
-        delivery_time: "5–10 minutes",
-        package_type: p.package_type,
-        quantity: p.quantity,
+        name: p.package_name, package_id: p.package_id, price: p.price,
+        currency: p.currency || "NPR", price_display: `${p.currency || "NPR"} ${p.price}`,
+        image_url: null, link: getRouteForGame(p.game), delivery_time: "5–10 minutes",
+        package_type: p.package_type, quantity: p.quantity, game: p.game,
       }));
     }
   }
 
-  // Step 3: Search dynamic_products catalog
+  // Dynamic products
   if (searchWords.length > 0) {
     const dynFilters = searchWords.map(w => `title.ilike.%${w}%`).join(",");
     const { data: dynProducts } = await sb.from("dynamic_products")
@@ -307,20 +333,15 @@ async function searchProducts(query: string) {
 
     if (dynProducts && dynProducts.length > 0) {
       return dynProducts.map((p: any) => ({
-        name: p.title,
-        price: p.discount_price || p.price || 0,
-        currency: "NPR",
-        price_display: (p.discount_price || p.price) ? `NPR ${p.discount_price || p.price}` : "See product page",
-        image_url: p.image_url,
-        link: p.link,
-        delivery_time: "5–10 minutes",
-        description: p.description,
-        features: p.features,
+        name: p.title, price: p.discount_price || p.price || 0,
+        currency: "NPR", price_display: (p.discount_price || p.price) ? `NPR ${p.discount_price || p.price}` : "See product page",
+        image_url: p.image_url, link: p.link, delivery_time: "5–10 minutes",
+        description: p.description, features: p.features,
       }));
     }
   }
 
-  // Step 4: Search products table as final fallback
+  // Products table fallback
   if (searchWords.length > 0) {
     const prodFilters = searchWords.flatMap(w => [`name.ilike.%${w}%`, `description.ilike.%${w}%`]).join(",");
     const { data: products } = await sb.from("products")
@@ -329,15 +350,10 @@ async function searchProducts(query: string) {
 
     if (products && products.length > 0) {
       return products.map((p: any) => ({
-        name: p.name,
-        package_id: p.product_id,
-        price: p.price,
-        currency: "NPR",
-        price_display: `NPR ${p.price}`,
-        image_url: p.image_url,
-        link: getRouteForGame(p.category) || null,
-        delivery_time: "5–10 minutes",
-        description: p.description,
+        name: p.name, package_id: p.product_id, price: p.price,
+        currency: "NPR", price_display: `NPR ${p.price}`,
+        image_url: p.image_url, link: getRouteForGame(p.category) || null,
+        delivery_time: "5–10 minutes", description: p.description,
       }));
     }
   }
@@ -392,7 +408,7 @@ const AI_TOOLS = [
     type: "function",
     function: {
       name: "search_products",
-      description: "Search for products and their prices. Use when user asks about any product, game, pricing, packages, diamonds, coins, subscriptions, or top-ups.",
+      description: "Search for products and their real-time prices from the database. Use when user asks about any product, game, pricing, packages, diamonds, coins, subscriptions, or top-ups.",
       parameters: {
         type: "object",
         properties: {
@@ -407,14 +423,14 @@ const AI_TOOLS = [
     type: "function",
     function: {
       name: "place_order",
-      description: "Place an order for a product. Use when user wants to buy, order, or purchase something and provides their email and the package they want.",
+      description: "Place an order for a product. ONLY use this after you have collected ALL required details from the user: email, package selection, and game-specific IDs (player_id, zone_id). Do NOT call this until you have confirmed all details with the user.",
       parameters: {
         type: "object",
         properties: {
           email: { type: "string", description: "User's registered email address" },
           package_id: { type: "string", description: "The package_id of the product to order" },
-          player_id: { type: "string", description: "Game player ID (if applicable)" },
-          zone_id: { type: "string", description: "Game zone/server ID (if applicable)" },
+          player_id: { type: "string", description: "Game player ID (required for Free Fire, Mobile Legends, PUBG)" },
+          zone_id: { type: "string", description: "Game zone/server ID (required for Mobile Legends)" },
         },
         required: ["email", "package_id"],
         additionalProperties: false,
@@ -440,7 +456,7 @@ const AI_TOOLS = [
     type: "function",
     function: {
       name: "initiate_payment",
-      description: "Generate a payment link for credit top-up. Use when user wants to pay, add credits, top up their wallet, or make a payment.",
+      description: "Generate a Nepal payment link (eSewa/Khalti) for credit top-up. Use ONLY after confirming the user's email and amount. Returns a payment URL the user can click to pay.",
       parameters: {
         type: "object",
         properties: {
@@ -471,7 +487,7 @@ const AI_TOOLS = [
     type: "function",
     function: {
       name: "request_credit",
-      description: "Submit a credit top-up request after manual payment. Use when user wants to request credit, has paid manually, or wants to submit a payment proof.",
+      description: "Submit a credit top-up request after manual payment. Use when user wants to request credit, has paid manually, or wants to submit payment proof.",
       parameters: {
         type: "object",
         properties: {
@@ -497,7 +513,7 @@ async function executeSearchProducts(args: any): Promise<any> {
   }
   const products = await searchProducts(query);
   if (!products || products.length === 0) {
-    return { found: false, message: "No products found matching this query." };
+    return { found: false, message: "No products found matching this query. We may add this product soon!" };
   }
   return { found: true, products, count: products.length };
 }
@@ -512,19 +528,21 @@ async function executePlaceOrder(args: any, platform: string, sessionId: string)
 
   const { data: profile } = await sb.from("profiles").select("id, email, username, balance")
     .eq("email", email).single();
-  if (!profile) return { success: false, error: "No account found with this email. Please register first." };
+  if (!profile) return { success: false, error: "No account found with this email. Please register at https://ugtopups.lovable.app first." };
 
   const price = Number(pkg.price);
   if ((profile.balance || 0) < price) {
     return {
       success: false, error: "insufficient_credits",
-      message: `Insufficient credits. Balance: NPR ${profile.balance || 0}, Required: NPR ${price}. Please top up first.`,
+      message: `Insufficient credits. Your balance: NPR ${profile.balance || 0}, Required: NPR ${price}. Please top up your credits first.`,
       balance: profile.balance || 0, required: price,
+      topup_link: `${BASE_URL}/dashboard`,
     };
   }
 
   const productDetails: any = { player_id: player_id || "" };
   if (zone_id) productDetails.zone_id = zone_id;
+  productDetails.source = platform || "chatbot_api";
 
   const gameToCategoryMap: Record<string, string> = {
     freefire: "freefire", mobile_legends: "mobile_legends", pubg: "pubg",
@@ -568,6 +586,7 @@ async function executePlaceOrder(args: any, platform: string, sessionId: string)
   return {
     success: true, order_number: orderNumber, order_id: order.id,
     product: pkg.package_name, price, new_balance: updatedProfile.balance,
+    game: pkg.game,
   };
 }
 
@@ -621,7 +640,7 @@ async function executeInitiatePayment(args: any): Promise<any> {
   if (!publicKey || !secretKey) {
     return {
       success: true, payment_method: "manual", identifier,
-      message: `Payment gateway not configured. Please send NPR ${amount} via bank transfer and submit a credit request with your email.`,
+      message: `Payment gateway not configured. Please send NPR ${amount} via bank transfer and submit a credit request.`,
     };
   }
 
@@ -667,7 +686,8 @@ async function executeInitiatePayment(args: any): Promise<any> {
 
       return {
         success: true, payment_method: "online", payment_url: result.redirect_url,
-        identifier, message: `Payment link generated for NPR ${amount}.`,
+        identifier, amount,
+        message: `Payment link generated for NPR ${amount}.`,
       };
     } else {
       await sb.from("payment_transactions")
@@ -707,7 +727,7 @@ async function executeRequestCredit(args: any): Promise<any> {
 
   return {
     success: true, request_id: request.id,
-    message: `Credit request of NPR ${amount} submitted. Request ID: ${request.id.slice(0, 8)}.`,
+    message: `Credit request of NPR ${amount} submitted successfully.`,
   };
 }
 
@@ -721,6 +741,125 @@ async function executeTool(name: string, args: any, platform: string, sessionId:
     case "request_credit": return executeRequestCredit(args);
     default: return { error: `Unknown tool: ${name}` };
   }
+}
+
+// ── Build System Prompt ──
+
+function buildSystemPrompt(settings: any, knowledgeContext: string | null, effectiveProducts: any[] | null): string {
+  let prompt = `You are **UIQ**, a professional AI sales assistant for **UG Gaming Top-Up** (ugtopups.lovable.app).
+Your job is to help users find products, place orders, and complete payments — like a real shop assistant.
+
+## YOUR PERSONALITY
+- Friendly, professional, and helpful
+- Use clean formatting with markdown: **bold** headings, bullet points, line breaks
+- Use relevant emojis sparingly for visual appeal (🎮 💎 🛒 ✅ etc.)
+- Keep responses concise but complete
+- Always sound confident about product information
+
+## RESPONSE FORMAT RULES
+Always structure your responses clearly. Never send raw data or unformatted text.
+
+When showing products, use this format:
+\`\`\`
+**Product Name**
+💰 Price: NPR [price]
+📦 Package: [details]
+⏱ Delivery: 5–10 minutes
+
+🛒 Buy now: [link]
+\`\`\`
+
+When showing order confirmations:
+\`\`\`
+✅ **Order Confirmed**
+
+📋 **Order Summary**
+• Order ID: [order_number]
+• Product: [name]
+• Amount: NPR [price]
+• Status: Pending
+
+Your order will be processed shortly!
+\`\`\`
+
+When showing payment links:
+\`\`\`
+💳 **Payment Details**
+
+• Amount: NPR [amount]
+• Payment ID: [identifier]
+
+🔗 **Pay Here:** [payment_url]
+
+**Steps to complete:**
+1. Click the payment link above
+2. Choose your payment method (eSewa/Khalti)
+3. Complete the payment
+4. Return here — I'll confirm your payment!
+\`\`\`
+
+## ORDER PROCESS (CRITICAL — follow this exactly)
+When a user wants to buy/order something, you MUST collect information step-by-step. Do NOT place an order until you have ALL required details.
+
+**Step 1:** Ask which specific package they want (show options if unclear)
+**Step 2:** Ask for their registered email address
+**Step 3:** Ask for game-specific details:
+  - Free Fire: Player ID
+  - Mobile Legends: Player ID + Zone ID
+  - PUBG Mobile: Player ID
+  - Other products: Email only
+**Step 4:** Confirm all details with the user before placing the order
+**Step 5:** Only then use the place_order tool
+
+If the user doesn't have enough credits, suggest adding credits first using the payment system.
+
+## PAYMENT PROCESS
+When user wants to add credits/pay:
+1. Ask for their email and amount
+2. Use initiate_payment tool to generate a payment link
+3. Share the payment link with clear instructions
+4. Tell them to let you know once payment is complete so you can verify
+
+## TOOL USAGE RULES
+- For product queries: If AVAILABLE PRODUCTS section has data, use that directly. Do NOT call search_products again.
+- For orders: ONLY call place_order after collecting ALL required info
+- For payments: ONLY call initiate_payment after confirming email and amount
+- For order tracking: Use check_order_status with order number or email
+- For general questions: Respond directly WITHOUT any tools
+
+## CRITICAL RULES
+- NEVER say a product is "not found" or "not available" if product data is provided in the AVAILABLE PRODUCTS section
+- ALWAYS show real prices from the database
+- ALWAYS include buy links when showing products
+- Format ALL responses with proper markdown structure
+- When unsure about a product, suggest visiting the website: ${BASE_URL}/products`;
+
+  if (knowledgeContext) {
+    prompt += `\n\n---\n📚 **KNOWLEDGE BASE**\n${knowledgeContext}\n---`;
+  }
+
+  if (effectiveProducts && effectiveProducts.length > 0) {
+    const productContext = effectiveProducts.map((p: any) =>
+      `• ${p.name} | NPR ${p.price} | Package ID: ${p.package_id || 'N/A'} | Game: ${p.game || 'N/A'} | Link: ${p.link ? BASE_URL + p.link : 'N/A'}`
+    ).join("\n");
+    prompt += `\n\n---\n🛍️ **AVAILABLE PRODUCTS** (Real-time database prices — USE THIS DATA)\n${productContext}\n---\n⚠️ The above products are CONFIRMED available. Present them with prices and links. Do NOT say products are not found. Do NOT call search_products tool.`;
+  } else {
+    prompt += `\n\nIf the user asks about a product not in our database, say: "This product isn't currently available on our website, but it may be added soon! Check out our full catalog at ${BASE_URL}/products"`;
+  }
+
+  prompt += `\n\n---\n💳 **PAYMENT INFO**
+• Online payment: eSewa / Khalti via API Nepal gateway
+• Manual payment: QR code or bank transfer
+• Add credits: Dashboard → Add Credit
+• Website: https://ugtopups.lovable.app
+---`;
+
+  // Add custom system prompt from settings if available
+  if (settings?.ai_system_prompt && settings.ai_system_prompt.trim()) {
+    prompt += `\n\n---\n**ADDITIONAL INSTRUCTIONS**\n${settings.ai_system_prompt}\n---`;
+  }
+
+  return prompt;
 }
 
 // ── Unified AI Brain ──
@@ -737,13 +876,13 @@ async function handleUnifiedMessage(body: any) {
   if (!checkRateLimit(effectiveSessionId)) {
     return jsonResponse({
       success: false, action: "rate_limited",
-      reply: "⏳ You're sending messages too quickly. Please wait a moment.",
+      reply: "⏳ You're sending messages too quickly. Please wait a moment and try again.",
     }, 429);
   }
 
   const settings = await getSettings();
   if (settings && !settings.is_enabled) {
-    return jsonResponse({ success: false, reply: "Chatbot is currently offline.", action: "disabled" });
+    return jsonResponse({ success: false, reply: "🔧 Our chatbot is currently offline for maintenance. Please try again later!", action: "disabled" });
   }
 
   // Load conversation history
@@ -766,49 +905,13 @@ async function handleUnifiedMessage(body: any) {
     searchKnowledgeBase(message),
   ]);
 
-  // Merge results: prefer specific game results, fallback to multi-game
   const effectiveProducts = (productResults && productResults.length > 0) ? productResults : multiGameResults;
 
-  // Build system prompt
+  // Build AI config
   const { apiUrl, apiKey } = getAIConfig(settings);
   const model = settings?.ai_model || "google/gemini-3-flash-preview";
 
-  let systemPrompt = settings?.ai_system_prompt ||
-    "You are UIQ, a helpful AI sales assistant for UGC-Topup. Help users with products, pricing, orders, and account questions.";
-
-  systemPrompt += `\n\nIMPORTANT RULES:
-- ALWAYS use the product data provided in the AVAILABLE PRODUCTS section below. NEVER say a product is "not found" or "not available" if product data is listed.
-- When showing products, format them clearly with bullet points, prices, and buy links.
-- When user wants to buy/order something, collect required details step-by-step:
-  1. Which specific package they want (show options if unclear)
-  2. Their registered email address
-  3. Player ID (for games like Free Fire, Mobile Legends, PUBG)
-  4. Zone/Server ID (if applicable, e.g., Mobile Legends)
-  Only use place_order tool AFTER collecting all required info.
-- When user asks about order status, use check_order_status tool.
-- When user wants to pay/add credits with email + amount, use initiate_payment tool.
-- For general conversation, greetings, or questions, respond directly WITHOUT tools.
-- Format all responses with markdown: **bold** for headings, bullet points for lists, emoji for visual appeal.
-- Always include the buy link when showing products.`;
-
-  if (knowledgeContext) {
-    systemPrompt += `\n\n--- KNOWLEDGE BASE ---\n${knowledgeContext}\n--- END ---`;
-  }
-
-  // Inject pre-fetched products as context
-  if (effectiveProducts && effectiveProducts.length > 0) {
-    const productContext = effectiveProducts.map((p: any) =>
-      `• ${p.name} | ${p.currency || "NPR"} ${p.price} | Package ID: ${p.package_id || 'N/A'} | Link: ${p.link || 'N/A'} | Game: ${p.game || 'N/A'}`
-    ).join("\n");
-    systemPrompt += `\n\n--- AVAILABLE PRODUCTS (from database — this is REAL data, use it!) ---\n${productContext}\n--- END PRODUCTS ---\nIMPORTANT: Present these products to the user with prices and links. Do NOT say products are not found. Do NOT use search_products tool since data is already provided above.`;
-  } else {
-    systemPrompt += `\n\nIf the user asks about a product not in our database, say: "This product is not currently available on our website. It may be added soon."`;
-  }
-
-  systemPrompt += `\n\n--- PAYMENT & SERVICE ---
-Payment options: Online (eSewa/Khalti via API Nepal), manual QR, bank transfer. Guide users to Dashboard > Add Credit.
-Website: https://ugtopups.lovable.app
---- END ---`;
+  const systemPrompt = buildSystemPrompt(settings, knowledgeContext, effectiveProducts);
 
   // Build messages array
   const aiMessages: { role: string; content: string }[] = [{ role: "system", content: systemPrompt }];
@@ -830,21 +933,20 @@ Website: https://ugtopups.lovable.app
     if (!aiResponse.ok) {
       const errText = await aiResponse.text();
       console.error("AI error:", aiResponse.status, errText);
-      if (aiResponse.status === 429) throw new Error("AI is busy. Please try again.");
-      if (aiResponse.status === 402) throw new Error("AI quota reached.");
+      if (aiResponse.status === 429) throw new Error("AI is busy right now. Please try again in a moment.");
+      if (aiResponse.status === 402) throw new Error("AI service quota reached. Please try again later.");
       throw new Error("AI service error");
     }
 
     const aiData = await aiResponse.json();
     const choice = aiData.choices?.[0];
 
-    // Check if AI wants to call tools
+    // Handle tool calls
     if (choice?.message?.tool_calls && choice.message.tool_calls.length > 0) {
       const toolResults: any[] = [];
       let detectedAction = "message";
       let actionData: any = {};
 
-      // Execute all tool calls
       for (const toolCall of choice.message.tool_calls) {
         const toolName = toolCall.function.name;
         let toolArgs: any;
@@ -857,7 +959,6 @@ Website: https://ugtopups.lovable.app
         console.log(`Tool call: ${toolName}`, toolArgs);
         const result = await executeTool(toolName, toolArgs, effectivePlatform, effectiveSessionId);
 
-        // Track the action type
         const actionMap: Record<string, string> = {
           search_products: "product_search",
           place_order: "order",
@@ -876,7 +977,7 @@ Website: https://ugtopups.lovable.app
         });
       }
 
-      // Second AI call with tool results for natural language response
+      // Second AI call with tool results — AI will format the response
       const followUpMessages = [
         ...aiMessages,
         choice.message,
@@ -895,30 +996,33 @@ Website: https://ugtopups.lovable.app
         finalReply = followUpData.choices?.[0]?.message?.content || finalReply;
       }
 
-      // Store assistant response
+      // Safety: if tool returned products but AI still says not found, override
+      if (detectedAction === "product_search" && actionData?.found && actionData?.products?.length > 0) {
+        const NOT_FOUND_PHRASES = ["not found", "not available", "don't have", "doesn't exist", "couldn't find", "no product"];
+        if (NOT_FOUND_PHRASES.some(p => finalReply.toLowerCase().includes(p))) {
+          finalReply = formatProductResponse(actionData.products);
+        }
+      }
+
       if (session_id) {
         await storeMessage(session_id, effectivePlatform, "assistant", finalReply);
       }
 
       return jsonResponse({
-        success: true,
-        reply: finalReply,
-        action: detectedAction,
-        data: actionData,
-        timestamp: new Date().toISOString(),
-        // Backward compat
+        success: true, reply: finalReply, action: detectedAction,
+        data: actionData, timestamp: new Date().toISOString(),
         ...(actionData.products ? { products: actionData.products, product: actionData.products[0] } : {}),
       });
     }
 
     // No tool calls - direct AI response
-    let aiReply = choice?.message?.content || "I couldn't generate a response.";
+    let aiReply = choice?.message?.content || "I couldn't generate a response. Please try again.";
 
-    // SAFETY CHECK: If AI says "not found" but we have products, override with formatted response
+    // SAFETY CHECK: If AI says "not found" but we have products, override
     const NOT_FOUND_PHRASES = ["not found", "not available", "don't have", "doesn't exist", "isn't found", "no product", "not currently available", "couldn't find"];
     const aiReplyLower = aiReply.toLowerCase();
     const aiSaysNotFound = NOT_FOUND_PHRASES.some(phrase => aiReplyLower.includes(phrase));
-    
+
     if (aiSaysNotFound && effectiveProducts && effectiveProducts.length > 0) {
       console.log("AI safety check triggered: overriding 'not found' with real product data");
       aiReply = formatProductResponse(effectiveProducts);
@@ -929,8 +1033,7 @@ Website: https://ugtopups.lovable.app
     }
 
     return jsonResponse({
-      success: true,
-      reply: aiReply,
+      success: true, reply: aiReply,
       action: effectiveProducts && effectiveProducts.length > 0 ? "product_search" : "message",
       data: effectiveProducts && effectiveProducts.length > 0 ? { products: effectiveProducts } : {},
       timestamp: new Date().toISOString(),
@@ -943,11 +1046,9 @@ Website: https://ugtopups.lovable.app
     // Fallback: if we have product data, return it even without AI
     if (effectiveProducts && effectiveProducts.length > 0) {
       const fallbackReply = formatProductResponse(effectiveProducts);
-
       if (session_id) {
         await storeMessage(session_id, effectivePlatform, "assistant", fallbackReply);
       }
-
       return jsonResponse({
         success: true, reply: fallbackReply, action: "product_search",
         data: { products: effectiveProducts },
@@ -976,7 +1077,7 @@ async function handleFeedback(body: any) {
     bot_response: bot_response || null, rating, comment: comment || null,
   });
   if (error) return jsonResponse({ success: false, error: "Failed to save feedback" }, 500);
-  return jsonResponse({ success: true, action: "feedback", reply: "Feedback recorded. Thank you!", timestamp: new Date().toISOString() });
+  return jsonResponse({ success: true, action: "feedback", reply: "✅ Feedback recorded. Thank you!", timestamp: new Date().toISOString() });
 }
 
 async function handleTestConnection() {
@@ -1047,7 +1148,6 @@ Deno.serve(async (req) => {
     const body = await req.json();
     const action = body.action;
 
-    // If action is explicitly set to a non-message action, use legacy handlers for backward compat
     switch (action) {
       case "submit-feedback":
         return await handleFeedback(body);
@@ -1056,13 +1156,6 @@ Deno.serve(async (req) => {
       case "test-connection":
         return await handleTestConnection();
       default:
-        // ALL other actions (message, order, order-status, payment, etc.)
-        // now go through the unified AI brain.
-        // If action is explicitly set (e.g. "order"), we can still process it
-        // by converting it to a message for the AI, or handle directly.
-        
-        // For explicit legacy actions with structured data, handle them directly
-        // but ALSO go through unified brain for "message" or no action
         if (action === "order") {
           const result = await executePlaceOrder(body, body.platform || "api", body.session_id || "");
           return jsonResponse({ success: result.success !== false, reply: result.message || result.error, action: "order", data: result, timestamp: new Date().toISOString() });
@@ -1084,7 +1177,6 @@ Deno.serve(async (req) => {
           return jsonResponse({ success: result.success, reply: result.message || result.error, action: "credit_request", data: result, timestamp: new Date().toISOString() });
         }
 
-        // Default: unified AI brain handles everything
         return await handleUnifiedMessage(body);
     }
   } catch (err: any) {
