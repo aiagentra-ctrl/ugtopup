@@ -538,10 +538,20 @@ curl -X POST "${BASE_URL}" \\
                     <td className="py-2 pr-4">Check payment status</td>
                     <td className="py-2">identifier</td>
                   </tr>
-                  <tr>
+                  <tr className="border-b border-border/50">
                     <td className="py-2 pr-4"><code className="bg-muted px-1 rounded text-foreground">credit-request</code></td>
                     <td className="py-2 pr-4">Manual credit top-up</td>
                     <td className="py-2">name, email, amount</td>
+                  </tr>
+                  <tr className="border-b border-border/50">
+                    <td className="py-2 pr-4"><code className="bg-muted px-1 rounded text-foreground">submit-feedback</code></td>
+                    <td className="py-2 pr-4">Rate a bot response</td>
+                    <td className="py-2">message_id, session_id, rating</td>
+                  </tr>
+                  <tr>
+                    <td className="py-2 pr-4"><code className="bg-muted px-1 rounded text-foreground">test-connection</code></td>
+                    <td className="py-2 pr-4">Verify AI provider connectivity</td>
+                    <td className="py-2">(none)</td>
                   </tr>
                 </tbody>
               </table>
