@@ -192,34 +192,67 @@ async function logMessage(
   });
 }
 
-async function sendWhatsAppReply(config: any, phone: string, text: string, delay = 1200) {
-  const url = `${config.server_url}/message/sendText/${config.instance_name}`;
-  const res = await fetch(url, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      apikey: config.api_key,
-    },
-    body: JSON.stringify({
-      number: phone,
-      text,
-      delay,
-    }),
-  });
+async function sendWhatsAppReply(
+  config: any,
+  phone: string,
+  text: string,
+  delay = 1200,
+  preferredInstanceName?: string,
+) {
+  const sendWithInstance = async (instanceName: string) => {
+    const encodedInstanceName = encodeURIComponent(String(instanceName || "").trim());
+    const url = `${config.server_url}/message/sendText/${encodedInstanceName}`;
 
-  const bodyText = await res.text();
-  let parsed: any = null;
-  try {
-    parsed = bodyText ? JSON.parse(bodyText) : null;
-  } catch {
-    parsed = { raw: bodyText };
+    const res = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        apikey: config.api_key,
+      },
+      body: JSON.stringify({
+        number: phone,
+        text,
+        delay,
+      }),
+    });
+
+    const bodyText = await res.text();
+    const parsed = parseJsonSafely(bodyText);
+    return { res, bodyText, parsed, instanceName };
+  };
+
+  const initialInstanceName = String(preferredInstanceName || config.instance_name || "").trim();
+  const firstAttempt = await sendWithInstance(initialInstanceName);
+
+  if (firstAttempt.res.ok) {
+    return {
+      status: firstAttempt.res.status,
+      data: firstAttempt.parsed,
+      instanceNameUsed: firstAttempt.instanceName,
+    };
   }
 
-  if (!res.ok) {
-    throw new Error(`Evolution API error: ${res.status} - ${bodyText}`);
+  const looksLikeMissingInstance =
+    firstAttempt.res.status === 404 &&
+    String(firstAttempt.bodyText || "").toLowerCase().includes("instance") &&
+    String(firstAttempt.bodyText || "").toLowerCase().includes("does not exist");
+
+  if (looksLikeMissingInstance) {
+    const resolvedInstanceName = await getResolvedInstanceName(config);
+    if (resolvedInstanceName && resolvedInstanceName !== initialInstanceName) {
+      const retryAttempt = await sendWithInstance(resolvedInstanceName);
+      if (retryAttempt.res.ok) {
+        return {
+          status: retryAttempt.res.status,
+          data: retryAttempt.parsed,
+          instanceNameUsed: retryAttempt.instanceName,
+        };
+      }
+      throw new Error(`Evolution API error: ${retryAttempt.res.status} - ${retryAttempt.bodyText}`);
+    }
   }
 
-  return { status: res.status, data: parsed };
+  throw new Error(`Evolution API error: ${firstAttempt.res.status} - ${firstAttempt.bodyText}`);
 }
 
 async function callChatbotApi(sessionId: string, message: string) {
