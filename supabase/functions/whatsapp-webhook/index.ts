@@ -624,23 +624,31 @@ Deno.serve(async (req) => {
       switch (body.admin_action) {
         case "test-connection": {
           try {
+            const instanceName = await getResolvedInstanceName(config);
+            const encodedInstanceName = encodeURIComponent(instanceName);
             const res = await fetch(
-              `${config.server_url}/instance/connectionState/${config.instance_name}`,
+              `${config.server_url}/instance/connectionState/${encodedInstanceName}`,
               { headers: { apikey: config.api_key } },
             );
-            const data = await res.json();
+            const raw = await res.text();
+            const data = parseJsonSafely(raw);
+
+            if (!res.ok) {
+              return err(`Evolution API error: ${res.status} - ${raw}`, 502);
+            }
 
             const db = supabaseAdmin();
             const state = data?.instance?.state || data?.state;
             await db
               .from("whatsapp_config")
               .update({
+                instance_name: instanceName,
                 connection_status: state === "open" ? "connected" : "disconnected",
                 updated_at: new Date().toISOString(),
               })
               .eq("id", config.id);
 
-            return ok({ success: true, data });
+            return ok({ success: true, data, instance_name: instanceName });
           } catch (error) {
             return err(safeErrorMessage(error), 500);
           }
