@@ -88,7 +88,7 @@ External Platform displays reply`}</CodeBlock>
               <li><strong>session_id</strong> — Unique per user/conversation (e.g. phone number, chat ID). Required for context.</li>
               <li><strong>platform</strong> — Identifies the source: <code className="bg-muted px-1 rounded text-foreground">"whatsapp"</code>, <code className="bg-muted px-1 rounded text-foreground">"telegram"</code>, <code className="bg-muted px-1 rounded text-foreground">"web"</code> (default).</li>
             </ul>
-            <p>Conversations are stored for <strong>10 days</strong> and then automatically cleaned up.</p>
+            <p>Conversations are stored for <strong>15 days</strong> and then automatically cleaned up.</p>
           </CardContent>
         </Card>
 
