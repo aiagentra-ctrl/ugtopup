@@ -88,7 +88,7 @@ External Platform displays reply`}</CodeBlock>
               <li><strong>session_id</strong> — Unique per user/conversation (e.g. phone number, chat ID). Required for context.</li>
               <li><strong>platform</strong> — Identifies the source: <code className="bg-muted px-1 rounded text-foreground">"whatsapp"</code>, <code className="bg-muted px-1 rounded text-foreground">"telegram"</code>, <code className="bg-muted px-1 rounded text-foreground">"web"</code> (default).</li>
             </ul>
-            <p>Conversations are stored for <strong>10 days</strong> and then automatically cleaned up.</p>
+            <p>Conversations are stored for <strong>15 days</strong> and then automatically cleaned up.</p>
           </CardContent>
         </Card>
 
@@ -435,6 +435,71 @@ curl -X POST "${BASE_URL}" \\
           </CardContent>
         </Card>
 
+        {/* Endpoint: submit-feedback */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <MessageSquare className="h-5 w-5" />
+              <Badge>action: "submit-feedback"</Badge>
+              — Rate Bot Response
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4 text-sm">
+            <p className="text-muted-foreground">Submit feedback on a bot response. Use this to track chatbot quality.</p>
+            <div>
+              <p className="font-medium text-foreground mb-1">Request</p>
+              <CodeBlock>{`{
+  "action": "submit-feedback",
+  "message_id": "bot-1710000000000",
+  "session_id": "wa-9779708562001",
+  "user_message": "What is Free Fire?",
+  "bot_response": "Free Fire is a popular battle royale game...",
+  "rating": "helpful",
+  "comment": "Great answer!"
+}`}</CodeBlock>
+            </div>
+            <div>
+              <p className="font-medium text-foreground mb-1">Response</p>
+              <CodeBlock>{`{
+  "success": true,
+  "message": "Feedback recorded. Thank you!",
+  "timestamp": "2026-03-08T12:00:00.000Z"
+}`}</CodeBlock>
+            </div>
+            <p className="text-muted-foreground text-xs">Rating must be <code className="bg-muted px-1 rounded text-foreground">"helpful"</code> or <code className="bg-muted px-1 rounded text-foreground">"not_helpful"</code>.</p>
+          </CardContent>
+        </Card>
+
+        {/* Endpoint: test-connection */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Zap className="h-5 w-5" />
+              <Badge>action: "test-connection"</Badge>
+              — Verify AI Provider
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4 text-sm">
+            <p className="text-muted-foreground">Test that the AI provider is reachable and responding. No parameters needed.</p>
+            <div>
+              <p className="font-medium text-foreground mb-1">Request</p>
+              <CodeBlock>{`{
+  "action": "test-connection"
+}`}</CodeBlock>
+            </div>
+            <div>
+              <p className="font-medium text-foreground mb-1">Response</p>
+              <CodeBlock>{`{
+  "success": true,
+  "message": "Connection successful! Model responded: \\"Hello\\"",
+  "provider": "openrouter",
+  "model": "google/gemini-3-flash-preview",
+  "timestamp": "2026-03-08T12:00:00.000Z"
+}`}</CodeBlock>
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Error Codes */}
         <Card>
           <CardHeader>
@@ -490,7 +555,7 @@ curl -X POST "${BASE_URL}" \\
           <CardContent className="text-sm text-muted-foreground space-y-2">
             <ul className="list-disc list-inside space-y-1">
               <li>AI responses are rate-limited by the upstream provider. If you receive a 429 status, retry after a few seconds.</li>
-              <li>Conversation logs are stored for <strong>10 days</strong> and then automatically purged.</li>
+              <li>Conversation logs are stored for <strong>15 days</strong> and then automatically purged.</li>
               <li>The API uses the Supabase anon key for authentication — no user credentials are required.</li>
               <li>Order placement requires a registered user email with sufficient credit balance.</li>
             </ul>
@@ -538,10 +603,20 @@ curl -X POST "${BASE_URL}" \\
                     <td className="py-2 pr-4">Check payment status</td>
                     <td className="py-2">identifier</td>
                   </tr>
-                  <tr>
+                  <tr className="border-b border-border/50">
                     <td className="py-2 pr-4"><code className="bg-muted px-1 rounded text-foreground">credit-request</code></td>
                     <td className="py-2 pr-4">Manual credit top-up</td>
                     <td className="py-2">name, email, amount</td>
+                  </tr>
+                  <tr className="border-b border-border/50">
+                    <td className="py-2 pr-4"><code className="bg-muted px-1 rounded text-foreground">submit-feedback</code></td>
+                    <td className="py-2 pr-4">Rate a bot response</td>
+                    <td className="py-2">message_id, session_id, rating</td>
+                  </tr>
+                  <tr>
+                    <td className="py-2 pr-4"><code className="bg-muted px-1 rounded text-foreground">test-connection</code></td>
+                    <td className="py-2 pr-4">Verify AI provider connectivity</td>
+                    <td className="py-2">(none)</td>
                   </tr>
                 </tbody>
               </table>
