@@ -848,19 +848,21 @@ Deno.serve(async (req) => {
         await db
           .from("whatsapp_config")
           .update({
+            instance_name: String(body.instance || config.instance_name || "").trim() || config.instance_name,
             connection_status: "connected",
             connected_number: number || config.connected_number,
             updated_at: new Date().toISOString(),
           })
-          .eq("instance_name", body.instance || config.instance_name);
+          .eq("id", config.id);
       } else if (state === "close") {
         await db
           .from("whatsapp_config")
           .update({
+            instance_name: String(body.instance || config.instance_name || "").trim() || config.instance_name,
             connection_status: "disconnected",
             updated_at: new Date().toISOString(),
           })
-          .eq("instance_name", body.instance || config.instance_name);
+          .eq("id", config.id);
       }
 
       return ok({ ok: true });
