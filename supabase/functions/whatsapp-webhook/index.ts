@@ -498,10 +498,20 @@ async function processIncomingMessage(
 
     try {
       const fallback = "Sorry, I'm having trouble right now. Please try again later or visit our website.";
-      const fallbackRes = await sendWhatsAppReply(config, incoming.phone, fallback, 500);
+      const fallbackInstanceName = await getResolvedInstanceName(config);
+      const fallbackRes = await sendWhatsAppReply(
+        config,
+        incoming.phone,
+        fallback,
+        500,
+        fallbackInstanceName,
+      );
       await logMessage(incoming.phone, "outbound", fallback, sessionId, "sent", undefined, {
         provider: "evolution",
+        stage: "fallback_send",
         provider_status: fallbackRes.status,
+        provider_response_preview: payloadPreview(fallbackRes.data),
+        instance_name_used: fallbackRes.instanceNameUsed,
         fallback: true,
         simulated: isSimulated,
       });
