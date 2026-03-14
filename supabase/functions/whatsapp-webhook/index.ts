@@ -754,10 +754,19 @@ Deno.serve(async (req) => {
           if (!phone || !message) return err("phone and message are required");
 
           try {
-            const sendResult = await sendWhatsAppReply(config, String(phone), String(message), 600);
+            const resolvedInstanceName = await getResolvedInstanceName(config);
+            const sendResult = await sendWhatsAppReply(
+              config,
+              String(phone),
+              String(message),
+              600,
+              resolvedInstanceName,
+            );
             const sessionId = `wa-${phone}`;
             await logMessage(String(phone), "outbound", String(message), sessionId, "sent", undefined, {
               manual: true,
+              stage: "send_message",
+              instance_name_used: sendResult.instanceNameUsed,
               provider_status: sendResult.status,
               provider_response_preview: payloadPreview(sendResult.data),
             });
