@@ -1,65 +1,96 @@
 
-Goal: make WhatsApp fully auto-reply end-to-end (Webhook → AI → Evolution sendText) and add a truly reliable 3-step monitor that shows exactly where failures happen.
+# Dynamic Website with Advanced Admin Panel
 
-What I found in current code (important):
-1) The “Flow” tab already exists, but it is built from `whatsapp_messages` only after parsing succeeds. If payload parsing fails, there is no reliable trace of the raw webhook event.
-2) `parseIncomingMessage` can silently skip events; skipped events currently return `{ skipped: ... }` without durable stage-level diagnostics.
-3) Signature/header handling is strict in one format (`apikey`) and can reject valid requests if provider sends key in another header format.
-4) AI step has no explicit timeout guard; long AI calls can block reply flow and look like “no reply”.
-5) There is no dedicated, correlated flow log table for: incoming raw payload, AI input/output, provider request/result.
+## Overview
+Make the entire website content dynamic and admin-controlled by creating two new admin sections and supporting database tables. The existing "Products (New)" page (GameProductPrices) will remain completely untouched.
 
-Implementation plan:
+## What Changes
 
-1) Harden webhook ingestion in `supabase/functions/whatsapp-webhook/index.ts`
-- Add robust payload normalization for Evolution v2 variants (`MESSAGES_UPSERT`, `messages.upsert`, nested `data.messages[]`, alternate sender/message fields).
-- Add safe boolean parser for `fromMe` to avoid string/boolean mismatch drops.
-- Accept API key from `apikey`, `x-api-key`, or `Authorization: Bearer ...` (normalized compare).
-- Always create a `flow_id` per inbound event and persist initial “incoming_webhook” stage even when parsing later fails.
-- Never silently skip without logging reason (`ignored_group`, `ignored_from_me`, `invalid_payload`, `missing_text`, etc.).
+### Phase 1: Database Setup
 
-2) Add deterministic 3-stage telemetry (new DB table + usage)
-- Create migration for `whatsapp_message_flows` with:
-  - `id`, `flow_id`, `phone_number`, `session_id`
-  - `stage` (`incoming_webhook` | `ai_processing` | `send_message`)
-  - `status` (`received` | `processing` | `success` | `failed` | `skipped`)
-  - `request_payload`, `response_payload`, `error_message`, `created_at`
-- RLS: admin read-only; inserts from edge function (service role).
-- Add indexes on `(created_at desc)`, `(flow_id)`, `(phone_number, created_at desc)`.
+**New table: `dynamic_products`** - stores products displayed on the homepage
+- `id`, `title`, `description`, `image_url`, `link`, `category` (topup/voucher/subscription/design), `price`, `discount_price`, `features` (jsonb array), `tags` (text array), `plans` (jsonb array), `display_order`, `is_active`, `created_at`, `updated_at`
 
-3) Make AI step observable and resilient
-- In webhook function, log AI stage start with prompt text and session id.
-- Add timeout (AbortController) when calling `chatbot-api`; on timeout/error, log failed AI stage with exact reason.
-- Log AI response payload preview and final generated reply in stage data.
+**New table: `product_categories`** - dynamic categories
+- `id`, `name`, `slug`, `display_order`, `is_active`, `created_at`, `updated_at`
 
-4) Make send-message step observable and doc-compliant
-- Keep send endpoint format exactly: `POST {server_url}/message/sendText/{instance}` with body `{ number, text, delay }`.
-- Log full outgoing request metadata (instance used, recipient number, delay) and provider response status/body preview.
-- Preserve instance auto-resolution fallback and record which instance was finally used.
+**New table: `offers`** - dynamic offer/deal sections
+- `id`, `title`, `subtitle`, `description`, `image_url`, `offer_type` (flash_sale/limited_time/daily_deal/discount_bundle), `timer_enabled`, `timer_type` (hours/days/both/none), `timer_end_date`, `product_link`, `custom_icon_url`, `display_order`, `is_active`, `show_on_homepage`, `show_on_product_page`, `created_at`, `updated_at`
 
-5) Upgrade Admin monitoring UI (`src/components/admin/WhatsAppChatbot.tsx`)
-- Add a dedicated “Advanced Monitor” tab (or replace current Flow tab) backed by `whatsapp_message_flows`.
-- Show grouped rows by `flow_id` with 3 fixed blocks:
-  1. Incoming Webhook (raw payload)
-  2. AI Processing (prompt + generated reply)
-  3. Outgoing Message (sendText request + provider status/response)
-- Add filters: phone, status, time window; add clear “stage missing” indicators.
-- Keep existing Chats/Logs tabs for conversation history and quick troubleshooting.
+RLS: Public SELECT for active items, admin ALL for management.
 
-6) Data retention / cleanup
-- Extend cleanup logic to remove old `whatsapp_messages` and `whatsapp_message_flows` older than 15 days (matching your requirement).
-- Keep latest data window for debugging without long-term bloat.
+**Seed `dynamic_products`** with current hardcoded data from ProductTabs so nothing changes visually on day one.
 
-7) End-to-end verification checklist (after implementation)
-- Use “Test Webhook” to create one full synthetic flow and confirm all 3 stages appear.
-- Send a real message to your connected number and confirm:
-  - Incoming stage has raw Evolution payload
-  - AI stage shows prompt/reply
-  - Send stage shows provider success (HTTP status/body)
-- If failure happens, monitor will pinpoint exact failing stage immediately.
+### Phase 2: Admin Panel - Product Update Page (new section)
 
-Technical notes (for your exact requirement)
-- Webhook destination remains: `https://iwcqutzgtpbdowghalnl.supabase.co/functions/v1/whatsapp-webhook`
-- Mapping will be enforced as:
-  - recipient number = parsed webhook sender (`remoteJid` / sender number fallback)
-  - message text = AI-generated reply
-- No QR flow is reintroduced; integration stays webhook-only.
+Add a new sidebar menu item **"Product Update"** in AdminLayout.
+
+New component: `src/components/admin/DynamicProductManager.tsx`
+- Full CRUD table listing all dynamic products
+- Inline editing with image upload (to `product-images` storage bucket)
+- Fields: title, description, image, link, category, price, discount price, features (add/remove chips), tags (add/remove), plans (JSON editor)
+- Product preview panel showing how it looks on the frontend
+- Search, filter by category, drag-to-reorder
+
+New component: `src/components/admin/CategoryManager.tsx`
+- Add/rename/delete categories
+- Reorder categories via drag or arrows
+- Auto-updates category options across the product form
+
+### Phase 3: Admin Panel - Offer Management Page (new section)
+
+Add a new sidebar menu item **"Offers"** in AdminLayout.
+
+New component: `src/components/admin/OfferManager.tsx`
+- List all offers with enable/disable toggle
+- Add new offer with form: title, subtitle, description, image upload, offer type selector, timer controls (enable/disable, type, end date), product link picker
+- Edit existing offers inline
+- Reorder offers
+- Toggle homepage/product page visibility
+
+### Phase 4: Frontend - Make ProductTabs Dynamic
+
+Update `src/components/ProductTabs.tsx`:
+- Fetch products from `dynamic_products` table instead of hardcoded `productData`
+- Fetch categories from `product_categories` table for tab names
+- Keep the exact same visual layout, just swap data source
+- Real-time subscription so admin changes appear instantly
+
+### Phase 5: Frontend - Make BestDeals/Offers Dynamic
+
+Update `src/components/BestDeals.tsx`:
+- Fetch active homepage offers from `offers` table
+- Render offer blocks dynamically with optional countdown timers
+- Keep existing visual style, just make content admin-controlled
+
+### What Will NOT Change
+- **"Products (New)" page** (`GameProductPrices` component) -- zero modifications
+- **Existing `ProductsList`** component -- untouched
+- **Game pricing system** (`game_product_prices` table) -- untouched
+- **Overall website design/layout** -- only data sources change
+
+## Technical Details
+
+### New Files
+- `src/components/admin/DynamicProductManager.tsx` - Product Update admin page
+- `src/components/admin/CategoryManager.tsx` - Category management
+- `src/components/admin/OfferManager.tsx` - Offer management admin page
+- `src/lib/dynamicProductApi.ts` - API functions for dynamic products/categories
+- `src/lib/offerApi.ts` - API functions for offers
+- `src/hooks/useDynamicProducts.ts` - Frontend hook with real-time subscriptions
+- `src/hooks/useOffers.ts` - Frontend hook for offers
+
+### Modified Files
+- `src/components/admin/AdminLayout.tsx` - Add 3 new sidebar items (Product Update, Categories, Offers)
+- `src/pages/AdminPanel.tsx` - Add new section cases in switch
+- `src/components/ProductTabs.tsx` - Replace hardcoded data with database fetch
+- `src/components/BestDeals.tsx` - Replace hardcoded deals with database fetch
+
+### New Storage Bucket
+- `product-images` (public) for product image uploads
+
+### Database Migration
+- Create `dynamic_products`, `product_categories`, `offers` tables
+- Create `product-images` storage bucket
+- RLS policies for all new tables
+- Seed initial data from current hardcoded products

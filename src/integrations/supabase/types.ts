@@ -2125,6 +2125,45 @@ export type Database = {
         }
         Relationships: []
       }
+      whatsapp_message_flows: {
+        Row: {
+          created_at: string
+          error_message: string | null
+          flow_id: string
+          id: string
+          phone_number: string | null
+          request_payload: Json | null
+          response_payload: Json | null
+          session_id: string | null
+          stage: string
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          error_message?: string | null
+          flow_id: string
+          id?: string
+          phone_number?: string | null
+          request_payload?: Json | null
+          response_payload?: Json | null
+          session_id?: string | null
+          stage: string
+          status?: string
+        }
+        Update: {
+          created_at?: string
+          error_message?: string | null
+          flow_id?: string
+          id?: string
+          phone_number?: string | null
+          request_payload?: Json | null
+          response_payload?: Json | null
+          session_id?: string | null
+          stage?: string
+          status?: string
+        }
+        Relationships: []
+      }
       whatsapp_messages: {
         Row: {
           created_at: string
