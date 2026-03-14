@@ -605,6 +605,7 @@ export function WhatsAppChatbot() {
               <div className="space-y-2">
                 <Label>Instance Name</Label>
                 <Input value={formInstanceName} onChange={(e) => setFormInstanceName(e.target.value)} placeholder="whtapp" />
+                <p className="text-xs text-muted-foreground">Use the Evolution instance name (example: <code className="bg-muted px-1 rounded">whtapp</code>), not the WhatsApp profile display name.</p>
               </div>
 
               <Button onClick={handleSave} disabled={saving}>
