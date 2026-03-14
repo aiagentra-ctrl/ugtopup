@@ -25,7 +25,6 @@ import {
   Send,
   Loader2,
   ArrowDownUp,
-  CheckCircle2,
   AlertTriangle,
   Copy,
   ExternalLink,
@@ -93,8 +92,6 @@ export function WhatsAppChatbot() {
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
   const [testingWebhook, setTestingWebhook] = useState(false);
-  const [gettingQr, setGettingQr] = useState(false);
-  const [disconnecting, setDisconnecting] = useState(false);
   const [settingWebhook, setSettingWebhook] = useState(false);
   const [showApiKey, setShowApiKey] = useState(false);
   const [phoneFilter, setPhoneFilter] = useState("");
@@ -296,23 +293,6 @@ export function WhatsAppChatbot() {
     }
   };
 
-  const handleDisconnect = async () => {
-    if (!confirm("Disconnect this WhatsApp number?")) return;
-    setDisconnecting(true);
-    try {
-      const { error } = await supabase.functions.invoke("whatsapp-webhook", {
-        body: { admin_action: "disconnect" },
-      });
-      if (error) throw error;
-      toast.success("Disconnected");
-      await Promise.all([loadConfig(), loadHealth()]);
-    } catch (e: any) {
-      toast.error(`Failed: ${e.message}`);
-    } finally {
-      setDisconnecting(false);
-    }
-  };
-
   const handleSetWebhook = async () => {
     setSettingWebhook(true);
     try {
@@ -406,6 +386,46 @@ export function WhatsAppChatbot() {
     [inboundMessages],
   );
 
+  const flowRows = useMemo(() => {
+    const inbound = messages
+      .filter((m) => m.direction === "inbound" && m.phone_number !== "webhook")
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+      .slice(0, 40);
+
+    const outboundBySession = new Map<string, WhatsAppMessage[]>();
+    for (const message of messages) {
+      if (message.direction !== "outbound") continue;
+      const key = message.session_id || `phone:${message.phone_number}`;
+      if (!outboundBySession.has(key)) {
+        outboundBySession.set(key, []);
+      }
+      outboundBySession.get(key)!.push(message);
+    }
+
+    for (const group of outboundBySession.values()) {
+      group.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+    }
+
+    const usedOutboundIds = new Set<string>();
+
+    return inbound.map((incoming) => {
+      const key = incoming.session_id || `phone:${incoming.phone_number}`;
+      const candidates = (outboundBySession.get(key) || []).filter(
+        (outgoing) =>
+          !usedOutboundIds.has(outgoing.id) &&
+          new Date(outgoing.created_at).getTime() >= new Date(incoming.created_at).getTime() - 1000,
+      );
+
+      const outbound = candidates[0] || null;
+      if (outbound) usedOutboundIds.add(outbound.id);
+
+      return {
+        incoming,
+        outbound,
+      };
+    });
+  }, [messages]);
+
   const lastInbound = inboundMessages[0];
   const showNotReceivingAlert =
     Boolean(formEnabled) && (!lastInbound || (Date.now() - new Date(lastInbound.created_at).getTime()) / 60000 > 30);
@@ -484,9 +504,10 @@ export function WhatsAppChatbot() {
       )}
 
       <Tabs defaultValue="config" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="config" className="flex items-center gap-2"><Settings className="h-4 w-4" />Config</TabsTrigger>
           <TabsTrigger value="conversations" className="flex items-center gap-2"><MessageSquare className="h-4 w-4" />Chats</TabsTrigger>
+          <TabsTrigger value="flow" className="flex items-center gap-2"><Activity className="h-4 w-4" />Flow</TabsTrigger>
           <TabsTrigger value="logs" className="flex items-center gap-2"><BarChart3 className="h-4 w-4" />Logs</TabsTrigger>
           <TabsTrigger value="debug" className="flex items-center gap-2"><Bug className="h-4 w-4" />Debug</TabsTrigger>
         </TabsList>
@@ -546,7 +567,10 @@ export function WhatsAppChatbot() {
           <Card>
             <CardHeader>
               <CardTitle>API Configuration</CardTitle>
-              <CardDescription>Connected number: <span className="font-mono font-bold">+9779826884653</span> (9779826884653@s.whatsapp.net)</CardDescription>
+              <CardDescription>
+                Connected number: <span className="font-mono font-bold">{config?.connected_number ? `+${config.connected_number}` : "Not detected yet"}</span>
+                {" "}• Instance: <span className="font-mono">{formInstanceName || "—"}</span>
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex items-center justify-between">
@@ -581,6 +605,7 @@ export function WhatsAppChatbot() {
               <div className="space-y-2">
                 <Label>Instance Name</Label>
                 <Input value={formInstanceName} onChange={(e) => setFormInstanceName(e.target.value)} placeholder="whtapp" />
+                <p className="text-xs text-muted-foreground">Use the Evolution instance name (example: <code className="bg-muted px-1 rounded">whtapp</code>), not the WhatsApp profile display name.</p>
               </div>
 
               <Button onClick={handleSave} disabled={saving}>
@@ -685,6 +710,94 @@ export function WhatsAppChatbot() {
                   )}
                 </div>
               </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="flow" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2"><Activity className="h-5 w-5" />Full Message Flow</CardTitle>
+              <CardDescription>Incoming Webhook → AI Processing → Send Message (latest 40 inbound events)</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {flowRows.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No inbound webhook events found yet.</p>
+              ) : (
+                <div className="space-y-4 max-h-[720px] overflow-auto pr-1">
+                  {flowRows.map((row) => (
+                    <div key={row.incoming.id} className="rounded-lg border p-3 space-y-3">
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="text-sm font-mono font-medium">+{row.incoming.phone_number}</p>
+                        <span className="text-xs text-muted-foreground">{formatDateTime(row.incoming.created_at)}</span>
+                      </div>
+
+                      <div className="grid gap-3 lg:grid-cols-3">
+                        <div className="rounded-md border bg-muted/20 p-3 space-y-2">
+                          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Incoming Webhook</p>
+                          <p className="text-sm whitespace-pre-wrap break-words">{row.incoming.message || "(empty)"}</p>
+                          <p className="text-xs text-muted-foreground">Event: {row.incoming.metadata?.webhook_event || "—"}</p>
+                          <p className="text-xs text-muted-foreground">Type: {row.incoming.metadata?.message_type || "—"}</p>
+                          {row.incoming.metadata?.raw_payload_preview && (
+                            <details>
+                              <summary className="cursor-pointer text-xs text-muted-foreground">Raw payload</summary>
+                              <pre className="mt-2 text-[11px] bg-muted rounded p-2 overflow-auto whitespace-pre-wrap break-all">{row.incoming.metadata.raw_payload_preview}</pre>
+                            </details>
+                          )}
+                        </div>
+
+                        <div className="rounded-md border bg-muted/20 p-3 space-y-2">
+                          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">AI Processing</p>
+                          {row.outbound ? (
+                            <>
+                              <Badge variant={row.outbound.status === "failed" ? "destructive" : "default"}>
+                                {row.outbound.status === "failed" ? "Failed" : "Completed"}
+                              </Badge>
+                              <p className="text-xs text-muted-foreground">Input:</p>
+                              <p className="text-sm whitespace-pre-wrap break-words">{row.outbound.metadata?.ai_input_preview || row.incoming.message || "—"}</p>
+                              <p className="text-xs text-muted-foreground">Generated reply:</p>
+                              <p className="text-sm whitespace-pre-wrap break-words">{row.outbound.metadata?.ai_reply_preview || row.outbound.message || "—"}</p>
+                              {row.outbound.metadata?.ai_response_preview && (
+                                <details>
+                                  <summary className="cursor-pointer text-xs text-muted-foreground">AI raw response</summary>
+                                  <pre className="mt-2 text-[11px] bg-muted rounded p-2 overflow-auto whitespace-pre-wrap break-all">{row.outbound.metadata.ai_response_preview}</pre>
+                                </details>
+                              )}
+                              {row.outbound.error_message && (
+                                <p className="text-xs text-destructive">{row.outbound.error_message}</p>
+                              )}
+                            </>
+                          ) : (
+                            <p className="text-sm text-muted-foreground">Waiting for AI step...</p>
+                          )}
+                        </div>
+
+                        <div className="rounded-md border bg-muted/20 p-3 space-y-2">
+                          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Send Message</p>
+                          {row.outbound ? (
+                            <>
+                              <Badge variant={getBadgeVariant(row.outbound.status)}>{row.outbound.status}</Badge>
+                              <p className="text-xs text-muted-foreground">Provider status: {row.outbound.metadata?.provider_status || "—"}</p>
+                              <p className="text-xs text-muted-foreground">Instance used: {row.outbound.metadata?.instance_name_used || formInstanceName || "—"}</p>
+                              {row.outbound.metadata?.provider_response_preview && (
+                                <details>
+                                  <summary className="cursor-pointer text-xs text-muted-foreground">Provider response</summary>
+                                  <pre className="mt-2 text-[11px] bg-muted rounded p-2 overflow-auto whitespace-pre-wrap break-all">{row.outbound.metadata.provider_response_preview}</pre>
+                                </details>
+                              )}
+                              {row.outbound.error_message && (
+                                <p className="text-xs text-destructive">{row.outbound.error_message}</p>
+                              )}
+                            </>
+                          ) : (
+                            <p className="text-sm text-muted-foreground">No send attempt recorded yet.</p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>

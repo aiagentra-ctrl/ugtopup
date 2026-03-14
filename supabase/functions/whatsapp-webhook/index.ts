@@ -71,6 +71,106 @@ async function getWhatsAppConfig() {
   return data;
 }
 
+function normalizePhoneValue(value: unknown): string {
+  const raw = String(value || "");
+  const numberPart = raw.includes("@") ? raw.split("@")[0] : raw;
+  return numberPart.replace(/\D/g, "");
+}
+
+function parseJsonSafely(raw: string): any {
+  try {
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return { raw };
+  }
+}
+
+async function fetchEvolutionInstances(config: any): Promise<any[]> {
+  if (!config?.server_url || !config?.api_key) return [];
+
+  const res = await fetch(`${config.server_url}/instance/fetchInstances`, {
+    headers: { apikey: config.api_key },
+  });
+
+  const raw = await res.text();
+  const parsed = parseJsonSafely(raw);
+
+  if (!res.ok) {
+    throw new Error(`Failed to fetch instances: ${res.status} - ${raw}`);
+  }
+
+  if (Array.isArray(parsed)) return parsed;
+  if (Array.isArray(parsed?.data)) return parsed.data;
+  return [];
+}
+
+async function getResolvedInstanceName(config: any): Promise<string> {
+  const configured = String(config?.instance_name || "").trim();
+  if (!configured && !config?.server_url) return configured;
+
+  try {
+    const instances = await fetchEvolutionInstances(config);
+    if (!instances.length) return configured;
+
+    const configuredLower = configured.toLowerCase();
+    const configuredDigits = normalizePhoneValue(configured);
+    const connectedDigits = normalizePhoneValue(config?.connected_number);
+
+    const byName = instances.find((instance: any) =>
+      String(instance?.name || "").toLowerCase() === configuredLower,
+    );
+
+    const byProfileName = instances.find((instance: any) =>
+      String(instance?.profileName || "").toLowerCase() === configuredLower,
+    );
+
+    const byNumber = instances.find((instance: any) => {
+      const instanceNumber = normalizePhoneValue(instance?.number);
+      const ownerNumber = normalizePhoneValue(instance?.ownerJid);
+      if (connectedDigits && (instanceNumber === connectedDigits || ownerNumber === connectedDigits)) {
+        return true;
+      }
+      if (configuredDigits && (instanceNumber === configuredDigits || ownerNumber === configuredDigits)) {
+        return true;
+      }
+      return false;
+    });
+
+    const byOpenState = instances.find((instance: any) =>
+      String(instance?.connectionStatus || "").toLowerCase() === "open",
+    );
+
+    const chosen = byName || byProfileName || byNumber || byOpenState || instances[0];
+    const resolvedName = String(chosen?.name || configured).trim();
+
+    if (!resolvedName) return configured;
+
+    if (resolvedName !== configured) {
+      const db = supabaseAdmin();
+      await db
+        .from("whatsapp_config")
+        .update({
+          instance_name: resolvedName,
+          connected_number:
+            normalizePhoneValue(chosen?.ownerJid) ||
+            normalizePhoneValue(chosen?.number) ||
+            config?.connected_number ||
+            null,
+          connection_status:
+            String(chosen?.connectionStatus || "").toLowerCase() === "open"
+              ? "connected"
+              : config?.connection_status || "disconnected",
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", config.id);
+    }
+
+    return resolvedName;
+  } catch {
+    return configured;
+  }
+}
+
 async function logMessage(
   phoneNumber: string,
   direction: "inbound" | "outbound",
@@ -92,34 +192,67 @@ async function logMessage(
   });
 }
 
-async function sendWhatsAppReply(config: any, phone: string, text: string, delay = 1200) {
-  const url = `${config.server_url}/message/sendText/${config.instance_name}`;
-  const res = await fetch(url, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      apikey: config.api_key,
-    },
-    body: JSON.stringify({
-      number: phone,
-      text,
-      delay,
-    }),
-  });
+async function sendWhatsAppReply(
+  config: any,
+  phone: string,
+  text: string,
+  delay = 1200,
+  preferredInstanceName?: string,
+) {
+  const sendWithInstance = async (instanceName: string) => {
+    const encodedInstanceName = encodeURIComponent(String(instanceName || "").trim());
+    const url = `${config.server_url}/message/sendText/${encodedInstanceName}`;
 
-  const bodyText = await res.text();
-  let parsed: any = null;
-  try {
-    parsed = bodyText ? JSON.parse(bodyText) : null;
-  } catch {
-    parsed = { raw: bodyText };
+    const res = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        apikey: config.api_key,
+      },
+      body: JSON.stringify({
+        number: phone,
+        text,
+        delay,
+      }),
+    });
+
+    const bodyText = await res.text();
+    const parsed = parseJsonSafely(bodyText);
+    return { res, bodyText, parsed, instanceName };
+  };
+
+  const initialInstanceName = String(preferredInstanceName || config.instance_name || "").trim();
+  const firstAttempt = await sendWithInstance(initialInstanceName);
+
+  if (firstAttempt.res.ok) {
+    return {
+      status: firstAttempt.res.status,
+      data: firstAttempt.parsed,
+      instanceNameUsed: firstAttempt.instanceName,
+    };
   }
 
-  if (!res.ok) {
-    throw new Error(`Evolution API error: ${res.status} - ${bodyText}`);
+  const looksLikeMissingInstance =
+    firstAttempt.res.status === 404 &&
+    String(firstAttempt.bodyText || "").toLowerCase().includes("instance") &&
+    String(firstAttempt.bodyText || "").toLowerCase().includes("does not exist");
+
+  if (looksLikeMissingInstance) {
+    const resolvedInstanceName = await getResolvedInstanceName(config);
+    if (resolvedInstanceName && resolvedInstanceName !== initialInstanceName) {
+      const retryAttempt = await sendWithInstance(resolvedInstanceName);
+      if (retryAttempt.res.ok) {
+        return {
+          status: retryAttempt.res.status,
+          data: retryAttempt.parsed,
+          instanceNameUsed: retryAttempt.instanceName,
+        };
+      }
+      throw new Error(`Evolution API error: ${retryAttempt.res.status} - ${retryAttempt.bodyText}`);
+    }
   }
 
-  return { status: res.status, data: parsed };
+  throw new Error(`Evolution API error: ${firstAttempt.res.status} - ${firstAttempt.bodyText}`);
 }
 
 async function callChatbotApi(sessionId: string, message: string) {
@@ -331,11 +464,23 @@ async function processIncomingMessage(
       chatResponse?.message ||
       "Sorry, I could not process your request.";
 
-    const evolutionResponse = await sendWhatsAppReply(config, incoming.phone, replyText, 1200);
+    const resolvedInstanceName = await getResolvedInstanceName(config);
+    const evolutionResponse = await sendWhatsAppReply(
+      config,
+      incoming.phone,
+      replyText,
+      1200,
+      resolvedInstanceName,
+    );
 
     await logMessage(incoming.phone, "outbound", replyText, sessionId, "sent", undefined, {
       webhook_event: incoming.event,
       provider: "evolution",
+      stage: "send_message",
+      ai_input_preview: payloadPreview(incoming.text, 1200),
+      ai_reply_preview: payloadPreview(replyText, 1200),
+      ai_response_preview: payloadPreview(chatResponse),
+      instance_name_used: evolutionResponse.instanceNameUsed,
       provider_status: evolutionResponse.status,
       provider_response_preview: payloadPreview(evolutionResponse.data),
       simulated: isSimulated,
@@ -346,16 +491,27 @@ async function processIncomingMessage(
     const errorMessage = safeErrorMessage(error);
     await logMessage(incoming.phone, "outbound", "", sessionId, "failed", errorMessage, {
       webhook_event: incoming.event,
-      stage: "chatbot_or_send",
+      stage: "ai_or_send",
+      ai_input_preview: payloadPreview(incoming.text, 1200),
       simulated: isSimulated,
     });
 
     try {
       const fallback = "Sorry, I'm having trouble right now. Please try again later or visit our website.";
-      const fallbackRes = await sendWhatsAppReply(config, incoming.phone, fallback, 500);
+      const fallbackInstanceName = await getResolvedInstanceName(config);
+      const fallbackRes = await sendWhatsAppReply(
+        config,
+        incoming.phone,
+        fallback,
+        500,
+        fallbackInstanceName,
+      );
       await logMessage(incoming.phone, "outbound", fallback, sessionId, "sent", undefined, {
         provider: "evolution",
+        stage: "fallback_send",
         provider_status: fallbackRes.status,
+        provider_response_preview: payloadPreview(fallbackRes.data),
+        instance_name_used: fallbackRes.instanceNameUsed,
         fallback: true,
         simulated: isSimulated,
       });
@@ -369,6 +525,7 @@ async function processIncomingMessage(
         safeErrorMessage(fallbackError),
         {
           stage: "fallback_send",
+          ai_input_preview: payloadPreview(incoming.text, 1200),
           simulated: isSimulated,
         },
       );
@@ -467,23 +624,31 @@ Deno.serve(async (req) => {
       switch (body.admin_action) {
         case "test-connection": {
           try {
+            const instanceName = await getResolvedInstanceName(config);
+            const encodedInstanceName = encodeURIComponent(instanceName);
             const res = await fetch(
-              `${config.server_url}/instance/connectionState/${config.instance_name}`,
+              `${config.server_url}/instance/connectionState/${encodedInstanceName}`,
               { headers: { apikey: config.api_key } },
             );
-            const data = await res.json();
+            const raw = await res.text();
+            const data = parseJsonSafely(raw);
+
+            if (!res.ok) {
+              return err(`Evolution API error: ${res.status} - ${raw}`, 502);
+            }
 
             const db = supabaseAdmin();
             const state = data?.instance?.state || data?.state;
             await db
               .from("whatsapp_config")
               .update({
+                instance_name: instanceName,
                 connection_status: state === "open" ? "connected" : "disconnected",
                 updated_at: new Date().toISOString(),
               })
               .eq("id", config.id);
 
-            return ok({ success: true, data });
+            return ok({ success: true, data, instance_name: instanceName });
           } catch (error) {
             return err(safeErrorMessage(error), 500);
           }
@@ -496,15 +661,23 @@ Deno.serve(async (req) => {
 
         case "disconnect": {
           try {
-            await fetch(`${config.server_url}/instance/logout/${config.instance_name}`, {
+            const instanceName = await getResolvedInstanceName(config);
+            const encodedInstanceName = encodeURIComponent(instanceName);
+            const logoutRes = await fetch(`${config.server_url}/instance/logout/${encodedInstanceName}`, {
               method: "DELETE",
               headers: { apikey: config.api_key },
             });
+
+            const logoutRaw = await logoutRes.text();
+            if (!logoutRes.ok) {
+              return err(`Evolution API error: ${logoutRes.status} - ${logoutRaw}`, 502);
+            }
 
             const db = supabaseAdmin();
             await db
               .from("whatsapp_config")
               .update({
+                instance_name: instanceName,
                 connection_status: "disconnected",
                 connected_number: null,
                 updated_at: new Date().toISOString(),
@@ -520,31 +693,39 @@ Deno.serve(async (req) => {
         case "set-webhook": {
           try {
             const webhookUrl = `${SUPABASE_URL}/functions/v1/whatsapp-webhook`;
-            const res = await fetch(`${config.server_url}/webhook/set/${config.instance_name}`, {
+            const instanceName = await getResolvedInstanceName(config);
+            const encodedInstanceName = encodeURIComponent(instanceName);
+
+            const res = await fetch(`${config.server_url}/webhook/set/${encodedInstanceName}`, {
               method: "POST",
               headers: { "Content-Type": "application/json", apikey: config.api_key },
               body: JSON.stringify({
                 webhook: {
                   enabled: true,
                   url: webhookUrl,
-                  webhookByEvents: false,
+                  webhookByEvents: true,
                   events: ["MESSAGES_UPSERT", "CONNECTION_UPDATE"],
                 },
               }),
             });
 
-            const data = await res.json();
+            const raw = await res.text();
+            const data = parseJsonSafely(raw);
+            if (!res.ok) {
+              return err(`Evolution API error: ${res.status} - ${raw}`, 502);
+            }
 
             const db = supabaseAdmin();
             await db
               .from("whatsapp_config")
               .update({
+                instance_name: instanceName,
                 webhook_url: webhookUrl,
                 updated_at: new Date().toISOString(),
               })
               .eq("id", config.id);
 
-            return ok({ success: true, data, webhook_url: webhookUrl });
+            return ok({ success: true, data, webhook_url: webhookUrl, instance_name: instanceName });
           } catch (error) {
             return err(safeErrorMessage(error), 500);
           }
@@ -555,7 +736,13 @@ Deno.serve(async (req) => {
             const res = await fetch(`${config.server_url}/instance/fetchInstances`, {
               headers: { apikey: config.api_key },
             });
-            const data = await res.json();
+            const raw = await res.text();
+            const data = parseJsonSafely(raw);
+
+            if (!res.ok) {
+              return err(`Evolution API error: ${res.status} - ${raw}`, 502);
+            }
+
             return ok({ success: true, data });
           } catch (error) {
             return err(safeErrorMessage(error), 500);
@@ -567,10 +754,19 @@ Deno.serve(async (req) => {
           if (!phone || !message) return err("phone and message are required");
 
           try {
-            const sendResult = await sendWhatsAppReply(config, String(phone), String(message), 600);
+            const resolvedInstanceName = await getResolvedInstanceName(config);
+            const sendResult = await sendWhatsAppReply(
+              config,
+              String(phone),
+              String(message),
+              600,
+              resolvedInstanceName,
+            );
             const sessionId = `wa-${phone}`;
             await logMessage(String(phone), "outbound", String(message), sessionId, "sent", undefined, {
               manual: true,
+              stage: "send_message",
+              instance_name_used: sendResult.instanceNameUsed,
               provider_status: sendResult.status,
               provider_response_preview: payloadPreview(sendResult.data),
             });
@@ -636,6 +832,19 @@ Deno.serve(async (req) => {
     // Optional signature check (if Evolution sends apikey header/body)
     const incomingApiKey = req.headers.get("apikey") || body?.apikey || body?.data?.apikey;
     if (incomingApiKey && incomingApiKey !== config.api_key) {
+      await logMessage(
+        "webhook",
+        "inbound",
+        "(invalid signature)",
+        `wa-webhook-${Date.now()}`,
+        "invalid_signature",
+        "Webhook API key mismatch",
+        {
+          webhook_event: normalizeEvent(body?.event),
+          received_apikey_preview: String(incomingApiKey).slice(0, 6),
+          raw_payload_preview: payloadPreview(body),
+        },
+      );
       return err("Invalid webhook signature", 401);
     }
 
@@ -652,19 +861,21 @@ Deno.serve(async (req) => {
         await db
           .from("whatsapp_config")
           .update({
+            instance_name: String(body.instance || config.instance_name || "").trim() || config.instance_name,
             connection_status: "connected",
             connected_number: number || config.connected_number,
             updated_at: new Date().toISOString(),
           })
-          .eq("instance_name", body.instance || config.instance_name);
+          .eq("id", config.id);
       } else if (state === "close") {
         await db
           .from("whatsapp_config")
           .update({
+            instance_name: String(body.instance || config.instance_name || "").trim() || config.instance_name,
             connection_status: "disconnected",
             updated_at: new Date().toISOString(),
           })
-          .eq("instance_name", body.instance || config.instance_name);
+          .eq("id", config.id);
       }
 
       return ok({ ok: true });
