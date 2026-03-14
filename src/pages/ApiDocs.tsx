@@ -490,7 +490,7 @@ curl -X POST "${BASE_URL}" \\
           <CardContent className="text-sm text-muted-foreground space-y-2">
             <ul className="list-disc list-inside space-y-1">
               <li>AI responses are rate-limited by the upstream provider. If you receive a 429 status, retry after a few seconds.</li>
-              <li>Conversation logs are stored for <strong>10 days</strong> and then automatically purged.</li>
+              <li>Conversation logs are stored for <strong>15 days</strong> and then automatically purged.</li>
               <li>The API uses the Supabase anon key for authentication — no user credentials are required.</li>
               <li>Order placement requires a registered user email with sufficient credit balance.</li>
             </ul>
