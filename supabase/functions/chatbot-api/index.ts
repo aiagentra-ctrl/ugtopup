@@ -760,10 +760,14 @@ async function handleUnifiedMessage(body: any) {
   }
 
   // Pre-fetch RAG context in parallel
-  const [productResults, knowledgeContext] = await Promise.all([
+  const [productResults, multiGameResults, knowledgeContext] = await Promise.all([
     searchProducts(message),
+    searchMultiGameProducts(message),
     searchKnowledgeBase(message),
   ]);
+
+  // Merge results: prefer specific game results, fallback to multi-game
+  const effectiveProducts = (productResults && productResults.length > 0) ? productResults : multiGameResults;
 
   // Build system prompt
   const { apiUrl, apiKey } = getAIConfig(settings);
