@@ -736,7 +736,13 @@ Deno.serve(async (req) => {
             const res = await fetch(`${config.server_url}/instance/fetchInstances`, {
               headers: { apikey: config.api_key },
             });
-            const data = await res.json();
+            const raw = await res.text();
+            const data = parseJsonSafely(raw);
+
+            if (!res.ok) {
+              return err(`Evolution API error: ${res.status} - ${raw}`, 502);
+            }
+
             return ok({ success: true, data });
           } catch (error) {
             return err(safeErrorMessage(error), 500);
