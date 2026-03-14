@@ -124,13 +124,100 @@ function fuzzyMatchGame(query: string): string | null {
   // Direct keyword match first
   const directMatch = PRODUCT_KEYWORDS.find((kw) => lower.includes(kw));
   if (directMatch) return KEYWORD_TO_GAME[directMatch] || directMatch;
-  // Fuzzy alias match
+  // Fuzzy alias match — skip shared aliases like "diamond" (they match multiple games)
+  const SHARED_ALIASES = new Set(["diamond", "diamonds", "diamon", "diamnd", "diamons"]);
   for (const [game, aliases] of Object.entries(FUZZY_ALIASES)) {
     for (const alias of aliases) {
+      if (SHARED_ALIASES.has(alias)) continue; // skip shared ones for single-game match
       if (lower.includes(alias)) return game;
     }
   }
+  // Check shared aliases — return null to trigger multi-game search
+  for (const alias of SHARED_ALIASES) {
+    if (lower.includes(alias)) return null; // will be caught by broad search
+  }
   return null;
+}
+
+// Multi-game search for shared keywords like "diamond"
+async function searchMultiGameProducts(query: string) {
+  const sb = supabaseAdmin();
+  const SHARED_ALIASES = new Set(["diamond", "diamonds", "diamon", "diamnd", "diamons"]);
+  const lower = query.toLowerCase().replace(/[^a-z0-9\s]/g, "").trim();
+  const words = lower.split(/\s+/);
+  const hasSharedAlias = words.some(w => SHARED_ALIASES.has(w));
+  if (!hasSharedAlias) return null;
+
+  // Search across ALL games for diamond packages
+  const { data: gamePrices } = await sb.from("game_product_prices")
+    .select("package_name, package_id, price, currency, game, quantity, package_type")
+    .eq("is_active", true)
+    .ilike("package_name", "%diamond%")
+    .order("game").order("display_order", { ascending: true })
+    .limit(50);
+
+  if (!gamePrices || gamePrices.length === 0) return null;
+  return gamePrices.map((p: any) => ({
+    name: p.package_name, package_id: p.package_id, price: p.price,
+    currency: p.currency || "NPR", price_display: `${p.currency || "NPR"} ${p.price}`,
+    image_url: null, link: getRouteForGame(p.game), delivery_time: "5–10 minutes",
+    package_type: p.package_type, quantity: p.quantity, game: p.game,
+  }));
+}
+
+// Format product results into a clean structured response
+function formatProductResponse(products: any[]): string {
+  if (!products || products.length === 0) return "";
+
+  // Group by game
+  const grouped: Record<string, any[]> = {};
+  for (const p of products) {
+    const game = p.game || "other";
+    if (!grouped[game]) grouped[game] = [];
+    grouped[game].push(p);
+  }
+
+  const GAME_LABELS: Record<string, { emoji: string; label: string; route: string }> = {
+    freefire: { emoji: "🔥", label: "Free Fire Diamonds", route: "/freefire-diamond" },
+    mobile_legends: { emoji: "⚔️", label: "Mobile Legends Diamonds", route: "/mobile-legends" },
+    pubg: { emoji: "🎯", label: "PUBG Mobile UC", route: "/pubg-mobile" },
+    roblox: { emoji: "🎮", label: "Roblox Robux", route: "/roblox-topup" },
+    netflix: { emoji: "🎬", label: "Netflix", route: "/netflix" },
+    tiktok: { emoji: "🎵", label: "TikTok Coins", route: "/tiktok-coins" },
+    youtube: { emoji: "📺", label: "YouTube Premium", route: "/youtube" },
+    chatgpt: { emoji: "🤖", label: "ChatGPT Plus", route: "/chatgpt" },
+    garena: { emoji: "🐚", label: "Garena Shells", route: "/garena-shell" },
+    smilecoin: { emoji: "😊", label: "Smile One", route: "/smile-coin" },
+    unipin: { emoji: "🎯", label: "UniPin", route: "/unipin-uc" },
+  };
+
+  const BASE_URL = "https://ugtopups.lovable.app/#";
+  const gameKeys = Object.keys(grouped);
+  let response = "💎 **Diamond Packages**\n\n";
+
+  for (const game of gameKeys) {
+    const info = GAME_LABELS[game] || { emoji: "📦", label: game, route: "" };
+    const packages = grouped[game];
+    response += `${info.emoji} **${info.label}**\n`;
+
+    // Show up to 8 packages per game for readability
+    const shown = packages.slice(0, 8);
+    for (const p of shown) {
+      response += `• ${p.name} — ${p.currency || "NPR"} ${p.price}\n`;
+    }
+    if (packages.length > 8) {
+      response += `• _...and ${packages.length - 8} more packages_\n`;
+    }
+    if (info.route) {
+      response += `🛒 Buy now: ${BASE_URL}${info.route}\n`;
+    }
+    response += "\n";
+  }
+
+  response += "⏱ **Delivery:** 5–10 minutes\n\n";
+  response += "💬 Reply with the package you want to order!";
+
+  return response;
 }
 
 function getRouteForGame(game: string): string | null {
