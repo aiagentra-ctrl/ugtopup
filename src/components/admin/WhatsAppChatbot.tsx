@@ -714,6 +714,94 @@ export function WhatsAppChatbot() {
           </Card>
         </TabsContent>
 
+        <TabsContent value="flow" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2"><Activity className="h-5 w-5" />Full Message Flow</CardTitle>
+              <CardDescription>Incoming Webhook → AI Processing → Send Message (latest 40 inbound events)</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {flowRows.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No inbound webhook events found yet.</p>
+              ) : (
+                <div className="space-y-4 max-h-[720px] overflow-auto pr-1">
+                  {flowRows.map((row) => (
+                    <div key={row.incoming.id} className="rounded-lg border p-3 space-y-3">
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="text-sm font-mono font-medium">+{row.incoming.phone_number}</p>
+                        <span className="text-xs text-muted-foreground">{formatDateTime(row.incoming.created_at)}</span>
+                      </div>
+
+                      <div className="grid gap-3 lg:grid-cols-3">
+                        <div className="rounded-md border bg-muted/20 p-3 space-y-2">
+                          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Incoming Webhook</p>
+                          <p className="text-sm whitespace-pre-wrap break-words">{row.incoming.message || "(empty)"}</p>
+                          <p className="text-xs text-muted-foreground">Event: {row.incoming.metadata?.webhook_event || "—"}</p>
+                          <p className="text-xs text-muted-foreground">Type: {row.incoming.metadata?.message_type || "—"}</p>
+                          {row.incoming.metadata?.raw_payload_preview && (
+                            <details>
+                              <summary className="cursor-pointer text-xs text-muted-foreground">Raw payload</summary>
+                              <pre className="mt-2 text-[11px] bg-muted rounded p-2 overflow-auto whitespace-pre-wrap break-all">{row.incoming.metadata.raw_payload_preview}</pre>
+                            </details>
+                          )}
+                        </div>
+
+                        <div className="rounded-md border bg-muted/20 p-3 space-y-2">
+                          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">AI Processing</p>
+                          {row.outbound ? (
+                            <>
+                              <Badge variant={row.outbound.status === "failed" ? "destructive" : "default"}>
+                                {row.outbound.status === "failed" ? "Failed" : "Completed"}
+                              </Badge>
+                              <p className="text-xs text-muted-foreground">Input:</p>
+                              <p className="text-sm whitespace-pre-wrap break-words">{row.outbound.metadata?.ai_input_preview || row.incoming.message || "—"}</p>
+                              <p className="text-xs text-muted-foreground">Generated reply:</p>
+                              <p className="text-sm whitespace-pre-wrap break-words">{row.outbound.metadata?.ai_reply_preview || row.outbound.message || "—"}</p>
+                              {row.outbound.metadata?.ai_response_preview && (
+                                <details>
+                                  <summary className="cursor-pointer text-xs text-muted-foreground">AI raw response</summary>
+                                  <pre className="mt-2 text-[11px] bg-muted rounded p-2 overflow-auto whitespace-pre-wrap break-all">{row.outbound.metadata.ai_response_preview}</pre>
+                                </details>
+                              )}
+                              {row.outbound.error_message && (
+                                <p className="text-xs text-destructive">{row.outbound.error_message}</p>
+                              )}
+                            </>
+                          ) : (
+                            <p className="text-sm text-muted-foreground">Waiting for AI step...</p>
+                          )}
+                        </div>
+
+                        <div className="rounded-md border bg-muted/20 p-3 space-y-2">
+                          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Send Message</p>
+                          {row.outbound ? (
+                            <>
+                              <Badge variant={getBadgeVariant(row.outbound.status)}>{row.outbound.status}</Badge>
+                              <p className="text-xs text-muted-foreground">Provider status: {row.outbound.metadata?.provider_status || "—"}</p>
+                              <p className="text-xs text-muted-foreground">Instance used: {row.outbound.metadata?.instance_name_used || formInstanceName || "—"}</p>
+                              {row.outbound.metadata?.provider_response_preview && (
+                                <details>
+                                  <summary className="cursor-pointer text-xs text-muted-foreground">Provider response</summary>
+                                  <pre className="mt-2 text-[11px] bg-muted rounded p-2 overflow-auto whitespace-pre-wrap break-all">{row.outbound.metadata.provider_response_preview}</pre>
+                                </details>
+                              )}
+                              {row.outbound.error_message && (
+                                <p className="text-xs text-destructive">{row.outbound.error_message}</p>
+                              )}
+                            </>
+                          ) : (
+                            <p className="text-sm text-muted-foreground">No send attempt recorded yet.</p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
         <TabsContent value="logs" className="space-y-4">
           <Card>
             <CardHeader>
