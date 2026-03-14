@@ -693,31 +693,39 @@ Deno.serve(async (req) => {
         case "set-webhook": {
           try {
             const webhookUrl = `${SUPABASE_URL}/functions/v1/whatsapp-webhook`;
-            const res = await fetch(`${config.server_url}/webhook/set/${config.instance_name}`, {
+            const instanceName = await getResolvedInstanceName(config);
+            const encodedInstanceName = encodeURIComponent(instanceName);
+
+            const res = await fetch(`${config.server_url}/webhook/set/${encodedInstanceName}`, {
               method: "POST",
               headers: { "Content-Type": "application/json", apikey: config.api_key },
               body: JSON.stringify({
                 webhook: {
                   enabled: true,
                   url: webhookUrl,
-                  webhookByEvents: false,
+                  webhookByEvents: true,
                   events: ["MESSAGES_UPSERT", "CONNECTION_UPDATE"],
                 },
               }),
             });
 
-            const data = await res.json();
+            const raw = await res.text();
+            const data = parseJsonSafely(raw);
+            if (!res.ok) {
+              return err(`Evolution API error: ${res.status} - ${raw}`, 502);
+            }
 
             const db = supabaseAdmin();
             await db
               .from("whatsapp_config")
               .update({
+                instance_name: instanceName,
                 webhook_url: webhookUrl,
                 updated_at: new Date().toISOString(),
               })
               .eq("id", config.id);
 
-            return ok({ success: true, data, webhook_url: webhookUrl });
+            return ok({ success: true, data, webhook_url: webhookUrl, instance_name: instanceName });
           } catch (error) {
             return err(safeErrorMessage(error), 500);
           }
