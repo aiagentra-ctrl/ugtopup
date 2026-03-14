@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import ReactMarkdown from 'react-markdown';
 import { Message } from '@/hooks/useChat';
 import { ProductCardBubble } from './ProductCardBubble';
 import { format } from 'date-fns';
@@ -42,7 +43,13 @@ export const MessageBubble = ({ message, previousUserMessage }: MessageBubblePro
             : 'bg-card text-card-foreground border border-border rounded-2xl rounded-bl-md'
         }`}
       >
-        <p className="text-sm whitespace-pre-wrap">{message.text}</p>
+        {isUser ? (
+          <p className="text-sm whitespace-pre-wrap">{message.text}</p>
+        ) : (
+          <div className="text-sm prose prose-sm prose-invert max-w-none [&_p]:my-1 [&_ul]:my-1 [&_ol]:my-1 [&_li]:my-0.5 [&_h1]:text-base [&_h1]:font-bold [&_h1]:my-1 [&_h2]:text-sm [&_h2]:font-bold [&_h2]:my-1 [&_h3]:text-sm [&_h3]:font-semibold [&_h3]:my-1 [&_strong]:font-semibold [&_a]:text-primary [&_a]:underline [&_code]:bg-muted [&_code]:px-1 [&_code]:rounded [&_pre]:bg-muted [&_pre]:p-2 [&_pre]:rounded-md [&_hr]:my-2 [&_blockquote]:border-l-2 [&_blockquote]:border-primary [&_blockquote]:pl-2 [&_blockquote]:my-1">
+            <ReactMarkdown>{message.text}</ReactMarkdown>
+          </div>
+        )}
       </div>
 
       {/* Product card(s) */}
