@@ -305,7 +305,11 @@ const AI_TOOLS = [
 // ── Tool Execution ──
 
 async function executeSearchProducts(args: any): Promise<any> {
-  const products = await searchProducts(args.query);
+  const query = args?.query || args?.message || "";
+  if (!query || typeof query !== "string" || query.trim().length === 0) {
+    return { found: false, message: "Please specify a product name to search for." };
+  }
+  const products = await searchProducts(query);
   if (!products || products.length === 0) {
     return { found: false, message: "No products found matching this query." };
   }
