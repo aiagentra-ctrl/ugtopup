@@ -525,6 +525,7 @@ async function processIncomingMessage(
         safeErrorMessage(fallbackError),
         {
           stage: "fallback_send",
+          ai_input_preview: payloadPreview(incoming.text, 1200),
           simulated: isSimulated,
         },
       );
