@@ -14,9 +14,7 @@ import { requestDeduplicator } from "@/lib/requestDeduplicator";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
-
-// Non-API packages that go through normal order management (no Liana API)
-const NON_API_PACKAGES = new Set(['55 Diamonds', '110 Diamonds', '165 Diamonds', '275 Diamonds', '565 Diamonds']);
+// All ML diamond packages are now fully API-based via Liana
 
 const MobileLegends = () => {
   const { user, refreshProfile } = useAuth();
