@@ -132,14 +132,8 @@ const MobileLegends = () => {
       return;
     }
 
-    // For API packages, verify IGN first
-    const isApiPackage = !NON_API_PACKAGES.has(selectedPackage.name);
-    if (isApiPackage) {
-      await verifyIgn();
-    } else {
-      // Non-API packages skip verification, go straight to balance check
-      await proceedToOrder();
-    }
+    // All packages are now API-based — always verify IGN first
+    await verifyIgn();
   };
 
   const handleIgnConfirm = async () => {
