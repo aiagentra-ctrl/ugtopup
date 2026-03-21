@@ -193,34 +193,26 @@ const MobileLegends = () => {
         }
       );
 
-      const isApiPackage = !NON_API_PACKAGES.has(selectedPackage.name);
+      // All packages are API-based — process via Liana
+      toast.info("Processing your order...");
+      
+      const { data: apiResult, error: apiError } = await supabase.functions.invoke('process-ml-order', {
+        body: { order_id: order.id }
+      });
 
-      if (isApiPackage) {
-        toast.info("Processing your order...");
-        
-        const { data: apiResult, error: apiError } = await supabase.functions.invoke('process-ml-order', {
-          body: { order_id: order.id }
-        });
+      await refreshProfile();
+      setShowReviewModal(false);
 
-        await refreshProfile();
-        setShowReviewModal(false);
-
-        if (apiError) {
-          console.error('Liana API error:', apiError);
-          setShowSuccessModal(true);
-          toast.warning("Order placed but processing encountered an issue. Our team will review it.");
-        } else if (apiResult?.success) {
-          setShowSuccessModal(true);
-          toast.success(`Diamonds delivered successfully!${apiResult.ign ? ` (IGN: ${apiResult.ign})` : ''}`);
-        } else {
-          setShowSuccessModal(true);
-          toast.warning(`Order placed. ${apiResult?.error || 'Processing in progress...'}`);
-        }
-      } else {
-        await refreshProfile();
-        setShowReviewModal(false);
+      if (apiError) {
+        console.error('Liana API error:', apiError);
         setShowSuccessModal(true);
-        toast.success("Order placed successfully! Our team will process it shortly.");
+        toast.warning("Order placed but processing encountered an issue. Our team will review it.");
+      } else if (apiResult?.success) {
+        setShowSuccessModal(true);
+        toast.success(`Diamonds delivered successfully!${apiResult.ign ? ` (IGN: ${apiResult.ign})` : ''}`);
+      } else {
+        setShowSuccessModal(true);
+        toast.warning(`Order placed. ${apiResult?.error || 'Processing in progress...'}`);
       }
     } catch (error: any) {
       await refreshProfile();
