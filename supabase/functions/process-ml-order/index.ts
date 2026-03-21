@@ -353,13 +353,7 @@ async function handleProcessOrder(
     );
   }
 
-  if (nonApiPackages.has(packageName)) {
-    console.log(`Non-API package: ${packageName}. Skipping API processing.`);
-    return new Response(
-      JSON.stringify({ success: false, error: 'non_api_package', message: 'This package is processed manually.' }),
-      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
-  }
+  // All ML packages are now API-based — no manual processing needed
 
   const lianaProductId = resolveVariationId(packageName, order.quantity);
   if (!lianaProductId) {
