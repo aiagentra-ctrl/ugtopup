@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import { fetchAllOrders, confirmOrder, cancelOrder, OrderFilters } from "@/lib/adminApi";
 import { Order } from "@/lib/orderApi";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -30,7 +30,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { CheckCircle, XCircle, Eye, RefreshCw, Filter, RotateCcw, Zap } from "lucide-react";
+import { CheckCircle, XCircle, Eye, RefreshCw, Filter, RotateCcw, Zap, Search, X } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -48,6 +48,16 @@ export const OrderManagement = () => {
   // Filters
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
+
+  // Search
+  const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+
+  // Debounce search input
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(searchQuery), 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
   const loadOrders = async () => {
     setLoading(true);
@@ -70,10 +80,38 @@ export const OrderManagement = () => {
     }
   };
 
+  // Client-side filtered orders based on search
+  const filteredOrders = useMemo(() => {
+    if (!debouncedSearch.trim()) return orders;
+    const q = debouncedSearch.toLowerCase().trim();
+    return orders.filter((order) => {
+      const orderNumber = (order.order_number || "").toLowerCase();
+      const productName = (order.product_name || "").toLowerCase();
+      const packageName = (order.package_name || "").toLowerCase();
+      const userName = (order.user_name || "").toLowerCase();
+      const userEmail = (order.user_email || "").toLowerCase();
+      const price = String(order.price || "");
+      const status = (order.status || "").toLowerCase();
+      const date = new Date(order.created_at).toLocaleDateString().toLowerCase();
+      const category = (order.product_category || "").toLowerCase();
+
+      return (
+        orderNumber.includes(q) ||
+        productName.includes(q) ||
+        packageName.includes(q) ||
+        userName.includes(q) ||
+        userEmail.includes(q) ||
+        price.includes(q) ||
+        status.includes(q) ||
+        date.includes(q) ||
+        category.includes(q)
+      );
+    });
+  }, [orders, debouncedSearch]);
+
   useEffect(() => {
     loadOrders();
 
-    // Real-time subscription for order updates
     const channel = supabase
       .channel("admin-orders")
       .on(
@@ -199,9 +237,28 @@ export const OrderManagement = () => {
           </div>
         </CardHeader>
         <CardContent>
+          {/* Search Bar */}
+          <div className="relative mb-4">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search by order ID, product, user, email, price, status, date..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10 pr-10"
+            />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery("")}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
+          </div>
+
           {/* Filters */}
-          <div className="flex gap-4 mb-4">
-            <div className="flex-1">
+          <div className="flex flex-wrap gap-4 mb-4">
+            <div className="flex-1 min-w-[150px]">
               <Label className="text-xs">Status</Label>
               <Select value={statusFilter} onValueChange={setStatusFilter}>
                 <SelectTrigger>
@@ -217,7 +274,7 @@ export const OrderManagement = () => {
                 </SelectContent>
               </Select>
             </div>
-            <div className="flex-1">
+            <div className="flex-1 min-w-[150px]">
               <Label className="text-xs">Category</Label>
               <Select value={categoryFilter} onValueChange={setCategoryFilter}>
                 <SelectTrigger>
@@ -233,15 +290,25 @@ export const OrderManagement = () => {
                   <SelectItem value="smilecoin">Smile Coin</SelectItem>
                   <SelectItem value="chatgpt">ChatGPT</SelectItem>
                   <SelectItem value="unipin">Unipin</SelectItem>
-                  <SelectItem value="other">Mobile Legends & Roblox</SelectItem>
+                  <SelectItem value="mobile_legends">Mobile Legends</SelectItem>
+                  <SelectItem value="roblox">Roblox</SelectItem>
+                  <SelectItem value="pubg">PUBG</SelectItem>
                   <SelectItem value="design">Design Services</SelectItem>
+                  <SelectItem value="other">Other</SelectItem>
                 </SelectContent>
               </Select>
             </div>
           </div>
 
+          {/* Result count */}
+          {debouncedSearch && (
+            <p className="text-xs text-muted-foreground mb-2">
+              Showing {filteredOrders.length} of {orders.length} orders
+            </p>
+          )}
+
           {/* Orders Table */}
-          <div className="rounded-md border">
+          <div className="rounded-md border overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -262,14 +329,14 @@ export const OrderManagement = () => {
                       <p className="text-sm text-muted-foreground">Loading orders...</p>
                     </TableCell>
                   </TableRow>
-                ) : orders.length === 0 ? (
+                ) : filteredOrders.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
-                      No orders found
+                      {debouncedSearch ? `No orders matching "${debouncedSearch}"` : "No orders found"}
                     </TableCell>
                   </TableRow>
                 ) : (
-                  orders.map((order) => (
+                  filteredOrders.map((order) => (
                     <TableRow key={order.id}>
                       <TableCell className="font-mono text-sm">{order.order_number}</TableCell>
                       <TableCell>
@@ -290,7 +357,7 @@ export const OrderManagement = () => {
                         {new Date(order.created_at).toLocaleDateString()}
                       </TableCell>
                       <TableCell className="text-right">
-                        <div className="flex justify-end gap-2">
+                        <div className="flex justify-end gap-2 flex-wrap">
                           <Button
                             size="sm"
                             variant="ghost"

@@ -36,8 +36,20 @@ interface LianaOrderResponse {
   data?: { status?: number };
 }
 
-// Complete mapping of ML Indian diamond packages to Liana variation_ids
+// Complete mapping of ML diamond packages to Liana variation_ids (ALL packages are now API-based)
 const productIdMap: Record<string, number> = {
+  // Double Diamond / Small packs (previously non-API, now mapped)
+  '10 Diamonds': 9802,
+  '22 Diamonds': 9805,
+  '33 Diamonds': 9806,
+  '51 Diamonds': 9807,
+  '55 Diamonds': 5657,
+  '102 Diamonds': 9809,
+  '110 Diamonds': 6976,
+  '165 Diamonds': 5658,
+  '275 Diamonds': 5659,
+  '565 Diamonds': 5660,
+  // Standard API packages
   '86 Diamonds': 5743,
   '172 Diamonds': 5857,
   '257 Diamonds': 5859,
@@ -63,12 +75,14 @@ const productIdMap: Record<string, number> = {
 };
 
 const quantityMap: Record<number, number> = {
-  86: 5743, 172: 5857, 257: 5859, 343: 5860, 429: 5861, 514: 5862,
-  600: 5863, 706: 5864, 878: 6936, 1049: 5865, 1050: 5865,
-  1135: 6978, 1412: 5866, 2195: 5867, 3688: 5868, 5532: 5869, 9288: 5870,
+  10: 9802, 22: 9805, 33: 9806, 51: 9807, 55: 5657, 86: 5743, 102: 9809,
+  110: 6976, 165: 5658, 172: 5857, 257: 5859, 275: 5659, 343: 5860,
+  429: 5861, 514: 5862, 565: 5660, 600: 5863, 706: 5864, 878: 6936,
+  1049: 5865, 1050: 5865, 1135: 6978, 1412: 5866, 2195: 5867,
+  3688: 5868, 5532: 5869, 9288: 5870,
 };
 
-const nonApiPackages = new Set(['55 Diamonds', '110 Diamonds', '165 Diamonds', '275 Diamonds', '565 Diamonds']);
+// No more non-API packages — all ML diamond packages are now API-based
 
 function resolveVariationId(packageName: string, quantity?: number): number | null {
   const trimmed = packageName.trim();
