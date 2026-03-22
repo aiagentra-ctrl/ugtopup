@@ -113,7 +113,7 @@ export const getNotificationStats = async (notificationId: string): Promise<Noti
 };
 
 // User functions - FIXED: explicitly filter by user_id
-export const fetchUserNotifications = async (notificationType?: 'admin' | 'general'): Promise<UserNotification[]> => {
+export const fetchUserNotifications = async (notificationType?: string): Promise<UserNotification[]> => {
   const { data: userData } = await supabase.auth.getUser();
   if (!userData?.user?.id) return [];
 
