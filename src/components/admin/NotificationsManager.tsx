@@ -389,9 +389,13 @@ const NotificationsManager = () => {
               </Select>
               <p className="text-xs text-muted-foreground">
                 {formNotificationType === 'admin' 
-                  ? 'Shows in "Admin" tab — use for direct messages, announcements'
-                  : 'Shows in "System" tab — use for order updates, offers, rewards'}
+                  ? 'Shows in "Admin" tab — use for important announcements only'
+                  : 'Shows in "System" tab — use for purchases, credit updates, key rewards'}
               </p>
+              <div className="rounded-md bg-muted/50 p-3 text-xs text-muted-foreground mt-1">
+                <p className="font-medium mb-1">⚠️ Keep notifications minimal</p>
+                <p>Only notify for: product purchases, credits added/used, and critical account updates. Avoid spamming users with minor activity.</p>
+              </div>
             </div>
 
             <div className="space-y-2">
