@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Bell, CheckCheck, ArrowLeft, Shield, Megaphone, Package, CreditCard, Gift, AlertTriangle } from 'lucide-react';
+import { Bell, CheckCheck, ArrowLeft, Shield, Megaphone, Package, CreditCard, Gift, AlertTriangle, ShoppingBag } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -21,6 +21,7 @@ import { Footer } from '@/components/Footer';
 
 const getNotificationIcon = (title: string) => {
   const t = title.toLowerCase();
+  if (t.includes('voucher')) return <Gift className="h-4 w-4 text-yellow-500" />;
   if (t.includes('order')) return <Package className="h-4 w-4 text-blue-500" />;
   if (t.includes('credit') || t.includes('payment') || t.includes('wallet')) return <CreditCard className="h-4 w-4 text-green-500" />;
   if (t.includes('reward') || t.includes('milestone') || t.includes('coupon') || t.includes('referral')) return <Gift className="h-4 w-4 text-yellow-500" />;
@@ -28,24 +29,29 @@ const getNotificationIcon = (title: string) => {
   return <Bell className="h-4 w-4 text-primary" />;
 };
 
+type TabType = 'admin' | 'general' | 'order';
+
 const UserNotifications = () => {
   const { toast } = useToast();
   const { user } = useAuth();
   const { refetch: refetchUnread } = useUnreadNotifications();
   const [adminNotifications, setAdminNotifications] = useState<UserNotification[]>([]);
   const [generalNotifications, setGeneralNotifications] = useState<UserNotification[]>([]);
+  const [orderNotifications, setOrderNotifications] = useState<UserNotification[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'admin' | 'general'>('admin');
+  const [activeTab, setActiveTab] = useState<TabType>('admin');
 
   const loadNotifications = async () => {
     try {
       setLoading(true);
-      const [adminData, generalData] = await Promise.all([
+      const [adminData, generalData, orderData] = await Promise.all([
         fetchUserNotifications('admin'),
         fetchUserNotifications('general'),
+        fetchUserNotifications('order'),
       ]);
       setAdminNotifications(adminData);
       setGeneralNotifications(generalData);
+      setOrderNotifications(orderData);
     } catch (error) {
       console.error('Error loading notifications:', error);
       toast({ title: 'Error', description: 'Failed to load notifications', variant: 'destructive' });
@@ -57,40 +63,26 @@ const UserNotifications = () => {
   useEffect(() => {
     if (user) {
       loadNotifications();
-
       const channel = supabase
         .channel(`user-notifications-page-${user.id}`)
-        .on(
-          'postgres_changes',
-          {
-            event: '*',
-            schema: 'public',
-            table: 'user_notifications',
-            filter: `user_id=eq.${user.id}`,
-          },
-          () => {
-            loadNotifications();
-            refetchUnread();
-          }
-        )
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'user_notifications', filter: `user_id=eq.${user.id}` }, () => {
+          loadNotifications();
+          refetchUnread();
+        })
         .subscribe();
-
-      return () => {
-        supabase.removeChannel(channel);
-      };
+      return () => { supabase.removeChannel(channel); };
     }
   }, [user?.id]);
 
   const handleMarkAsRead = async (notification: UserNotification) => {
     if (notification.is_read) return;
-
     try {
       await markNotificationAsRead(notification.id);
       const updateList = (list: UserNotification[]) =>
         list.map(n => n.id === notification.id ? { ...n, is_read: true, read_at: new Date().toISOString() } : n);
-      
       setAdminNotifications(updateList);
       setGeneralNotifications(updateList);
+      setOrderNotifications(updateList);
       refetchUnread();
     } catch (error) {
       console.error('Error marking as read:', error);
@@ -100,14 +92,11 @@ const UserNotifications = () => {
   const handleMarkAllAsRead = async () => {
     try {
       await markAllNotificationsAsRead(activeTab);
-      const markAllRead = (list: UserNotification[]) => 
+      const markAllRead = (list: UserNotification[]) =>
         list.map(n => ({ ...n, is_read: true, read_at: new Date().toISOString() }));
-      
-      if (activeTab === 'admin') {
-        setAdminNotifications(markAllRead);
-      } else {
-        setGeneralNotifications(markAllRead);
-      }
+      if (activeTab === 'admin') setAdminNotifications(markAllRead);
+      else if (activeTab === 'general') setGeneralNotifications(markAllRead);
+      else setOrderNotifications(markAllRead);
       refetchUnread();
       toast({ title: 'Success', description: 'All notifications marked as read' });
     } catch (error) {
@@ -116,30 +105,32 @@ const UserNotifications = () => {
     }
   };
 
-  const currentNotifications = activeTab === 'admin' ? adminNotifications : generalNotifications;
+  const getNotifications = (tab: TabType) => {
+    if (tab === 'admin') return adminNotifications;
+    if (tab === 'general') return generalNotifications;
+    return orderNotifications;
+  };
+
+  const currentNotifications = getNotifications(activeTab);
   const unreadCount = currentNotifications.filter(n => !n.is_read).length;
-  const totalUnread = adminNotifications.filter(n => !n.is_read).length + generalNotifications.filter(n => !n.is_read).length;
+  const totalUnread =
+    adminNotifications.filter(n => !n.is_read).length +
+    generalNotifications.filter(n => !n.is_read).length +
+    orderNotifications.filter(n => !n.is_read).length;
 
   const renderNotificationCard = (userNotification: UserNotification) => {
     const notification = userNotification.notification;
     if (!notification) return null;
-
     return (
       <Card
         key={userNotification.id}
-        className={`cursor-pointer transition-all hover:shadow-md ${
-          !userNotification.is_read ? 'border-primary/50 bg-primary/5' : 'opacity-80'
-        }`}
+        className={`cursor-pointer transition-all hover:shadow-md ${!userNotification.is_read ? 'border-primary/50 bg-primary/5' : 'opacity-80'}`}
         onClick={() => handleMarkAsRead(userNotification)}
       >
         <CardContent className="p-4">
           <div className="flex gap-4">
             {notification.image_url ? (
-              <img
-                src={notification.image_url}
-                alt=""
-                className="w-14 h-14 sm:w-16 sm:h-16 object-cover rounded-lg shrink-0"
-              />
+              <img src={notification.image_url} alt="" className="w-14 h-14 sm:w-16 sm:h-16 object-cover rounded-lg shrink-0" />
             ) : (
               <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-lg bg-muted flex items-center justify-center shrink-0">
                 {getNotificationIcon(notification.title)}
@@ -148,21 +139,14 @@ const UserNotifications = () => {
             <div className="flex-1 min-w-0">
               <div className="flex items-start justify-between gap-2">
                 <h3 className="font-semibold flex items-center gap-2 text-sm sm:text-base">
-                  {!userNotification.is_read && (
-                    <span className="w-2 h-2 bg-primary rounded-full shrink-0 animate-pulse" />
-                  )}
+                  {!userNotification.is_read && <span className="w-2 h-2 bg-primary rounded-full shrink-0 animate-pulse" />}
                   {notification.title}
                 </h3>
-                <Badge 
-                  variant={userNotification.is_read ? 'secondary' : 'default'} 
-                  className="shrink-0 text-xs"
-                >
+                <Badge variant={userNotification.is_read ? 'secondary' : 'default'} className="shrink-0 text-xs">
                   {userNotification.is_read ? 'Read' : 'New'}
                 </Badge>
               </div>
-              <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
-                {notification.message}
-              </p>
+              <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{notification.message}</p>
               <p className="text-xs text-muted-foreground mt-2">
                 📅 {format(new Date(userNotification.created_at), 'MMM d, yyyy • h:mm a')}
               </p>
@@ -173,25 +157,25 @@ const UserNotifications = () => {
     );
   };
 
-  const renderEmptyState = (type: 'admin' | 'general') => (
-    <Card>
-      <CardContent className="p-8 sm:p-12 text-center">
-        {type === 'admin' ? (
-          <Shield className="h-12 w-12 sm:h-16 sm:w-16 mx-auto text-muted-foreground/50 mb-4" />
-        ) : (
-          <Megaphone className="h-12 w-12 sm:h-16 sm:w-16 mx-auto text-muted-foreground/50 mb-4" />
-        )}
-        <h3 className="text-lg font-medium mb-2">
-          No {type === 'admin' ? 'Admin' : 'General'} Notifications
-        </h3>
-        <p className="text-muted-foreground text-sm">
-          {type === 'admin' 
-            ? 'Messages from admin will appear here.' 
-            : 'Order updates, payment confirmations and rewards will appear here.'}
-        </p>
-      </CardContent>
-    </Card>
-  );
+  const emptyConfig: Record<TabType, { icon: typeof Shield; label: string; desc: string }> = {
+    admin: { icon: Shield, label: 'Admin', desc: 'Messages from admin will appear here.' },
+    general: { icon: Megaphone, label: 'System', desc: 'Payment confirmations, rewards & offers will appear here.' },
+    order: { icon: ShoppingBag, label: 'Orders', desc: 'Order updates and voucher codes will appear here.' },
+  };
+
+  const renderEmptyState = (type: TabType) => {
+    const cfg = emptyConfig[type];
+    const Icon = cfg.icon;
+    return (
+      <Card>
+        <CardContent className="p-8 sm:p-12 text-center">
+          <Icon className="h-12 w-12 sm:h-16 sm:w-16 mx-auto text-muted-foreground/50 mb-4" />
+          <h3 className="text-lg font-medium mb-2">No {cfg.label} Notifications</h3>
+          <p className="text-muted-foreground text-sm">{cfg.desc}</p>
+        </CardContent>
+      </Card>
+    );
+  };
 
   const renderLoadingSkeleton = () => (
     <div className="space-y-4">
@@ -212,12 +196,26 @@ const UserNotifications = () => {
     </div>
   );
 
+  const unreadBadge = (list: UserNotification[]) => {
+    const count = list.filter(n => !n.is_read).length;
+    if (count === 0) return null;
+    return (
+      <Badge variant="destructive" className="ml-1 h-5 min-w-[20px] p-0 flex items-center justify-center text-xs">
+        {count}
+      </Badge>
+    );
+  };
+
+  const tabDesc: Record<TabType, string> = {
+    admin: 'Messages and announcements from admin',
+    order: 'Order updates, voucher codes & delivery status',
+    general: 'Payment confirmations, rewards & offers',
+  };
+
   return (
     <div className="min-h-screen flex flex-col bg-background">
       <Header />
-      
       <main className="flex-1 container mx-auto px-4 py-6 sm:py-8 max-w-3xl">
-        {/* Header Section */}
         <div className="flex items-center gap-3 sm:gap-4 mb-6">
           <Link to="/dashboard">
             <Button variant="ghost" size="icon" className="shrink-0">
@@ -235,71 +233,44 @@ const UserNotifications = () => {
           </div>
         </div>
 
-        {/* Tabs */}
-        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'admin' | 'general')} className="w-full">
+        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as TabType)} className="w-full">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
-            <TabsList className="grid w-full sm:w-auto grid-cols-2 h-auto">
-              <TabsTrigger value="admin" className="gap-2 py-2.5 px-4">
-                <Shield className="h-4 w-4" />
+            <TabsList className="grid w-full sm:w-auto grid-cols-3 h-auto">
+              <TabsTrigger value="admin" className="gap-1.5 py-2 px-3 text-xs sm:text-sm">
+                <Shield className="h-3.5 w-3.5" />
                 <span>Admin</span>
-                {adminNotifications.filter(n => !n.is_read).length > 0 && (
-                  <Badge variant="destructive" className="ml-1 h-5 min-w-[20px] p-0 flex items-center justify-center text-xs">
-                    {adminNotifications.filter(n => !n.is_read).length}
-                  </Badge>
-                )}
+                {unreadBadge(adminNotifications)}
               </TabsTrigger>
-              <TabsTrigger value="general" className="gap-2 py-2.5 px-4">
-                <Megaphone className="h-4 w-4" />
+              <TabsTrigger value="order" className="gap-1.5 py-2 px-3 text-xs sm:text-sm">
+                <ShoppingBag className="h-3.5 w-3.5" />
+                <span>Orders</span>
+                {unreadBadge(orderNotifications)}
+              </TabsTrigger>
+              <TabsTrigger value="general" className="gap-1.5 py-2 px-3 text-xs sm:text-sm">
+                <Megaphone className="h-3.5 w-3.5" />
                 <span>System</span>
-                {generalNotifications.filter(n => !n.is_read).length > 0 && (
-                  <Badge variant="destructive" className="ml-1 h-5 min-w-[20px] p-0 flex items-center justify-center text-xs">
-                    {generalNotifications.filter(n => !n.is_read).length}
-                  </Badge>
-                )}
+                {unreadBadge(generalNotifications)}
               </TabsTrigger>
             </TabsList>
-            
+
             {unreadCount > 0 && (
-              <Button 
-                variant="outline" 
-                size="sm" 
-                onClick={handleMarkAllAsRead} 
-                className="gap-2 w-full sm:w-auto"
-              >
+              <Button variant="outline" size="sm" onClick={handleMarkAllAsRead} className="gap-2 w-full sm:w-auto">
                 <CheckCheck className="h-4 w-4" />
                 Mark All Read ({unreadCount})
               </Button>
             )}
           </div>
 
-          <TabsContent value="admin" className="mt-0">
-            <p className="text-xs text-muted-foreground mb-3">Messages and announcements from admin</p>
-            {loading ? (
-              renderLoadingSkeleton()
-            ) : adminNotifications.length === 0 ? (
-              renderEmptyState('admin')
-            ) : (
-              <div className="space-y-3">
-                {adminNotifications.map(renderNotificationCard)}
-              </div>
-            )}
-          </TabsContent>
-
-          <TabsContent value="general" className="mt-0">
-            <p className="text-xs text-muted-foreground mb-3">Order updates, payment confirmations, rewards & offers</p>
-            {loading ? (
-              renderLoadingSkeleton()
-            ) : generalNotifications.length === 0 ? (
-              renderEmptyState('general')
-            ) : (
-              <div className="space-y-3">
-                {generalNotifications.map(renderNotificationCard)}
-              </div>
-            )}
-          </TabsContent>
+          {(['admin', 'order', 'general'] as TabType[]).map(tab => (
+            <TabsContent key={tab} value={tab} className="mt-0">
+              <p className="text-xs text-muted-foreground mb-3">{tabDesc[tab]}</p>
+              {loading ? renderLoadingSkeleton() : getNotifications(tab).length === 0 ? renderEmptyState(tab) : (
+                <div className="space-y-3">{getNotifications(tab).map(renderNotificationCard)}</div>
+              )}
+            </TabsContent>
+          ))}
         </Tabs>
       </main>
-
       <Footer />
     </div>
   );
