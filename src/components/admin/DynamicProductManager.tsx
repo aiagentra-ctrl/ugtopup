@@ -69,6 +69,54 @@ const emptyForm = {
 
 const emptyPlan: Plan = { name: "", price: 0, discount_price: null, api_code: "" };
 
+function DescriptionField({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const [open, setOpen] = useState(!!value);
+
+  return (
+    <div>
+      {!open ? (
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="gap-2 text-muted-foreground"
+          onClick={() => setOpen(true)}
+        >
+          <FileText className="h-4 w-4" />
+          Add Description
+        </Button>
+      ) : (
+        <AnimatePresence>
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            className="space-y-2"
+          >
+            <div className="flex items-center justify-between">
+              <Label>Description</Label>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-6 text-xs text-muted-foreground"
+                onClick={() => { onChange(""); setOpen(false); }}
+              >
+                <X className="h-3 w-3 mr-1" /> Remove
+              </Button>
+            </div>
+            <Textarea
+              value={value}
+              onChange={(e) => onChange(e.target.value)}
+              placeholder="Enter product description..."
+              rows={3}
+            />
+          </motion.div>
+        </AnimatePresence>
+      )}
+    </div>
+  );
+}
+
 export function DynamicProductManager() {
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
