@@ -154,7 +154,7 @@ export const markNotificationAsRead = async (userNotificationId: string): Promis
   if (error) throw error;
 };
 
-export const markAllNotificationsAsRead = async (notificationType?: 'admin' | 'general'): Promise<void> => {
+export const markAllNotificationsAsRead = async (notificationType?: string): Promise<void> => {
   const { data: userData } = await supabase.auth.getUser();
   if (!userData?.user?.id) return;
 
