@@ -9,7 +9,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { Plus, Pencil, Trash2, Search, Image, X, ArrowUp, ArrowDown, AlertTriangle } from "lucide-react";
+import { Plus, Pencil, Trash2, Search, Image, X, ArrowUp, ArrowDown, AlertTriangle, FileText } from "lucide-react";
 import { toast } from "sonner";
 import {
   fetchDynamicProducts,
