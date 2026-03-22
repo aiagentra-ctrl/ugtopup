@@ -349,6 +349,12 @@ export function DynamicProductManager() {
                 <p className="text-sm text-muted-foreground truncate">
                   {p.product_categories?.name || "No category"} • {p.link || "No link"}
                 </p>
+                {p.description && (
+                  <p className="text-xs text-muted-foreground/70 mt-1 line-clamp-1 flex items-center gap-1">
+                    <FileText className="h-3 w-3 flex-shrink-0" />
+                    {p.description}
+                  </p>
+                )}
               </div>
               <div className="flex items-center gap-1">
                 <Button variant="ghost" size="icon" onClick={() => handleReorder(p.id, "up")} disabled={idx === 0}><ArrowUp className="h-4 w-4" /></Button>
