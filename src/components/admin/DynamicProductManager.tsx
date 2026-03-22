@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -8,7 +9,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { Plus, Pencil, Trash2, Search, Image, X, ArrowUp, ArrowDown, AlertTriangle } from "lucide-react";
+import { Plus, Pencil, Trash2, Search, Image, X, ArrowUp, ArrowDown, AlertTriangle, FileText } from "lucide-react";
 import { toast } from "sonner";
 import {
   fetchDynamicProducts,
@@ -67,6 +68,54 @@ const emptyForm = {
 };
 
 const emptyPlan: Plan = { name: "", price: 0, discount_price: null, api_code: "" };
+
+function DescriptionField({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const [open, setOpen] = useState(!!value);
+
+  return (
+    <div>
+      {!open ? (
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="gap-2 text-muted-foreground"
+          onClick={() => setOpen(true)}
+        >
+          <FileText className="h-4 w-4" />
+          Add Description
+        </Button>
+      ) : (
+        <AnimatePresence>
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            className="space-y-2"
+          >
+            <div className="flex items-center justify-between">
+              <Label>Description</Label>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-6 text-xs text-muted-foreground"
+                onClick={() => { onChange(""); setOpen(false); }}
+              >
+                <X className="h-3 w-3 mr-1" /> Remove
+              </Button>
+            </div>
+            <Textarea
+              value={value}
+              onChange={(e) => onChange(e.target.value)}
+              placeholder="Enter product description..."
+              rows={3}
+            />
+          </motion.div>
+        </AnimatePresence>
+      )}
+    </div>
+  );
+}
 
 export function DynamicProductManager() {
   const [products, setProducts] = useState<Product[]>([]);
@@ -300,6 +349,12 @@ export function DynamicProductManager() {
                 <p className="text-sm text-muted-foreground truncate">
                   {p.product_categories?.name || "No category"} • {p.link || "No link"}
                 </p>
+                {p.description && (
+                  <p className="text-xs text-muted-foreground/70 mt-1 line-clamp-1 flex items-center gap-1">
+                    <FileText className="h-3 w-3 flex-shrink-0" />
+                    {p.description}
+                  </p>
+                )}
               </div>
               <div className="flex items-center gap-1">
                 <Button variant="ghost" size="icon" onClick={() => handleReorder(p.id, "up")} disabled={idx === 0}><ArrowUp className="h-4 w-4" /></Button>
@@ -349,11 +404,11 @@ export function DynamicProductManager() {
                 </SelectContent>
               </Select>
             </div>
-            {/* Description */}
-            <div>
-              <Label>Description</Label>
-              <Textarea value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} />
-            </div>
+            {/* Description – collapsible optional section */}
+            <DescriptionField
+              value={form.description}
+              onChange={(v) => setForm((f) => ({ ...f, description: v }))}
+            />
             {/* Link */}
             <div>
               <Label>Link</Label>
