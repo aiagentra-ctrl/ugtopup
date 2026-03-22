@@ -226,7 +226,7 @@ const NotificationsManager = () => {
             <Bell className="h-6 w-6 text-primary" />
             Notifications Manager
           </h2>
-          <p className="text-muted-foreground">Create and manage notifications for users</p>
+          <p className="text-muted-foreground">Send important notifications only — purchases, credits, key updates</p>
         </div>
         <Button onClick={openCreateDialog} className="gap-2">
           <Plus className="h-4 w-4" />
