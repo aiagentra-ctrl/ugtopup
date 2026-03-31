@@ -331,11 +331,25 @@ async function handleProcessOrder(
     );
   }
 
-  if (order.status === 'completed' || order.status === 'canceled') {
+  if (order.status === 'completed') {
     return new Response(
-      JSON.stringify({ success: false, error: `Order already ${order.status}` }),
+      JSON.stringify({ success: false, error: 'Order already completed' }),
       { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
+  }
+
+  // Allow retry for canceled/failed orders (admin retry flow)
+  // Reset status to pending before processing
+  if (order.status === 'canceled') {
+    console.log(`Retrying canceled order ${orderId}, resetting to processing...`);
+    await supabaseAdmin.from('product_orders').update({
+      status: 'pending',
+      failure_reason: null,
+      canceled_at: null,
+      cancellation_reason: null,
+      failed_at: null,
+      updated_at: new Date().toISOString(),
+    }).eq('id', orderId);
   }
 
   const productDetails = order.product_details || {};

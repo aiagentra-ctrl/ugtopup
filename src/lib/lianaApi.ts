@@ -159,23 +159,45 @@ export async function cancelLianaOrder(orderId: string): Promise<void> {
 }
 
 export async function retryLianaOrder(orderId: string): Promise<void> {
+  // Get the liana order and linked product order
+  const { data: lianaOrder, error: fetchError } = await supabase
+    .from("liana_orders")
+    .select("order_id, status")
+    .eq("id", orderId)
+    .single();
+  if (fetchError || !lianaOrder) throw new Error("Could not find liana order");
+
+  // Reset liana_orders status
   const { error: updateError } = await supabase
     .from("liana_orders")
     .update({ status: "pending", error_message: null, updated_at: new Date().toISOString() })
     .eq("id", orderId);
   if (updateError) throw updateError;
 
-  const { data: lianaOrder, error: fetchError } = await supabase
-    .from("liana_orders")
-    .select("order_id")
-    .eq("id", orderId)
-    .single();
-  if (fetchError || !lianaOrder) throw new Error("Could not find liana order");
+  // Reset product_orders status so the edge function doesn't block it
+  await supabase
+    .from("product_orders")
+    .update({ 
+      status: "pending" as any,
+      failure_reason: null,
+      canceled_at: null,
+      cancellation_reason: null,
+      failed_at: null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", lianaOrder.order_id);
 
-  const { error: fnError } = await supabase.functions.invoke("process-ml-order", {
+  // Invoke the edge function for fresh processing
+  const { data, error: fnError } = await supabase.functions.invoke("process-ml-order", {
     body: { order_id: lianaOrder.order_id },
   });
+  
   if (fnError) throw fnError;
+  
+  // Check if the edge function returned an error in the response body
+  if (data && !data.success) {
+    throw new Error(data.error || "Retry failed");
+  }
 }
 
 export async function getApiErrorAlerts(): Promise<Array<{ type: string; message: string; count: number; latest: string }>> {
