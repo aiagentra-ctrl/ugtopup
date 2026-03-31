@@ -73,10 +73,16 @@ export function LianaOrdersDashboard() {
     setRetryingId(orderId);
     try {
       await retryLianaOrder(orderId);
-      toast.success("Order retry initiated");
+      toast.success("Order retry successful — diamonds delivered!");
       await loadData();
     } catch (error: any) {
-      toast.error(error.message || "Failed to retry order");
+      const msg = error.message || "Retry failed — please try again";
+      if (msg.toLowerCase().includes("insufficient") || msg.toLowerCase().includes("not enough coins")) {
+        toast.error("Insufficient Liana wallet balance. Please top up the merchant wallet first.");
+      } else {
+        toast.error(msg);
+      }
+      await loadData();
     } finally {
       setRetryingId(null);
     }
