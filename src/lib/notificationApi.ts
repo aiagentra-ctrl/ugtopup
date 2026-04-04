@@ -30,11 +30,12 @@ export interface NotificationStats {
 }
 
 // Admin functions
-export const fetchAllNotifications = async (): Promise<Notification[]> => {
+export const fetchAllNotifications = async (limit = 100): Promise<Notification[]> => {
   const { data, error } = await supabase
     .from('notifications')
-    .select('*')
-    .order('created_at', { ascending: false });
+    .select('id, title, message, target_type, notification_type, is_active, created_at')
+    .order('created_at', { ascending: false })
+    .limit(limit);
 
   if (error) throw error;
   return data as Notification[];
