@@ -121,17 +121,17 @@ export const fetchUserNotifications = async (notificationType?: string): Promise
   let query = supabase
     .from('user_notifications')
     .select(`
-      *,
-      notification:notifications(*)
+      id, notification_id, user_id, is_read, read_at, created_at,
+      notification:notifications(id, title, message, notification_type, created_at, image_url)
     `)
     .eq('user_id', userData.user.id)
-    .order('created_at', { ascending: false });
+    .order('created_at', { ascending: false })
+    .limit(50);
 
   const { data, error } = await query;
 
   if (error) throw error;
   
-  // Filter by notification type if specified
   let filtered = data as UserNotification[];
   if (notificationType) {
     filtered = filtered.filter(un => 
