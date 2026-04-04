@@ -100,17 +100,18 @@ export const deleteNotification = async (id: string): Promise<void> => {
 };
 
 export const getNotificationStats = async (notificationId: string): Promise<NotificationStats> => {
-  const { data, error } = await supabase
+  const { count: sent_count } = await supabase
     .from('user_notifications')
-    .select('is_read')
+    .select('id', { count: 'exact', head: true })
     .eq('notification_id', notificationId);
 
-  if (error) throw error;
+  const { count: read_count } = await supabase
+    .from('user_notifications')
+    .select('id', { count: 'exact', head: true })
+    .eq('notification_id', notificationId)
+    .eq('is_read', true);
 
-  const sent_count = data?.length || 0;
-  const read_count = data?.filter(n => n.is_read).length || 0;
-
-  return { sent_count, read_count };
+  return { sent_count: sent_count || 0, read_count: read_count || 0 };
 };
 
 // User functions - FIXED: explicitly filter by user_id
