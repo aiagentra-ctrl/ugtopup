@@ -185,8 +185,7 @@ export function WhatsAppChatbot() {
   }, [loadConfig, loadMessages, loadStats, loadHealth, loadFlowData]);
 
   useEffect(() => {
-    const interval = setInterval(() => { loadMessages(); loadStats(); loadHealth(); }, 30000);
-    return () => clearInterval(interval);
+    return;
   }, [loadMessages, loadStats, loadHealth]);
 
   useEffect(() => {
