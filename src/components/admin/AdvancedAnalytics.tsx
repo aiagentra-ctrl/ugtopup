@@ -40,11 +40,11 @@ export function AdvancedAnalytics() {
     const from = getDateFrom(dateRange);
 
     const [pvRes, sessRes, rtRes, profileRes, orderRes] = await Promise.all([
-      supabase.from("page_views").select("*").gte("created_at", from).order("created_at", { ascending: false }).limit(5000),
-      supabase.from("visitor_sessions").select("*").gte("started_at", from).order("started_at", { ascending: false }).limit(5000),
-      supabase.from("visitor_sessions").select("session_id, last_active_at").gte("last_active_at", new Date(Date.now() - 5 * 60 * 1000).toISOString()),
-      supabase.from("profiles").select("id, created_at").limit(10000),
-      supabase.from("product_orders").select("id, user_id, created_at, status").limit(10000),
+      supabase.from("page_views").select("page_path, traffic_source, created_at, session_id").gte("created_at", from).order("created_at", { ascending: false }).limit(2000),
+      supabase.from("visitor_sessions").select("session_id, traffic_source, is_bounce, page_count, started_at").gte("started_at", from).order("started_at", { ascending: false }).limit(2000),
+      supabase.from("visitor_sessions").select("session_id").gte("last_active_at", new Date(Date.now() - 5 * 60 * 1000).toISOString()),
+      supabase.from("profiles").select("id, created_at", { count: 'exact', head: false }).limit(5000),
+      supabase.from("product_orders").select("id, user_id, created_at, status").limit(5000),
     ]);
 
     setPageViews(pvRes.data || []);

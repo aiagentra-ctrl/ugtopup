@@ -30,11 +30,12 @@ export interface NotificationStats {
 }
 
 // Admin functions
-export const fetchAllNotifications = async (): Promise<Notification[]> => {
+export const fetchAllNotifications = async (limit = 100): Promise<Notification[]> => {
   const { data, error } = await supabase
     .from('notifications')
-    .select('*')
-    .order('created_at', { ascending: false });
+    .select('id, title, message, target_type, notification_type, is_active, created_at')
+    .order('created_at', { ascending: false })
+    .limit(limit);
 
   if (error) throw error;
   return data as Notification[];
@@ -99,17 +100,18 @@ export const deleteNotification = async (id: string): Promise<void> => {
 };
 
 export const getNotificationStats = async (notificationId: string): Promise<NotificationStats> => {
-  const { data, error } = await supabase
+  const { count: sent_count } = await supabase
     .from('user_notifications')
-    .select('is_read')
+    .select('id', { count: 'exact', head: true })
     .eq('notification_id', notificationId);
 
-  if (error) throw error;
+  const { count: read_count } = await supabase
+    .from('user_notifications')
+    .select('id', { count: 'exact', head: true })
+    .eq('notification_id', notificationId)
+    .eq('is_read', true);
 
-  const sent_count = data?.length || 0;
-  const read_count = data?.filter(n => n.is_read).length || 0;
-
-  return { sent_count, read_count };
+  return { sent_count: sent_count || 0, read_count: read_count || 0 };
 };
 
 // User functions - FIXED: explicitly filter by user_id
@@ -120,17 +122,17 @@ export const fetchUserNotifications = async (notificationType?: string): Promise
   let query = supabase
     .from('user_notifications')
     .select(`
-      *,
-      notification:notifications(*)
+      id, notification_id, user_id, is_read, read_at, created_at,
+      notification:notifications(id, title, message, notification_type, created_at, image_url)
     `)
     .eq('user_id', userData.user.id)
-    .order('created_at', { ascending: false });
+    .order('created_at', { ascending: false })
+    .limit(50);
 
   const { data, error } = await query;
 
   if (error) throw error;
   
-  // Filter by notification type if specified
   let filtered = data as UserNotification[];
   if (notificationType) {
     filtered = filtered.filter(un => 
