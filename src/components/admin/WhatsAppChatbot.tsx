@@ -185,15 +185,13 @@ export function WhatsAppChatbot() {
   }, [loadConfig, loadMessages, loadStats, loadHealth, loadFlowData]);
 
   useEffect(() => {
-    const interval = setInterval(() => { loadMessages(); loadStats(); loadHealth(); }, 30000);
-    return () => clearInterval(interval);
+    return;
   }, [loadMessages, loadStats, loadHealth]);
 
   useEffect(() => {
     if (!selectedPhone) return;
     loadChatForPhone(selectedPhone);
-    const interval = setInterval(() => loadChatForPhone(selectedPhone), 10000);
-    return () => clearInterval(interval);
+    return;
   }, [selectedPhone, loadChatForPhone]);
 
   useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [chatMessages]);
