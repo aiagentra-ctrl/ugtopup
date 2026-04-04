@@ -191,8 +191,7 @@ export function WhatsAppChatbot() {
   useEffect(() => {
     if (!selectedPhone) return;
     loadChatForPhone(selectedPhone);
-    const interval = setInterval(() => loadChatForPhone(selectedPhone), 10000);
-    return () => clearInterval(interval);
+    return;
   }, [selectedPhone, loadChatForPhone]);
 
   useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [chatMessages]);

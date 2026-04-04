@@ -101,9 +101,6 @@ export function LianaWalletBalance() {
 
   useEffect(() => {
     fetchBalance();
-    // Auto-refresh every 60s
-    const interval = setInterval(fetchBalance, 60000);
-    return () => clearInterval(interval);
   }, [fetchBalance]);
 
   useEffect(() => {

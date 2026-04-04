@@ -137,12 +137,8 @@ export function VoucherInventory() {
       )
       .subscribe();
 
-    // Polling fallback every 30s
-    const interval = setInterval(fetchVouchers, 30000);
-
     return () => {
       supabase.removeChannel(channel);
-      clearInterval(interval);
     };
   }, [fetchVouchers]);
 
