@@ -7,11 +7,12 @@ import {
 } from "@/components/ui/table";
 import {
   RefreshCw, Wallet, AlertTriangle, Clock, TrendingDown, Activity,
-  Coins, ShieldAlert, CheckCircle, XCircle, ArrowDown, ArrowUp,
+  Coins, ShieldAlert, CheckCircle, XCircle, ArrowDown, ArrowUp, KeyRound,
 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine } from "recharts";
 
 interface WalletData {
   balance?: number;
@@ -20,6 +21,8 @@ interface WalletData {
   currency?: string;
   status?: string;
   message?: string;
+  code?: string;
+  data?: { status?: number };
   [key: string]: unknown;
 }
 
@@ -45,6 +48,12 @@ interface WalletSummary {
   avg_coins_per_order: number;
 }
 
+interface DailyChartEntry {
+  date: string;
+  coins: number;
+  orders: number;
+}
+
 export function LianaWalletBalance() {
   const [walletData, setWalletData] = useState<WalletData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -54,6 +63,9 @@ export function LianaWalletBalance() {
   const [summary, setSummary] = useState<WalletSummary | null>(null);
   const [logsLoading, setLogsLoading] = useState(false);
   const [showLogs, setShowLogs] = useState(false);
+  const [dailyChart, setDailyChart] = useState<DailyChartEntry[]>([]);
+  const [dailySpendingCap, setDailySpendingCap] = useState(5000);
+  const [credentialsExpired, setCredentialsExpired] = useState(false);
 
   const fetchBalance = useCallback(async () => {
     setLoading(true);
@@ -65,6 +77,14 @@ export function LianaWalletBalance() {
       if (fnError) throw new Error(fnError.message || "Edge function error");
       if (data?.error) throw new Error(data.error);
       const resolved = data?.balance ?? data;
+
+      // Detect credential expiry
+      if (resolved?.code === "expired" || resolved?.data?.status === 403) {
+        setCredentialsExpired(true);
+        throw new Error("Liana API credentials expired (403). Renew in Liana dashboard.");
+      }
+      setCredentialsExpired(false);
+
       if (resolved?.status === "error") throw new Error(resolved.message || "Could not fetch balance");
       setWalletData(resolved);
       setLastChecked(new Date());
@@ -91,6 +111,8 @@ export function LianaWalletBalance() {
             ? Math.round(rawSummary.coins_used_today / rawSummary.orders_today)
             : 0,
         });
+        setDailyChart(data.daily_chart || []);
+        if (data.daily_spending_cap) setDailySpendingCap(data.daily_spending_cap);
       }
     } catch (err: any) {
       toast.error("Failed to fetch wallet logs");
@@ -107,7 +129,6 @@ export function LianaWalletBalance() {
     if (showLogs) fetchLogs();
   }, [showLogs, fetchLogs]);
 
-  // Real-time: refresh on wallet_activity_logs changes
   useEffect(() => {
     const channel = supabase
       .channel("wallet-realtime")
@@ -132,6 +153,24 @@ export function LianaWalletBalance() {
 
   return (
     <div className="space-y-4">
+      {/* Credential Expiry Banner */}
+      {credentialsExpired && (
+        <Card className="border-2 border-destructive bg-destructive/10">
+          <CardContent className="flex items-center gap-3 py-3">
+            <KeyRound className="h-5 w-5 text-destructive" />
+            <div>
+              <p className="text-sm font-semibold text-destructive">Liana API Credentials Expired</p>
+              <p className="text-xs text-muted-foreground">
+                API returned 403 Forbidden. Renew your API key/secret in the{" "}
+                <a href="https://lianastore.in" target="_blank" rel="noopener noreferrer" className="underline text-primary">
+                  Liana Store Dashboard
+                </a>, then update Supabase Edge Function secrets.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Main Balance Card */}
       <Card className={`border-2 ${isCritical ? "border-destructive" : isLow ? "border-yellow-500" : "border-border"}`}>
         <CardHeader className="flex flex-row items-center justify-between pb-2">
@@ -161,8 +200,7 @@ export function LianaWalletBalance() {
             <div className="space-y-3">
               <p className="text-sm text-destructive">⚠️ {error}</p>
               <Button variant="outline" size="sm" onClick={fetchBalance} disabled={loading}>
-                <RefreshCw className={`h-3 w-3 mr-2 ${loading ? "animate-spin" : ""}`} />
-                Retry
+                <RefreshCw className={`h-3 w-3 mr-2 ${loading ? "animate-spin" : ""}`} /> Retry
               </Button>
             </div>
           ) : (
@@ -186,7 +224,6 @@ export function LianaWalletBalance() {
                   </Badge>
                 )}
               </div>
-
               {isCritical && (
                 <p className="text-xs text-destructive font-medium">
                   🚨 CRITICAL: Wallet balance is extremely low! Orders will fail. Top up immediately.
@@ -211,6 +248,35 @@ export function LianaWalletBalance() {
           <MiniStat icon={<XCircle className="h-4 w-4 text-destructive" />} label="Failures Today" value={summary.failures_today} />
           <MiniStat icon={<TrendingDown className="h-4 w-4 text-muted-foreground" />} label="Total Logs" value={summary.total_logs} />
         </div>
+      )}
+
+      {/* Daily Spending Chart */}
+      {dailyChart.length > 0 && (
+        <Card className="border-border">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium">Daily Spending (7 Days)</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="h-48">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={dailyChart}>
+                  <XAxis dataKey="date" tick={{ fontSize: 10 }} tickFormatter={(v) => v.slice(5)} />
+                  <YAxis tick={{ fontSize: 10 }} />
+                  <Tooltip
+                    contentStyle={{ fontSize: 12 }}
+                    formatter={(value: number, name: string) => [
+                      value.toLocaleString(),
+                      name === "coins" ? "Coins Spent" : "Orders",
+                    ]}
+                    labelFormatter={(label) => `Date: ${label}`}
+                  />
+                  <ReferenceLine y={dailySpendingCap} stroke="hsl(var(--destructive))" strokeDasharray="4 4" label={{ value: `Cap: ${dailySpendingCap}`, position: "right", fontSize: 10 }} />
+                  <Bar dataKey="coins" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </CardContent>
+        </Card>
       )}
 
       {/* Toggle Logs */}
@@ -256,8 +322,7 @@ export function LianaWalletBalance() {
                     logs.map((log) => {
                       const config = actionConfig[log.action] || actionConfig.balance_check;
                       const change = log.balance_before != null && log.balance_after != null
-                        ? log.balance_after - log.balance_before
-                        : null;
+                        ? log.balance_after - log.balance_before : null;
                       return (
                         <TableRow key={log.id}>
                           <TableCell className="text-xs whitespace-nowrap">
