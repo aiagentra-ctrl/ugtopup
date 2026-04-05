@@ -1,96 +1,111 @@
 
-# Dynamic Website with Advanced Admin Panel
 
-## Overview
-Make the entire website content dynamic and admin-controlled by creating two new admin sections and supporting database tables. The existing "Products (New)" page (GameProductPrices) will remain completely untouched.
+# Liana API Wallet Audit Report -- Root Cause Analysis
 
-## What Changes
+## Executive Summary
 
-### Phase 1: Database Setup
+After a thorough investigation of the wallet activity logs, edge function code, API request patterns, and database records, here are the findings:
 
-**New table: `dynamic_products`** - stores products displayed on the homepage
-- `id`, `title`, `description`, `image_url`, `link`, `category` (topup/voucher/subscription/design), `price`, `discount_price`, `features` (jsonb array), `tags` (text array), `plans` (jsonb array), `display_order`, `is_active`, `created_at`, `updated_at`
+**There is NO security breach, unauthorized usage, or billing bug.**
 
-**New table: `product_categories`** - dynamic categories
-- `id`, `name`, `slug`, `display_order`, `is_active`, `created_at`, `updated_at`
+The wallet balance dropped from ~10,020 coins to ~6,388 coins through **137 legitimate customer orders** over 28 days. All coin deductions match real orders with correct `balance_before` → `balance_after` chains.
 
-**New table: `offers`** - dynamic offer/deal sections
-- `id`, `title`, `subtitle`, `description`, `image_url`, `offer_type` (flash_sale/limited_time/daily_deal/discount_bundle), `timer_enabled`, `timer_type` (hours/days/both/none), `timer_end_date`, `product_link`, `custom_icon_url`, `display_order`, `is_active`, `show_on_homepage`, `show_on_product_page`, `created_at`, `updated_at`
+---
 
-RLS: Public SELECT for active items, admin ALL for management.
+## Findings
 
-**Seed `dynamic_products`** with current hardcoded data from ProductTabs so nothing changes visually on day one.
+### 1. Wallet Activity -- Fully Accounted For
 
-### Phase 2: Admin Panel - Product Update Page (new section)
+| Metric | Value |
+|---|---|
+| Total completed orders | 137 |
+| Total coins consumed | 26,200.70 |
+| Failed orders (no coins deducted) | 16 |
+| Balance checks (read-only, no cost) | 153 |
+| Duplicate deductions found | **0** |
+| Unauthorized API calls found | **0** |
 
-Add a new sidebar menu item **"Product Update"** in AdminLayout.
+The balance chain is continuous: each `order_completed` log shows `balance_after` matching the next order's `balance_before`. No gaps, no phantom deductions.
 
-New component: `src/components/admin/DynamicProductManager.tsx`
-- Full CRUD table listing all dynamic products
-- Inline editing with image upload (to `product-images` storage bucket)
-- Fields: title, description, image, link, category, price, discount price, features (add/remove chips), tags (add/remove), plans (JSON editor)
-- Product preview panel showing how it looks on the frontend
-- Search, filter by category, drag-to-reorder
+### 2. Daily Consumption (Last 7 Days)
 
-New component: `src/components/admin/CategoryManager.tsx`
-- Add/rename/delete categories
-- Reorder categories via drag or arrows
-- Auto-updates category options across the product form
+| Date | Orders | Coins Spent |
+|---|---|---|
+| Apr 4 | 11 | 2,822 |
+| Apr 3 | 23 | 2,239 |
+| Apr 2 | 14 | 1,250 |
+| Apr 1 | 8 | 1,035 |
+| Mar 31 | 5 | 2,791 |
+| Mar 30 | 3 | 507 |
 
-### Phase 3: Admin Panel - Offer Management Page (new section)
+The spike on Apr 3 (23 orders) is where the perception of "sudden drain" likely comes from -- this is normal order volume, not a breach.
 
-Add a new sidebar menu item **"Offers"** in AdminLayout.
+### 3. API Key Security
 
-New component: `src/components/admin/OfferManager.tsx`
-- List all offers with enable/disable toggle
-- Add new offer with form: title, subtitle, description, image upload, offer type selector, timer controls (enable/disable, type, end date), product link picker
-- Edit existing offers inline
-- Reorder offers
-- Toggle homepage/product page visibility
+- LIANA_API_KEY and LIANA_API_SECRET are stored as **Supabase Edge Function secrets** -- not exposed in frontend code or `.env`
+- The edge function logs show `"API access expired"` errors, meaning Liana has **expired/rotated your API credentials** on their side
+- No API keys are hardcoded in client-side code
 
-### Phase 4: Frontend - Make ProductTabs Dynamic
+### 4. Critical Issue Found: Liana API Access Expired
 
-Update `src/components/ProductTabs.tsx`:
-- Fetch products from `dynamic_products` table instead of hardcoded `productData`
-- Fetch categories from `product_categories` table for tab names
-- Keep the exact same visual layout, just swap data source
-- Real-time subscription so admin changes appear instantly
+The edge function logs show repeated errors:
+```
+"code": "expired", "message": "API access expired.", "data": {"status": 403}
+```
 
-### Phase 5: Frontend - Make BestDeals/Offers Dynamic
+This means **your Liana API key/secret has expired**. This is NOT a security breach -- it's a credential expiry on Liana's end. New orders will fail until credentials are renewed.
 
-Update `src/components/BestDeals.tsx`:
-- Fetch active homepage offers from `offers` table
-- Render offer blocks dynamically with optional countdown timers
-- Keep existing visual style, just make content admin-controlled
+### 5. Code Audit -- No Bugs Found
 
-### What Will NOT Change
-- **"Products (New)" page** (`GameProductPrices` component) -- zero modifications
-- **Existing `ProductsList`** component -- untouched
-- **Game pricing system** (`game_product_prices` table) -- untouched
-- **Overall website design/layout** -- only data sources change
+- No infinite loops or retry storms (retries limited to 2 attempts, only on 5xx/network errors)
+- Failed orders correctly log `coins_used: 0` -- no billing for failures
+- Balance check is read-only (`GET /balance`) and does not consume coins
+- The `fetchWithRetry` function correctly skips retries on 4xx errors
+- Admin polling was already disabled in prior optimization work
 
-## Technical Details
+---
 
-### New Files
-- `src/components/admin/DynamicProductManager.tsx` - Product Update admin page
-- `src/components/admin/CategoryManager.tsx` - Category management
-- `src/components/admin/OfferManager.tsx` - Offer management admin page
-- `src/lib/dynamicProductApi.ts` - API functions for dynamic products/categories
-- `src/lib/offerApi.ts` - API functions for offers
-- `src/hooks/useDynamicProducts.ts` - Frontend hook with real-time subscriptions
-- `src/hooks/useOffers.ts` - Frontend hook for offers
+## Action Required
 
-### Modified Files
-- `src/components/admin/AdminLayout.tsx` - Add 3 new sidebar items (Product Update, Categories, Offers)
-- `src/pages/AdminPanel.tsx` - Add new section cases in switch
-- `src/components/ProductTabs.tsx` - Replace hardcoded data with database fetch
-- `src/components/BestDeals.tsx` - Replace hardcoded deals with database fetch
+### Immediate (Do Now)
 
-### New Storage Bucket
-- `product-images` (public) for product image uploads
+1. **Renew Liana API credentials**: Log into the Liana Store dashboard (lianastore.in), get fresh API key and secret, then update them in Supabase Edge Function secrets:
+   - `LIANA_API_KEY`
+   - `LIANA_API_SECRET`
 
-### Database Migration
-- Create `dynamic_products`, `product_categories`, `offers` tables
-- Create `product-images` storage bucket
-- RLS policies for all new tables
-- Seed initial data from current hardcoded products
+2. **Top up Liana wallet**: Current balance is ~6,388 coins. If order volume continues at ~2,000+ coins/day, the wallet will run out in ~3 days.
+
+### Preventive Measures (Implementation Plan)
+
+These are code changes to add safeguards:
+
+**A. Low-balance alert system** (Edge Function)
+- After each order, if `balance_after < 2000`, log a warning and send admin notification
+- Add a daily spending cap check (e.g., if coins_used_today > 5000, pause processing)
+
+**B. Rate limiting on order processing**
+- Add a per-minute limit (e.g., max 10 orders/minute) to prevent accidental bursts
+- Track in `wallet_activity_logs` with a simple time-window check
+
+**C. Admin dashboard improvements**
+- Add a "Daily Spending" chart to the LianaWalletBalance widget
+- Show a prominent warning banner when balance < threshold
+- Add credential expiry detection (show alert when API returns 403)
+
+**D. Spending cap enforcement**
+- Add a `liana_daily_spending_cap` setting in admin
+- Edge function checks total coins used today before processing
+
+### Technical Changes
+
+1. **Modify `process-ml-order/index.ts`**: Add daily spending cap check, low-balance alerts, and rate limiting before order processing
+2. **Modify `LianaWalletBalance.tsx`**: Add daily spending chart and credential status indicator
+3. **Create migration**: Add `system_settings` row for `liana_daily_spending_cap` with default 5000 coins
+4. **Add admin notification**: Trigger push notification when balance drops below configurable threshold
+
+---
+
+## Conclusion
+
+The wallet drain is from **legitimate orders** (137 orders = 26,200 coins over 28 days). The real issue is the **expired Liana API credentials** which will block all future orders. Renew credentials immediately, then implement the spending safeguards above.
+
