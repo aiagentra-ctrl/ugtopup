@@ -37,13 +37,19 @@ export const initiatePayment = async (amount: number): Promise<InitiatePaymentRe
 
     if (response.error) {
       console.error('Initiate payment error:', response.error);
-      return { 
-        success: false, 
-        error: response.error.message || 'Failed to initiate payment' 
+      return {
+        success: false,
+        error: response.error.message || 'Failed to initiate payment'
       };
     }
 
-    return response.data;
+    const data: any = response.data || {};
+    if (data.ok === false || data.success === false) {
+      console.error('Payment gateway error:', data);
+      return { success: false, error: data.error || 'Payment initiation failed' };
+    }
+
+    return data;
   } catch (error: any) {
     console.error('Initiate payment error:', error);
     return { 
