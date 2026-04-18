@@ -161,47 +161,53 @@ Deno.serve(async (req) => {
     console.log('API Nepal response:', result);
 
     if (result.status === 'success' && result.redirect_url) {
-      // Update transaction with redirect URL
       await supabaseAdmin
         .from('payment_transactions')
-        .update({ 
-          redirect_url: result.redirect_url,
-          status: 'pending'
-        })
+        .update({ redirect_url: result.redirect_url, status: 'pending' })
         .eq('identifier', identifier);
 
       return new Response(
-        JSON.stringify({ 
-          success: true, 
-          redirect_url: result.redirect_url,
-          identifier 
-        }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ ok: true, success: true, redirect_url: result.redirect_url, identifier }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     } else {
       console.error('API Nepal error:', result);
-      
-      // Update transaction as failed
+
       await supabaseAdmin
         .from('payment_transactions')
-        .update({ 
-          status: 'failed',
-          api_response: result
-        })
+        .update({ status: 'failed', api_response: result })
         .eq('identifier', identifier);
 
+      // Map known gateway errors to user-friendly messages
+      const code = result.error_code || '';
+      const rawMsg = Array.isArray(result.message) ? result.message[0] : result.message;
+      let friendly = rawMsg || 'Payment initiation failed';
+      if (code === 'INVALID_CREDENTIALS') {
+        friendly = 'Payment gateway credentials are invalid. Please contact support — the merchant API keys need to be updated on apinepal.com.';
+      }
+
+      // Always return 200 with structured payload so client can read details
       return new Response(
-        JSON.stringify({ 
-          error: result.message?.[0] || 'Payment initiation failed' 
+        JSON.stringify({
+          ok: false,
+          success: false,
+          error: friendly,
+          diagnostics: {
+            gateway: 'apinepal',
+            mode,
+            error_code: code,
+            gateway_message: rawMsg,
+            identifier,
+          },
         }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error('Initiate payment error:', error);
     return new Response(
-      JSON.stringify({ error: 'Internal server error' }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      JSON.stringify({ ok: false, success: false, error: error?.message || 'Internal server error' }),
+      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
 });
