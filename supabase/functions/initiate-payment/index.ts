@@ -96,7 +96,9 @@ Deno.serve(async (req) => {
     }
 
     // Get API Nepal credentials
-    const mode = Deno.env.get('APINEPAL_MODE') || 'test';
+    const rawMode = Deno.env.get('APINEPAL_MODE') || 'test';
+    const mode = rawMode.trim().toLowerCase();
+    const isLiveMode = ['live', 'production', 'prod'].includes(mode);
     const publicKey = Deno.env.get('APINEPAL_PUBLIC_KEY');
     const secretKey = Deno.env.get('APINEPAL_SECRET_KEY');
 
@@ -109,7 +111,7 @@ Deno.serve(async (req) => {
     }
 
     // Determine API endpoint based on mode
-    const apiEndpoint = mode === 'live' 
+    const apiEndpoint = isLiveMode
       ? 'https://apinepal.com/payment/initiate'
       : 'https://apinepal.com/test/payment/initiate';
 
@@ -146,7 +148,7 @@ Deno.serve(async (req) => {
     params.append('customer[email]', userEmail);
     params.append('customer[mobile]', '9800000000');
 
-    console.log('Initiating payment:', { identifier, amount, mode, ipnUrl });
+    console.log('Initiating payment:', { identifier, amount, mode: rawMode, normalizedMode: mode, ipnUrl, apiEndpoint });
 
     // Call API Nepal
     const response = await fetch(apiEndpoint, {
@@ -194,7 +196,8 @@ Deno.serve(async (req) => {
           error: friendly,
           diagnostics: {
             gateway: 'apinepal',
-            mode,
+             mode,
+             raw_mode: rawMode,
             error_code: code,
             gateway_message: rawMsg,
             identifier,
