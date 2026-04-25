@@ -64,7 +64,7 @@ const LogoDesign = () => {
     setShowReviewModal(true);
   };
 
-  const handleConfirmOrder = async () => {
+  const handleConfirmOrder = async (couponCode?: string, finalPrice?: number) => {
     if (!user) return;
 
     setIsSubmitting(true);
@@ -75,7 +75,8 @@ const LogoDesign = () => {
         product_name: "Logo Design",
         package_name: logoDesignPackage.name,
         quantity: 1,
-        price: logoDesignPackage.price,
+        price: finalPrice ?? logoDesignPackage.price,
+        coupon_code: couponCode,
         product_details: {
           email: formData.email,
           whatsapp: formData.whatsapp,

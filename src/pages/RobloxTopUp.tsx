@@ -80,7 +80,7 @@ const RobloxTopUp = () => {
     setShowReviewModal(true);
   };
 
-  const handleConfirmOrder = async () => {
+  const handleConfirmOrder = async (couponCode?: string, finalPrice?: number) => {
     if (!user || !selectedPackage) return;
 
     setIsSubmitting(true);
@@ -91,7 +91,8 @@ const RobloxTopUp = () => {
         product_name: "Roblox Robux",
         package_name: selectedPackage.name,
         quantity: totalItems,
-        price: totalPrice,
+        price: finalPrice ?? totalPrice,
+        coupon_code: couponCode,
         product_details: {
           username: formData.username,
           password: formData.password,

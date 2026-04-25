@@ -73,7 +73,7 @@ const GarenaShell = () => {
     setIsReviewOpen(true);
   };
 
-  const handleConfirmPurchase = async () => {
+  const handleConfirmPurchase = async (couponCode?: string, finalPrice?: number) => {
     if (!selectedPackage || !profile || !formData) return;
 
     const currentBalance = profile.balance || 0;
@@ -94,7 +94,8 @@ const GarenaShell = () => {
         product_name: 'Garena Shell',
         package_name: selectedPackage.name,
         quantity: totalItems,
-        price: totalPrice,
+        price: finalPrice ?? totalPrice,
+        coupon_code: couponCode,
         product_details: {
           email: formData.email,
           whatsapp: formData.whatsapp || "",

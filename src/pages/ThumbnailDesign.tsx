@@ -64,7 +64,7 @@ const ThumbnailDesign = () => {
     setShowReviewModal(true);
   };
 
-  const handleConfirmOrder = async () => {
+  const handleConfirmOrder = async (couponCode?: string, finalPrice?: number) => {
     if (!user) return;
 
     setIsSubmitting(true);
@@ -75,7 +75,8 @@ const ThumbnailDesign = () => {
         product_name: "Thumbnail Design",
         package_name: thumbnailDesignPackage.name,
         quantity: 1,
-        price: thumbnailDesignPackage.price,
+        price: finalPrice ?? thumbnailDesignPackage.price,
+        coupon_code: couponCode,
         product_details: {
           email: formData.email,
           whatsapp: formData.whatsapp,
