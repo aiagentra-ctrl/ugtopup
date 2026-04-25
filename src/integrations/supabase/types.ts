@@ -1937,6 +1937,175 @@ export type Database = {
           },
         ]
       }
+      tournament_participants: {
+        Row: {
+          coins_won: number
+          id: string
+          joined_at: string
+          result: Database["public"]["Enums"]["participant_result"]
+          tournament_id: string
+          user_id: string
+        }
+        Insert: {
+          coins_won?: number
+          id?: string
+          joined_at?: string
+          result?: Database["public"]["Enums"]["participant_result"]
+          tournament_id: string
+          user_id: string
+        }
+        Update: {
+          coins_won?: number
+          id?: string
+          joined_at?: string
+          result?: Database["public"]["Enums"]["participant_result"]
+          tournament_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tournament_participants_tournament_id_fkey"
+            columns: ["tournament_id"]
+            isOneToOne: false
+            referencedRelation: "tournaments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tournament_reports: {
+        Row: {
+          admin_response: string | null
+          created_at: string
+          id: string
+          match_name: string
+          reason: string
+          status: Database["public"]["Enums"]["report_status"]
+          tournament_id: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          admin_response?: string | null
+          created_at?: string
+          id?: string
+          match_name: string
+          reason: string
+          status?: Database["public"]["Enums"]["report_status"]
+          tournament_id?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          admin_response?: string | null
+          created_at?: string
+          id?: string
+          match_name?: string
+          reason?: string
+          status?: Database["public"]["Enums"]["report_status"]
+          tournament_id?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tournament_reports_tournament_id_fkey"
+            columns: ["tournament_id"]
+            isOneToOne: false
+            referencedRelation: "tournaments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tournament_withdrawals: {
+        Row: {
+          account_detail: string
+          admin_remarks: string | null
+          amount_coins: number
+          amount_npr: number
+          created_at: string
+          id: string
+          method: string
+          processed_at: string | null
+          status: Database["public"]["Enums"]["withdrawal_status"]
+          user_email: string
+          user_id: string
+        }
+        Insert: {
+          account_detail: string
+          admin_remarks?: string | null
+          amount_coins: number
+          amount_npr: number
+          created_at?: string
+          id?: string
+          method: string
+          processed_at?: string | null
+          status?: Database["public"]["Enums"]["withdrawal_status"]
+          user_email: string
+          user_id: string
+        }
+        Update: {
+          account_detail?: string
+          admin_remarks?: string | null
+          amount_coins?: number
+          amount_npr?: number
+          created_at?: string
+          id?: string
+          method?: string
+          processed_at?: string | null
+          status?: Database["public"]["Enums"]["withdrawal_status"]
+          user_email?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      tournaments: {
+        Row: {
+          created_at: string
+          created_by: string
+          entry_fee: number
+          finished_at: string | null
+          game: string
+          id: string
+          name: string
+          password: string
+          prize: number
+          room_id: string
+          starts_at: string | null
+          status: Database["public"]["Enums"]["tournament_status"]
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          entry_fee?: number
+          finished_at?: string | null
+          game: string
+          id?: string
+          name: string
+          password: string
+          prize?: number
+          room_id: string
+          starts_at?: string | null
+          status?: Database["public"]["Enums"]["tournament_status"]
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          entry_fee?: number
+          finished_at?: string | null
+          game?: string
+          id?: string
+          name?: string
+          password?: string
+          prize?: number
+          room_id?: string
+          starts_at?: string | null
+          status?: Database["public"]["Enums"]["tournament_status"]
+          updated_at?: string
+        }
+        Relationships: []
+      }
       user_notifications: {
         Row: {
           created_at: string
@@ -2529,6 +2698,7 @@ export type Database = {
         | "canceled"
         | "processing"
         | "completed"
+      participant_result: "pending" | "won" | "lost"
       payment_status: "pending" | "confirmed" | "rejected"
       product_category:
         | "freefire"
@@ -2544,6 +2714,9 @@ export type Database = {
         | "roblox"
         | "design"
         | "pubg"
+      report_status: "review" | "resolved" | "rejected"
+      tournament_status: "upcoming" | "live" | "finished" | "canceled"
+      withdrawal_status: "pending" | "processed" | "rejected"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -2693,6 +2866,7 @@ export const Constants = {
         "processing",
         "completed",
       ],
+      participant_result: ["pending", "won", "lost"],
       payment_status: ["pending", "confirmed", "rejected"],
       product_category: [
         "freefire",
@@ -2709,6 +2883,9 @@ export const Constants = {
         "design",
         "pubg",
       ],
+      report_status: ["review", "resolved", "rejected"],
+      tournament_status: ["upcoming", "live", "finished", "canceled"],
+      withdrawal_status: ["pending", "processed", "rejected"],
     },
   },
 } as const
