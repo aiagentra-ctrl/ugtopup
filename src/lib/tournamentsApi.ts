@@ -1,6 +1,7 @@
 import { supabase } from "@/integrations/supabase/client";
 
 export type TournamentStatus = "upcoming" | "live" | "finished" | "canceled";
+export type RoomStatus = "waiting" | "full" | "ongoing" | "finished";
 export type ParticipantResult = "pending" | "won" | "lost";
 export type ReportStatus = "review" | "resolved" | "rejected";
 export type WithdrawalStatus = "pending" | "processed" | "rejected";
@@ -9,11 +10,16 @@ export interface DBTournament {
   id: string;
   name: string;
   game: string;
+  game_mode: string;
+  description: string | null;
   room_id: string;
   password: string;
   prize: number;
   entry_fee: number;
   status: TournamentStatus;
+  room_status: RoomStatus;
+  max_players: number;
+  current_players: number;
   starts_at: string | null;
   finished_at: string | null;
   created_by: string;
@@ -81,9 +87,35 @@ export async function fetchOpenTournaments(): Promise<DBTournament[]> {
     .select("*")
     .in("status", ["upcoming", "live"])
     .order("starts_at", { ascending: true, nullsFirst: false })
-    .limit(50);
+    .limit(100);
   if (error) throw error;
   return (data ?? []) as DBTournament[];
+}
+
+export async function fetchAllTournaments(): Promise<DBTournament[]> {
+  const { data, error } = await supabase
+    .from("tournaments")
+    .select("*")
+    .order("created_at", { ascending: false })
+    .limit(200);
+  if (error) throw error;
+  return (data ?? []) as DBTournament[];
+}
+
+export async function fetchTournamentParticipants(tournamentId: string): Promise<
+  Array<DBParticipant & { username: string | null; email: string | null }>
+> {
+  const { data, error } = await supabase
+    .from("tournament_participants")
+    .select("*, profiles:profiles(username, email, full_name)")
+    .eq("tournament_id", tournamentId)
+    .order("joined_at", { ascending: true });
+  if (error) throw error;
+  return (data ?? []).map((r: any) => ({
+    ...r,
+    username: r.profiles?.username ?? r.profiles?.full_name ?? null,
+    email: r.profiles?.email ?? null,
+  }));
 }
 
 export async function fetchCreatedTournaments(userId: string): Promise<DBTournament[]> {
@@ -116,24 +148,112 @@ export async function fetchUserWithdrawals(userId: string): Promise<DBWithdrawal
   return (data ?? []) as DBWithdrawal[];
 }
 
+export interface EarningsSummary {
+  totalEarnings: number;
+  wins: number;
+  losses: number;
+  pending: number;
+  totalMatches: number;
+}
+
+export async function fetchEarningsSummary(userId: string): Promise<EarningsSummary> {
+  const { data, error } = await supabase
+    .from("tournament_participants")
+    .select("result, coins_won")
+    .eq("user_id", userId);
+  if (error) throw error;
+  const rows = data ?? [];
+  let totalEarnings = 0,
+    wins = 0,
+    losses = 0,
+    pending = 0;
+  rows.forEach((r: any) => {
+    totalEarnings += Number(r.coins_won) || 0;
+    if (r.result === "won") wins++;
+    else if (r.result === "lost") losses++;
+    else pending++;
+  });
+  return { totalEarnings, wins, losses, pending, totalMatches: rows.length };
+}
+
 export async function createTournament(input: {
   name: string;
   game: string;
+  game_mode?: string;
+  description?: string | null;
   room_id: string;
   password: string;
   prize: number;
   entry_fee: number;
+  max_players?: number;
   starts_at?: string | null;
 }): Promise<DBTournament> {
   const { data: auth } = await supabase.auth.getUser();
   if (!auth.user) throw new Error("Not authenticated");
   const { data, error } = await supabase
     .from("tournaments")
-    .insert({ ...input, created_by: auth.user.id })
+    .insert({
+      name: input.name,
+      game: input.game,
+      game_mode: input.game_mode ?? "1v1",
+      description: input.description ?? null,
+      room_id: input.room_id,
+      password: input.password,
+      prize: input.prize,
+      entry_fee: input.entry_fee,
+      max_players: input.max_players ?? 4,
+      starts_at: input.starts_at ?? null,
+      created_by: auth.user.id,
+    })
     .select()
     .single();
   if (error) throw error;
   return data as DBTournament;
+}
+
+export async function joinTournament(tournamentId: string) {
+  const { data, error } = await supabase.rpc("join_tournament", { p_tournament_id: tournamentId });
+  if (error) throw error;
+  return data;
+}
+
+export async function leaveTournament(tournamentId: string) {
+  const { data, error } = await supabase.rpc("leave_tournament", { p_tournament_id: tournamentId });
+  if (error) throw error;
+  return data;
+}
+
+export async function startTournament(tournamentId: string) {
+  const { data, error } = await supabase.rpc("start_tournament", { p_tournament_id: tournamentId });
+  if (error) throw error;
+  return data;
+}
+
+export async function finishTournament(tournamentId: string, winnerUserId: string) {
+  const { data, error } = await supabase.rpc("finish_tournament", {
+    p_tournament_id: tournamentId,
+    p_winner_user_id: winnerUserId,
+  });
+  if (error) throw error;
+  return data;
+}
+
+export async function reportMatch(input: { tournament_id: string; match_name: string; reason: string }) {
+  const { data: auth } = await supabase.auth.getUser();
+  if (!auth.user) throw new Error("Not authenticated");
+  const { data, error } = await supabase
+    .from("tournament_reports")
+    .insert({
+      tournament_id: input.tournament_id,
+      user_id: auth.user.id,
+      match_name: input.match_name,
+      reason: input.reason,
+      status: "review",
+    })
+    .select()
+    .single();
+  if (error) throw error;
+  return data as DBReport;
 }
 
 export async function requestWithdrawal(input: {
@@ -155,4 +275,15 @@ export async function requestWithdrawal(input: {
     .single();
   if (error) throw error;
   return data as DBWithdrawal;
+}
+
+export function subscribeTournaments(onChange: () => void) {
+  const channel = supabase
+    .channel("tournaments-realtime")
+    .on("postgres_changes", { event: "*", schema: "public", table: "tournaments" }, onChange)
+    .on("postgres_changes", { event: "*", schema: "public", table: "tournament_participants" }, onChange)
+    .subscribe();
+  return () => {
+    supabase.removeChannel(channel);
+  };
 }
