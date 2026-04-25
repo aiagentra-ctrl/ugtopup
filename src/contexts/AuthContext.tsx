@@ -76,6 +76,20 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         if (session?.user) {
           setTimeout(() => {
             fetchProfile(session.user.id);
+            // Apply pending referral code (set during signup) once authenticated
+            try {
+              const pendingRef = localStorage.getItem('pending_referral_code');
+              if (pendingRef && (event === 'SIGNED_IN' || event === 'INITIAL_SESSION')) {
+                supabase.rpc('apply_referral', { p_referral_code: pendingRef }).then(({ data, error }) => {
+                  if (!error) {
+                    localStorage.removeItem('pending_referral_code');
+                    console.log('[Referral] applied:', data);
+                  } else {
+                    console.warn('[Referral] apply failed:', error.message);
+                  }
+                });
+              }
+            } catch {}
           }, 0);
         } else {
           setProfile(null);
@@ -200,26 +214,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       if (error) throw error;
 
-      // Handle referral tracking
-      if (referralCode && data.user) {
+      // Stash referral code; AuthContext will apply it via apply_referral RPC
+      // once the session is authenticated (handles email-confirmation delay).
+      if (referralCode && referralCode.trim()) {
         try {
-          const { data: referrerProfile } = await supabase
-            .from('profiles')
-            .select('id')
-            .eq('referral_code', referralCode.toUpperCase())
-            .single();
+          localStorage.setItem('pending_referral_code', referralCode.trim().toUpperCase());
+        } catch {}
 
-          if (referrerProfile && referrerProfile.id !== data.user.id) {
-            // Update referred_by on the new user's profile
-            await supabase.from('profiles').update({ referred_by: referrerProfile.id }).eq('id', data.user.id);
-            // Create referral record
-            await supabase.from('referrals').insert({
-              referrer_id: referrerProfile.id,
-              referee_id: data.user.id,
-            });
+        // If session is already active (no email confirmation required), apply now.
+        if (data.session && data.user) {
+          try {
+            await supabase.rpc('apply_referral', { p_referral_code: referralCode.trim().toUpperCase() });
+            localStorage.removeItem('pending_referral_code');
+          } catch (refError) {
+            console.error('Referral tracking error:', refError);
           }
-        } catch (refError) {
-          console.error('Referral tracking error:', refError);
         }
       }
 
