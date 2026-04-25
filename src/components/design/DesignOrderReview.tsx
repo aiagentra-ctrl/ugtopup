@@ -1,3 +1,4 @@
+import { useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -10,11 +11,13 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { DesignPackage } from "@/data/designPackages";
 import { AlertCircle } from "lucide-react";
+import { CouponInput } from "@/components/checkout/CouponInput";
+import { CouponValidation } from "@/lib/couponApi";
 
 interface DesignOrderReviewProps {
   isOpen: boolean;
   onClose: () => void;
-  onConfirm: () => void;
+  onConfirm: (couponCode?: string, finalPrice?: number) => void;
   orderData: {
     orderId: string;
     package: DesignPackage;
@@ -34,7 +37,11 @@ export const DesignOrderReview = ({
   isSubmitting,
 }: DesignOrderReviewProps) => {
   const { orderId, package: pkg, email, whatsapp, userEmail, currentBalance } = orderData;
-  const hasInsufficientBalance = currentBalance < pkg.price;
+  const totalPrice = pkg.price;
+  const [appliedCoupon, setAppliedCoupon] = useState<(CouponValidation & { code: string }) | null>(null);
+  const discount = appliedCoupon?.discount_amount ?? 0;
+  const finalPrice = appliedCoupon?.final_price ?? totalPrice;
+  const hasInsufficientBalance = currentBalance < finalPrice;
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -131,6 +138,26 @@ export const DesignOrderReview = ({
             </div>
           )}
         </div>
+        <CouponInput
+          orderAmount={totalPrice}
+          productCategory="other"
+          onCouponApplied={setAppliedCoupon}
+          onCouponRemoved={() => setAppliedCoupon(null)}
+          appliedCoupon={appliedCoupon}
+        />
+        {appliedCoupon && (
+          <div className="flex justify-between text-sm">
+            <span className="text-green-500">Discount ({appliedCoupon.code}):</span>
+            <span className="text-green-500 font-semibold">- ₹{discount.toLocaleString()}</span>
+          </div>
+        )}
+        {appliedCoupon && (
+          <div className="flex justify-between font-bold">
+            <span>Final Price:</span>
+            <span>₹{finalPrice.toLocaleString()}</span>
+          </div>
+        )}
+
 
         <DialogFooter className="gap-2">
           <Button
@@ -142,7 +169,7 @@ export const DesignOrderReview = ({
             Cancel
           </Button>
           <Button
-            onClick={onConfirm}
+            onClick={() => onConfirm(appliedCoupon?.code, finalPrice)}
             disabled={hasInsufficientBalance || isSubmitting}
             className="bg-gradient-to-r from-primary via-red-600 to-secondary hover:opacity-90"
           >

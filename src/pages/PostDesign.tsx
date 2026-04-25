@@ -64,7 +64,7 @@ const PostDesign = () => {
     setShowReviewModal(true);
   };
 
-  const handleConfirmOrder = async () => {
+  const handleConfirmOrder = async (couponCode?: string, finalPrice?: number) => {
     if (!user) return;
 
     setIsSubmitting(true);
@@ -75,7 +75,8 @@ const PostDesign = () => {
         product_name: "Post Design",
         package_name: postDesignPackage.name,
         quantity: 1,
-        price: postDesignPackage.price,
+        price: finalPrice ?? postDesignPackage.price,
+        coupon_code: couponCode,
         product_details: {
           email: formData.email,
           whatsapp: formData.whatsapp,

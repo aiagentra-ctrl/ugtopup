@@ -42,7 +42,7 @@ const ChatGPT = () => {
     setShowOrderReview(true);
   };
 
-  const handleConfirmPurchase = async () => {
+  const handleConfirmPurchase = async (couponCode?: string, finalPrice?: number) => {
     if (!selectedPackage || !formData || !profile) return;
 
     const newBalance = profile.balance - totalPrice;
@@ -59,7 +59,8 @@ const ChatGPT = () => {
         product_name: 'ChatGPT Plus',
         package_name: selectedPackage.name,
         quantity: purchaseQuantity,
-        price: totalPrice,
+        price: finalPrice ?? totalPrice,
+        coupon_code: couponCode,
         product_details: {
           email: formData.email,
           password: formData.password,

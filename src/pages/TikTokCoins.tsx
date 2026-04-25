@@ -53,7 +53,7 @@ const TikTokCoins = () => {
     setIsReviewOpen(true);
   };
 
-  const handleConfirmPurchase = async () => {
+  const handleConfirmPurchase = async (couponCode?: string, finalPrice?: number) => {
     if (!user || !selectedPackage || !formData || !profile) return;
     if (profile.balance < totalPrice) {
       toast({ title: "Insufficient Credits", description: "Please add credits to your account", variant: "destructive" });
@@ -66,7 +66,8 @@ const TikTokCoins = () => {
         product_name: 'TikTok Coins',
         package_name: selectedPackage.name,
         quantity: totalItems,
-        price: totalPrice,
+        price: finalPrice ?? totalPrice,
+        coupon_code: couponCode,
         product_details: {
           username: formData.username,
           password: formData.password,

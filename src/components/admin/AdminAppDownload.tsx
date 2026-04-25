@@ -30,19 +30,24 @@ export function AdminAppDownload() {
     }
 
     if (isIOS) {
+      try { localStorage.setItem('installed_as_admin_app', 'true'); } catch {}
       toast.info("Tap the Share button in Safari, then 'Add to Home Screen'");
       return;
     }
 
     if (!isInstallable) {
-      toast.info("Open this page in Chrome or Edge browser to install the app");
+      toast.info("Open this admin page in Chrome or Edge browser to install the Admin App");
       return;
     }
 
+    // Mark this install as the Admin App so future launches go straight to /admin
+    try { localStorage.setItem('installed_as_admin_app', 'true'); } catch {}
+
     const result = await promptInstall();
     if (result === 'accepted') {
-      toast.success("Admin App installed successfully!");
+      toast.success("Admin App installed! It will open the admin panel directly.");
     } else if (result === 'dismissed') {
+      try { localStorage.removeItem('installed_as_admin_app'); } catch {}
       toast.info("Installation cancelled");
     }
   };

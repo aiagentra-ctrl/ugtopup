@@ -2274,6 +2274,7 @@ export type Database = {
       }
     }
     Functions: {
+      apply_referral: { Args: { p_referral_code: string }; Returns: Json }
       approve_payment_request: {
         Args: { admin_remarks_text?: string; request_id: string }
         Returns: Json

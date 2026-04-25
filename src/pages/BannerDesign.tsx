@@ -64,7 +64,7 @@ const BannerDesign = () => {
     setShowReviewModal(true);
   };
 
-  const handleConfirmOrder = async () => {
+  const handleConfirmOrder = async (couponCode?: string, finalPrice?: number) => {
     if (!user) return;
 
     setIsSubmitting(true);
@@ -75,7 +75,8 @@ const BannerDesign = () => {
         product_name: "Banner Design",
         package_name: bannerDesignPackage.name,
         quantity: 1,
-        price: bannerDesignPackage.price,
+        price: finalPrice ?? bannerDesignPackage.price,
+        coupon_code: couponCode,
         product_details: {
           email: formData.email,
           whatsapp: formData.whatsapp,

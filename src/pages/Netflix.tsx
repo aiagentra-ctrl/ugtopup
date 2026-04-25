@@ -44,7 +44,7 @@ const Netflix = () => {
     setShowOrderReview(true);
   };
 
-  const handleConfirmPurchase = async () => {
+  const handleConfirmPurchase = async (couponCode?: string, finalPrice?: number) => {
     if (!selectedPackage || !formData || !profile) return;
 
     const newBalance = profile.balance - totalPrice;
@@ -61,7 +61,8 @@ const Netflix = () => {
         product_name: 'Netflix Subscription',
         package_name: selectedPackage.name,
         quantity: purchaseQuantity,
-        price: totalPrice,
+        price: finalPrice ?? totalPrice,
+        coupon_code: couponCode,
         product_details: {
           email: formData.email,
           whatsapp: formData.whatsapp || "",

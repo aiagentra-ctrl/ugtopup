@@ -11,13 +11,15 @@ import { Separator } from "@/components/ui/separator";
 import { type MLPackage } from "@/components/ml/MLPackageSelector";
 import { AlertCircle } from "lucide-react";
 import { useLiveBalance } from "@/hooks/useLiveBalance";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { CouponInput } from "@/components/checkout/CouponInput";
+import { CouponValidation } from "@/lib/couponApi";
 
 interface MLOrderReviewProps {
   isOpen: boolean;
   onClose: () => void;
-  onConfirm: () => void;
+  onConfirm: (couponCode?: string, finalPrice?: number) => void;
   orderData: {
     orderId: string;
     package: MLPackage;
@@ -52,10 +54,14 @@ export const MLOrderReview = ({
     }
   }, [isOpen]);
 
+  const [appliedCoupon, setAppliedCoupon] = useState<(CouponValidation & { code: string }) | null>(null);
+
   const currentBalance = balance;
   const totalPrice = propTotalPrice ?? pkg.price * purchaseQuantity;
   const totalItems = propTotalItems ?? pkg.quantity * purchaseQuantity;
-  const balanceAfter = currentBalance - totalPrice;
+  const discount = appliedCoupon?.discount_amount ?? 0;
+  const finalPrice = appliedCoupon?.final_price ?? totalPrice;
+  const balanceAfter = currentBalance - finalPrice;
   const insufficientBalance = balanceAfter < 0;
 
   return (
@@ -104,6 +110,27 @@ export const MLOrderReview = ({
               <span className="font-bold text-blue-400">{pkg.currency} {totalPrice.toLocaleString()}</span>
             </div>
           </div>
+
+          <CouponInput
+            orderAmount={totalPrice}
+            productCategory="mobile_legends"
+            onCouponApplied={setAppliedCoupon}
+            onCouponRemoved={() => setAppliedCoupon(null)}
+            appliedCoupon={appliedCoupon}
+          />
+
+          {appliedCoupon && (
+            <div className="flex justify-between text-sm">
+              <span className="text-green-400">Discount ({appliedCoupon.code}):</span>
+              <span className="text-green-400 font-semibold">- ₹{discount.toLocaleString()}</span>
+            </div>
+          )}
+          {appliedCoupon && (
+            <div className="flex justify-between font-bold">
+              <span className="text-slate-300">Final Price:</span>
+              <span className="text-blue-400">₹{finalPrice.toLocaleString()}</span>
+            </div>
+          )}
 
           <div className="space-y-2">
             <div className="flex justify-between text-sm">
@@ -156,7 +183,7 @@ export const MLOrderReview = ({
             Cancel
           </Button>
           <Button
-            onClick={onConfirm}
+            onClick={() => onConfirm(appliedCoupon?.code, finalPrice)}
             disabled={isPlacingOrder || insufficientBalance}
             className="bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800"
           >

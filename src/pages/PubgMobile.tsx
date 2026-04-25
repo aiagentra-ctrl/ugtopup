@@ -89,7 +89,7 @@ const PubgMobile = () => {
     setIsReviewOpen(true);
   };
 
-  const handleConfirmPurchase = async () => {
+  const handleConfirmPurchase = async (couponCode?: string, finalPrice?: number) => {
     if (!user || !selectedPackage || !formData || isPlacingOrder) return;
     
     setIsPlacingOrder(true);
@@ -104,7 +104,8 @@ const PubgMobile = () => {
             product_name: 'PUBG Mobile UC',
             package_name: selectedPackage.name,
             quantity: totalItems,
-            price: totalPrice,
+            price: finalPrice ?? totalPrice,
+            coupon_code: couponCode,
             product_details: {
               pubgId: formData.pubgId,
               username: formData.username,

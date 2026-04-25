@@ -1,3 +1,4 @@
+import { useState } from "react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -12,11 +13,13 @@ import { NetflixPackage } from "@/data/netflixPackages";
 import { NetflixFormData } from "./NetflixUserInputForm";
 import { useAuth } from "@/contexts/AuthContext";
 import { AlertTriangle } from "lucide-react";
+import { CouponInput } from "@/components/checkout/CouponInput";
+import { CouponValidation } from "@/lib/couponApi";
 
 interface NetflixOrderReviewProps {
   isOpen: boolean;
   onClose: () => void;
-  onConfirm: () => void;
+  onConfirm: (couponCode?: string, finalPrice?: number) => void;
   selectedPackage: NetflixPackage | null;
   formData: NetflixFormData | null;
   orderId: string;
@@ -39,7 +42,13 @@ export const NetflixOrderReview = ({
   if (!selectedPackage || !formData) return null;
 
   const currentBalance = profile?.balance || 0;
-  const balanceAfter = currentBalance - totalPrice;
+  const [appliedCoupon, setAppliedCoupon] = useState<(CouponValidation & { code: string }) | null>(null);
+
+  const discount = appliedCoupon?.discount_amount ?? 0;
+
+  const finalPrice = appliedCoupon?.final_price ?? totalPrice;
+
+  const balanceAfter = currentBalance - finalPrice;
   const hasInsufficientBalance = balanceAfter < 0;
 
   return (
@@ -128,7 +137,7 @@ export const NetflixOrderReview = ({
             Edit Order
           </AlertDialogCancel>
           <AlertDialogAction
-            onClick={onConfirm}
+            onClick={() => onConfirm(appliedCoupon?.code, finalPrice)}
             disabled={hasInsufficientBalance}
             className="bg-gradient-to-r from-primary via-red-600 to-secondary hover:opacity-90 disabled:opacity-40"
           >
