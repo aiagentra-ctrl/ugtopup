@@ -62,6 +62,7 @@ const menuItems = [
   { id: "activity", title: "Activity Logs", icon: Activity },
   { id: "supabase-limits", title: "Supabase Limits", icon: Database },
   { id: "product-update", title: "Product Update", icon: RefreshCw },
+  { id: "page-descriptions", title: "Page Descriptions", icon: BookOpen },
   { id: "categories", title: "Categories", icon: FolderOpen },
   { id: "offers", title: "Offers", icon: Gift },
   { id: "chatbot", title: "AI Chatbot", icon: Bot },
