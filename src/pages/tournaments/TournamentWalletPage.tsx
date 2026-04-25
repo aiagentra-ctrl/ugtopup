@@ -58,10 +58,12 @@ const TournamentWalletPage = () => {
         </div>
         <div className="rounded-2xl border border-border/60 bg-card p-6">
           <div className="inline-flex items-center gap-1.5 rounded-full border border-border/60 bg-muted/30 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-            <Lock className="h-3 w-3" /> Locked credits
+            <Lock className="h-3 w-3" /> Spendable / Held
           </div>
-          <div className="mt-3 font-stat text-4xl font-bold text-foreground">{formatCoins(balance)}</div>
-          <div className="mt-1 text-[11px] text-muted-foreground">Used for entry fees & store purchases — not withdrawable.</div>
+          <div className="mt-3 font-stat text-3xl font-bold text-foreground">{formatCoins(balance)}</div>
+          <div className="text-[11px] text-muted-foreground">Spendable credits</div>
+          <div className="mt-2 font-stat text-2xl font-bold text-amber-400">{formatCoins(held)}</div>
+          <div className="text-[11px] text-muted-foreground">Held in active matches (escrow)</div>
         </div>
       </div>
 
