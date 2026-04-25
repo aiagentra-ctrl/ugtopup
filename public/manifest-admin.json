@@ -1,0 +1,26 @@
+{
+  "name": "UGTOPUPS Admin",
+  "short_name": "UG Admin",
+  "description": "Admin panel for UGTOPUPS — manage orders, credits, and inventory",
+  "start_url": "/#/admin",
+  "scope": "/",
+  "id": "/ugtopups-admin",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#1e40af",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
