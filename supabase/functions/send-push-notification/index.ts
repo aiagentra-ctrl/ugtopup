@@ -155,8 +155,8 @@ async function encryptPayload(
 
   // Import subscriber's public key
   const clientPublicKey = await crypto.subtle.importKey(
-    "raw",
-    base64UrlDecode(subscriptionPublicKey),
+    "raw" as any,
+    base64UrlDecode(subscriptionPublicKey) as BufferSource,
     { name: "ECDH", namedCurve: "P-256" },
     false,
     []
@@ -200,17 +200,17 @@ async function encryptPayload(
 
   // Encrypt with AES-128-GCM
   const key = await crypto.subtle.importKey(
-    "raw",
-    cek,
+    "raw" as any,
+    cek as BufferSource,
     { name: "AES-GCM" },
     false,
     ["encrypt"]
   );
   const encrypted = new Uint8Array(
     await crypto.subtle.encrypt(
-      { name: "AES-GCM", iv: nonce, tagLength: 128 },
+      { name: "AES-GCM", iv: nonce as BufferSource, tagLength: 128 },
       key,
-      paddedPayload
+      paddedPayload as BufferSource
     )
   );
 
@@ -234,13 +234,13 @@ async function hkdfExtract(
   ikm: Uint8Array
 ): Promise<Uint8Array> {
   const key = await crypto.subtle.importKey(
-    "raw",
-    salt.length ? salt : new Uint8Array(32),
+    "raw" as any,
+    (salt.length ? salt : new Uint8Array(32)) as BufferSource,
     { name: "HMAC", hash: "SHA-256" },
     false,
     ["sign"]
   );
-  return new Uint8Array(await crypto.subtle.sign("HMAC", key, ikm));
+  return new Uint8Array(await crypto.subtle.sign("HMAC", key, ikm as BufferSource));
 }
 
 async function hkdfExpand(
@@ -249,15 +249,15 @@ async function hkdfExpand(
   length: number
 ): Promise<Uint8Array> {
   const key = await crypto.subtle.importKey(
-    "raw",
-    prk,
+    "raw" as any,
+    prk as BufferSource,
     { name: "HMAC", hash: "SHA-256" },
     false,
     ["sign"]
   );
   const infoWithCounter = concatBuffers(info, new Uint8Array([1]));
   const output = new Uint8Array(
-    await crypto.subtle.sign("HMAC", key, infoWithCounter)
+    await crypto.subtle.sign("HMAC", key, infoWithCounter as BufferSource)
   );
   return output.slice(0, length);
 }
