@@ -160,7 +160,7 @@ const MobileLegends = () => {
     setShowReviewModal(true);
   };
 
-  const handleConfirmOrder = async () => {
+  const handleConfirmOrder = async (couponCode?: string, finalPrice?: number) => {
     if (!user || !selectedPackage || isPlacingOrder) return;
 
     setIsPlacingOrder(true);
@@ -168,7 +168,7 @@ const MobileLegends = () => {
     
     try {
       const order = await requestDeduplicator.dedupe(
-        `place_order:${user.id}:${selectedPackage.name}:${purchaseQuantity}`,
+        `place_order:${user.id}:${selectedPackage.name}:${purchaseQuantity}:${couponCode || ''}`,
         async () => {
           return await createOrder({
             order_number: currentOrderId,
@@ -176,7 +176,8 @@ const MobileLegends = () => {
             product_name: "Mobile Legends Diamond",
             package_name: selectedPackage.name,
             quantity: totalItems,
-            price: totalPrice,
+            price: finalPrice ?? totalPrice,
+            coupon_code: couponCode,
             product_details: {
               userId: formData.userId,
               zoneId: formData.zoneId,
