@@ -108,6 +108,7 @@ export const WithdrawModal = ({
             </div>
 
             <Button onClick={submit} disabled={!valid} className="w-full">
+              {submitting && <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />}
               Confirm withdrawal
             </Button>
             <button
