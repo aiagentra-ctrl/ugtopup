@@ -75,6 +75,17 @@ export async function fetchJoinedMatches(userId: string): Promise<JoinedMatch[]>
     }));
 }
 
+export async function fetchOpenTournaments(): Promise<DBTournament[]> {
+  const { data, error } = await supabase
+    .from("tournaments")
+    .select("*")
+    .in("status", ["upcoming", "live"])
+    .order("starts_at", { ascending: true, nullsFirst: false })
+    .limit(50);
+  if (error) throw error;
+  return (data ?? []) as DBTournament[];
+}
+
 export async function fetchCreatedTournaments(userId: string): Promise<DBTournament[]> {
   const { data, error } = await supabase
     .from("tournaments")
