@@ -14,7 +14,13 @@ import { fetchUserPaymentRequests, type CreditHistoryEntry } from "@/lib/creditA
 import { fetchUserOrders, type Order } from "@/lib/orderApi";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
-import { Heart, MessageSquare, RefreshCw } from "lucide-react";
+import { Heart, MessageSquare, RefreshCw, Trophy } from "lucide-react";
+import { StatsRow } from "@/components/tournaments/StatsRow";
+import { MyGamesPanel } from "@/components/tournaments/MyGamesPanel";
+import { Leaderboard } from "@/components/tournaments/Leaderboard";
+import { NotificationsPanel } from "@/components/tournaments/NotificationsPanel";
+import { ActiveTournamentsCard } from "@/components/tournaments/ActiveTournamentsCard";
+import { HowItWorks } from "@/components/tournaments/HowItWorks";
 
 const Dashboard = () => {
   const { user, profile } = useAuth();
@@ -227,6 +233,40 @@ const Dashboard = () => {
             loading={loadingOrders}
             error={ordersError}
           />
+        </div>
+
+        {/* IG Arena Tournaments */}
+        <div className="mb-6 animate-fade-in" style={{ animationDelay: '425ms' }}>
+          <div className="mb-4 flex items-center gap-2">
+            <Trophy className="h-5 w-5 text-primary" />
+            <h2 className="text-xl font-semibold">
+              <span className="text-primary">IG</span> Arena
+            </h2>
+            <span className="text-xs text-muted-foreground">
+              Compete, win IG Coins, and climb the leaderboard.
+            </span>
+          </div>
+
+          <section className="mb-4">
+            <StatsRow />
+          </section>
+
+          <section className="mb-4">
+            <MyGamesPanel />
+          </section>
+
+          <section className="mb-4 grid gap-4 lg:grid-cols-2">
+            <Leaderboard />
+            <div className="space-y-4">
+              <NotificationsPanel />
+              <ActiveTournamentsCard />
+            </div>
+          </section>
+
+          <section>
+            <h3 className="mb-3 text-sm font-medium text-foreground">How it works</h3>
+            <HowItWorks />
+          </section>
         </div>
 
         {/* Quick Links */}
