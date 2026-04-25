@@ -85,20 +85,6 @@ export const WalletTab = ({ balance, onWithdraw }: { balance: number; onWithdraw
 
   return (
     <div className="space-y-4">
-      <div className="rounded-lg border border-emerald-500/20 bg-gradient-to-br from-emerald-500/10 to-transparent p-5">
-        <div className="text-[11px] uppercase tracking-wide text-muted-foreground">Current balance</div>
-        <div className="mt-1 flex items-baseline gap-2">
-          <Coins className="h-6 w-6 text-emerald-400" />
-          <span className="text-3xl font-semibold text-emerald-400">{formatCoins(balance)}</span>
-          <span className="text-[12px] text-muted-foreground">IG Coins</span>
-        </div>
-        <div className="mt-4 flex flex-wrap gap-2">
-          <Button size="sm" onClick={onWithdraw}>
-            <ArrowUpFromLine className="mr-1.5 h-3.5 w-3.5" /> Withdraw
-          </Button>
-        </div>
-      </div>
-
       <div>
         <div className="mb-2 text-[12px] font-medium uppercase tracking-wide text-muted-foreground">
           Transaction history
