@@ -1,80 +1,82 @@
-## Diagnosis
 
-I inspected the codebase and DB. Here is what I found:
+## Goal
+Add a brand-new **Tournaments** feature ("IG Arena") as a standalone page at `/tournaments`. Adapt the IG Arena brief into the project's existing **dark red/pink theme** (the brief's purple becomes our brand red `--primary`). Reuse the existing `Header` and `Footer`. **No changes to any existing page, component, or DB table.**
 
-### 1. Admin Mobile App is mixed with the User app
-- `public/manifest.json` has `start_url: "/"` and a single name "UGTOPUPS". When an admin installs the PWA from `/admin`, it still launches the user homepage.
-- There is no separate manifest, no separate launch icon/route logic, and no auto-redirect for admins on app launch.
+## Scope (strictly additive)
+- **Route added** to `src/App.tsx`: `/tournaments` → new `Tournaments` page (just the route entry — nothing else in App.tsx changes).
+- **No edits** to Index, product pages, admin, auth, theme tokens, or DB schema.
+- All data is **frontend mock state** for v1 (no Supabase tables). Buttons (Withdraw, Join, Create, Report) open local modals/toasts only — no backend wiring yet.
 
-### 2. Coupon code feature not working on most products
-- A working `CouponInput` component, `validate_coupon` RPC, and `place_order(p_coupon_code)` RPC all exist.
-- But the `CouponInput` is **only wired into Free Fire's `OrderReview`**. Searched all other product flows (ML, PUBG, TikTok, Netflix, Garena, Roblox, SmileCoin, Unipin, YouTube, ChatGPT, Design) — none import `CouponInput` or pass `coupon_code` to `placeOrder`. So coupons are silently ignored on every other product.
+## New files
+1. `src/pages/Tournaments.tsx` — page shell with `Header`, page container, and section composition; `Footer` at bottom.
+2. `src/components/tournaments/StatsRow.tsx` — 4 metric cards (Total earnings, Win/Loss with bar, Tournaments created, Global rank). 2×2 on mobile, 4-col on desktop.
+3. `src/components/tournaments/MyGamesPanel.tsx` — pill-tab panel using shadcn `Tabs` with 5 tabs: Wallet, Joined, Created, Reported, Finished. Includes "Withdraw winnings" primary button (opens `WithdrawModal`).
+4. `src/components/tournaments/MatchRow.tsx` — reusable row: game icon, name, monospace Room ID chip, masked password chip with eye-reveal (auto re-mask after 5s), status badge, prize. Click expands inline detail panel.
+5. `src/components/tournaments/StatusBadge.tsx` — semantic badges: Live (red pulsing dot), Upcoming (amber), Won (green), Lost (red), Joined (brand red), Pending (gray).
+6. `src/components/tournaments/WalletTab.tsx` — balance display, deposit method buttons (eSewa/Khalti/Bank — visual only, hooks into existing `TopUpModal` if trivial, otherwise placeholder), transaction history list.
+7. `src/components/tournaments/LiveUpcomingSection.tsx` — sub-section with red pulsing dot header + "View all" link.
+8. `src/components/tournaments/RecentlyFinishedSection.tsx` — last 3–5 finished matches.
+9. `src/components/tournaments/Leaderboard.tsx` — Top players card, 5 rows, medals for top 3, deterministic avatar color from name hash, current user's row highlighted in brand red with "(You)" suffix.
+10. `src/components/tournaments/NotificationsPanel.tsx` — local in-page notifications list (separate from the global bell — purely visual for the IG Arena context).
+11. `src/components/tournaments/ActiveTournamentsCard.tsx` — live tournament count, players today, capacity progress bar.
+12. `src/components/tournaments/HowItWorks.tsx` — 4-step horizontal row (Register → Add Coins → Join → Win Prizes). 2×2 on mobile.
+13. `src/components/tournaments/WithdrawModal.tsx` — shadcn `Dialog` with amount input, method selector, destination field, NPR conversion preview, validation, and success state with mock reference ID.
+14. `src/components/tournaments/CreateTournamentModal.tsx` — modeled on the uploaded screenshots (Custom/Lonewolf mode, Team 1v1/2v2/4v4, Throwable Limit, Gun Attribute, Character Skill, Rounds 9/13, Headshot Only, Coin Default IG/9980, Matchroom Name, Entry Fee, Potential Winning, Match Rules, Date/Time picker, "I understand…" checkbox, "Create Matchroom" CTA). Pure UI form with local validation; "Create" simulates success with a generated Room ID + password and pushes a mock row into the Created tab.
+15. `src/components/tournaments/EmptyState.tsx` — shared empty-state component (icon + title + description + CTA).
+16. `src/components/tournaments/SkeletonRow.tsx` — skeleton loaders for rows/cards using existing `Skeleton`.
+17. `src/data/tournamentsMock.ts` — typed mock data (matches, leaderboard players, notifications, transactions). Easy to swap for Supabase later.
+18. `src/lib/tournamentsUtils.ts` — `maskPassword`, `formatCoins`, `relativeTime`, `nameToColor` (deterministic hue from name hash), `formatRoomId`.
 
-### 3. Referral / Refer-and-Earn not working
-DB confirms: 1,243 profiles exist, **0 rows in `referrals`** and **0 profiles with `referred_by` set**, despite the signup flow accepting `?ref=CODE`.
+## Theme adaptation (no token changes)
+- The brief specifies **purple** as brand accent. Our project's brand is **red/pink** (`--primary: 0 100% 50%`). Map all "purple" usages to `hsl(var(--primary))` so the page matches site identity.
+- Wins/success → existing `--dashboard-green` (`142 76% 36%`).
+- Losses/live status/alerts → `hsl(var(--destructive))`.
+- Upcoming/warnings → amber (`text-amber-400 bg-amber-500/10`).
+- Surfaces use existing `bg-card`, `bg-muted`, `border-border` — no new CSS variables, no new global styles.
+- Cards: `rounded-lg`, `border border-border/60`, no heavy shadow (matches "flat" requirement).
+- Room ID chips use `font-mono` (Tailwind built-in).
+- Status badge "Live" uses a red dot with `animate-pulse` (already in Tailwind core).
 
-Root cause is in `src/contexts/AuthContext.tsx` `signup()`:
-- After `supabase.auth.signUp`, it tries `supabase.from('profiles').update({ referred_by })` and `supabase.from('referrals').insert(...)` from the **anon/unauthenticated client**.
-- `profiles` RLS only allows users to update their own row (and email confirmation may not be complete yet, so `auth.uid()` is null).
-- `referrals` RLS only allows admins to insert. Both writes fail silently — the catch block just `console.error`s.
+## Layout (matches brief)
+```
+[Header (existing)]
+[Page title: "IG Arena — Tournaments"]
+[Stats row: 4 cards | 2x2 on mobile]
+[My Games panel
+   ├─ Tab pills: Wallet | Joined | Created | Reported | Finished
+   ├─ Withdraw winnings button (top-right, primary red)
+   ├─ Joined tab: Live & Upcoming → divider → Recently finished
+   └─ Inline expandable rows]
+[Two-column section
+   ├─ Left: Top Players Leaderboard
+   └─ Right: Notifications panel + Active Tournaments card (stacked)]
+[How It Works: 4 steps]
+[Footer (existing)]
+[Floating "Create Tournament" button on Created tab → opens CreateTournamentModal]
+```
 
-The reward trigger (`trg_check_referral_rewards`) and coupon generation logic are correct, but they never fire because no referral rows are ever created.
+## Mobile behavior
+- Stats: 2×2 grid below `md`.
+- Tabs: horizontally scrollable single row with `scrollbar-hide` and right-edge fade gradient.
+- Two-column section stacks to single column.
+- How It Works: 2×2 grid.
+- All tap targets ≥44×44px (already enforced globally in `index.css`).
 
----
+## States
+- **Empty**: every list (Joined/Created/Reported/Finished/Notifications) renders `EmptyState` when its mock array is empty.
+- **Loading**: a 600ms simulated load on first mount renders `SkeletonRow`s, then real mock data.
+- **Error**: a "Retry" inline banner (mocked — never triggered in v1, but component included for future use).
 
-## Plan
+## Out of scope (explicitly NOT doing)
+- No Supabase tables, RLS, or edge functions.
+- No real wallet/withdrawal/payment integration.
+- No changes to `Header`, navbar wallet pill, or notification bell.
+- No new admin panel section.
+- No changes to existing routes/pages/components/styles.
 
-### A. Separate Admin Mobile App
-
-1. Add a second PWA manifest `public/manifest-admin.json` with:
-   - `name: "UGTOPUPS Admin"`, `short_name: "UG Admin"`
-   - `start_url: "/admin"`, `scope: "/admin"`
-   - Distinct theme color and a separate admin icon (reuse existing icons for now, can swap later).
-2. In `index.html`, keep the default user manifest. In `src/pages/AdminPanel.tsx` (and `AdminLogin.tsx`), inject `<link rel="manifest" href="/manifest-admin.json">` dynamically via `useEffect` so when an admin installs from the admin panel, the OS captures the admin manifest with `start_url=/admin`.
-3. Update `src/main.tsx` (or a small bootstrap effect in `App.tsx`) so that when the app launches in `display-mode: standalone` AND the installed start path is `/admin`, the user is routed straight to the admin login/panel.
-4. Add a check in `AdminLogin.tsx`/`AdminPanel.tsx`: if launched standalone from `/admin`, hide the user header/footer chrome to make it visually a separate app.
-5. Update `AdminAppDownload.tsx` to clearly explain: "Open `/admin` in Chrome → Install" so installation captures the admin scope.
-
-### B. Fix Coupons on All Products
-
-For each of the 11 product OrderReview components, add the same wiring already used in `freefire/OrderReview.tsx`:
-
-1. Import and render `<CouponInput orderAmount={...} productCategory="<category>" onCouponApplied={...} onCouponRemoved={...} appliedCoupon={appliedCoupon} />` above the price summary.
-2. Track `appliedCoupon` state, show a discount line + new total in the summary.
-3. Pass `coupon_code: appliedCoupon?.code` in the `placeOrder()` call.
-
-Files to update:
-- `src/components/ml/MLOrderReview.tsx`
-- `src/components/pubg/PubgOrderReview.tsx`
-- `src/components/tiktok/TikTokOrderReview.tsx`
-- `src/components/netflix/NetflixOrderReview.tsx`
-- `src/components/garena/GarenaOrderReview.tsx`
-- `src/components/roblox/RobloxOrderReview.tsx`
-- `src/components/smilecoin/SmileCoinOrderReview.tsx`
-- `src/components/unipin/UnipinOrderReview.tsx`
-- `src/components/youtube/YouTubeOrderReview.tsx`
-- `src/components/chatgpt/ChatGPTOrderReview.tsx`
-- `src/components/design/DesignOrderReview.tsx`
-
-### C. Fix Referral Tracking
-
-1. **DB migration** — create a `SECURITY DEFINER` RPC `apply_referral(p_referral_code text)` that:
-   - Reads `auth.uid()` (must be authenticated)
-   - Looks up referrer by `referral_code`
-   - Sets `profiles.referred_by` for the current user (only if not already set)
-   - Inserts into `referrals(referrer_id, referee_id)` (idempotent on `(referrer_id, referee_id)`)
-   - Returns `{success, message}`
-2. Add a unique constraint `referrals_referrer_referee_unique (referrer_id, referee_id)` to make it idempotent.
-3. **Frontend changes**:
-   - In `AuthContext.signup()`: instead of writing `profiles`/`referrals` directly, store the `ref` code in `localStorage` (key `pending_referral_code`) — because email confirmation may delay `auth.uid()` availability.
-   - In `AuthContext` after auth state becomes `SIGNED_IN`, if `pending_referral_code` exists in localStorage, call `supabase.rpc('apply_referral', { p_referral_code })` and clear the key on success.
-   - Pass `referral_code` in `signUp` `options.data` as well so it's preserved through email confirmation.
-4. Verify `Rewards`/`Referrals` pages display the user's coupons (they already query `coupons` table; should start populating once trigger fires).
-
-### Verification after implementation
-
-- Install PWA from `/admin` → confirm it launches into admin login, separate icon name.
-- Place an order on ML/PUBG/TikTok with a valid coupon → discount applied, `coupons.is_used` flips, `promotion_analytics` row inserted.
-- Sign up with `?ref=CODE` → `referrals` row created; after referee's first completed order, both referrer and referee receive coupons (visible in `/rewards`).
-
-Once approved I'll implement A → B → C in that order, then run lint/build.
+## Acceptance
+- Visiting `/tournaments` (or `/#/tournaments`) shows the full IG Arena dashboard rendered in the site's red/pink dark theme.
+- All 5 tabs switch correctly, password mask reveal works for 5s then re-masks.
+- Withdraw modal opens, validates, shows success state, closes.
+- Create Tournament modal matches the uploaded screenshots' field set and produces a mock room.
+- Zero diffs in any file outside `src/App.tsx` (one route line) and the new files listed above.
