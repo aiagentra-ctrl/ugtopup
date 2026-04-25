@@ -11,12 +11,14 @@ import {
 import { PubgPackage } from "@/data/pubgPackages";
 import { PubgFormData } from "./PubgUserInputForm";
 import { useLiveBalance } from "@/hooks/useLiveBalance";
-import { useEffect } from "react";
+import { useState, useEffect  } from "react";
+import { CouponInput } from "@/components/checkout/CouponInput";
+import { CouponValidation } from "@/lib/couponApi";
 
 interface PubgOrderReviewProps {
   isOpen: boolean;
   onClose: () => void;
-  onConfirm: () => void;
+  onConfirm: (couponCode?: string, finalPrice?: number) => void;
   selectedPackage: PubgPackage | null;
   formData: PubgFormData | null;
   orderId: string;
@@ -51,7 +53,13 @@ export const PubgOrderReview = ({
   const currentBalance = balance;
   const totalPrice = propTotalPrice ?? selectedPackage.price * purchaseQuantity;
   const totalItems = propTotalItems ?? selectedPackage.quantity * purchaseQuantity;
-  const balanceAfter = currentBalance - totalPrice;
+  const [appliedCoupon, setAppliedCoupon] = useState<(CouponValidation & { code: string }) | null>(null);
+
+  const discount = appliedCoupon?.discount_amount ?? 0;
+
+  const finalPrice = appliedCoupon?.final_price ?? totalPrice;
+
+  const balanceAfter = currentBalance - finalPrice;
   const hasInsufficientBalance = balanceAfter < 0;
 
   return (
@@ -141,7 +149,7 @@ export const PubgOrderReview = ({
         <AlertDialogFooter className="gap-2">
           <AlertDialogCancel className="hover:bg-muted">Cancel</AlertDialogCancel>
           <AlertDialogAction
-            onClick={onConfirm}
+            onClick={() => onConfirm(appliedCoupon?.code, finalPrice)}
             disabled={hasInsufficientBalance || isPlacingOrder}
             className="bg-gradient-to-r from-primary via-red-600 to-secondary hover:opacity-90 disabled:opacity-40"
           >

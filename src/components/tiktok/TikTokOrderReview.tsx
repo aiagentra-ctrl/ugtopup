@@ -1,4 +1,7 @@
+import { useState } from "react";
 import {
+import { CouponInput } from "@/components/checkout/CouponInput";
+import { CouponValidation } from "@/lib/couponApi";
   AlertDialog,
   AlertDialogContent,
   AlertDialogDescription,
@@ -16,7 +19,7 @@ import { AlertTriangle } from "lucide-react";
 interface TikTokOrderReviewProps {
   isOpen: boolean;
   onClose: () => void;
-  onConfirm: () => void;
+  onConfirm: (couponCode?: string, finalPrice?: number) => void;
   selectedPackage: TikTokPackage | null;
   formData: TikTokFormData | null;
   orderId: string;
@@ -41,7 +44,13 @@ export const TikTokOrderReview = ({
   if (!selectedPackage || !formData) return null;
 
   const currentBalance = profile?.balance || 0;
-  const balanceAfter = currentBalance - totalPrice;
+  const [appliedCoupon, setAppliedCoupon] = useState<(CouponValidation & { code: string }) | null>(null);
+
+  const discount = appliedCoupon?.discount_amount ?? 0;
+
+  const finalPrice = appliedCoupon?.final_price ?? totalPrice;
+
+  const balanceAfter = currentBalance - finalPrice;
   const hasInsufficientBalance = balanceAfter < 0;
 
   return (
@@ -169,7 +178,7 @@ export const TikTokOrderReview = ({
             Edit Order
           </Button>
           <Button
-            onClick={onConfirm}
+            onClick={() => onConfirm(appliedCoupon?.code, finalPrice)}
             disabled={hasInsufficientBalance}
             className="flex-1 bg-gradient-to-r from-primary to-secondary hover:opacity-90 disabled:opacity-40 text-white font-bold px-8 py-3 h-12 rounded-xl shadow-[0_0_20px_rgba(255,0,0,0.4)]"
           >

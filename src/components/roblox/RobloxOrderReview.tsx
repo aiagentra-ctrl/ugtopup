@@ -1,4 +1,7 @@
+import { useState } from "react";
 import {
+import { CouponInput } from "@/components/checkout/CouponInput";
+import { CouponValidation } from "@/lib/couponApi";
   Dialog,
   DialogContent,
   DialogDescription,
@@ -15,7 +18,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 interface RobloxOrderReviewProps {
   isOpen: boolean;
   onClose: () => void;
-  onConfirm: () => void;
+  onConfirm: (couponCode?: string, finalPrice?: number) => void;
   orderData: {
     orderId: string;
     package: RobloxPackage;
@@ -45,7 +48,13 @@ export const RobloxOrderReview = ({
   const totalPrice = propTotalPrice ?? pkg.price * purchaseQuantity;
   const totalItems = propTotalItems ?? pkg.quantity * purchaseQuantity;
   const insufficientBalance = currentBalance < totalPrice;
-  const balanceAfter = currentBalance - totalPrice;
+  const [appliedCoupon, setAppliedCoupon] = useState<(CouponValidation & { code: string }) | null>(null);
+
+  const discount = appliedCoupon?.discount_amount ?? 0;
+
+  const finalPrice = appliedCoupon?.final_price ?? totalPrice;
+
+  const balanceAfter = currentBalance - finalPrice;
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -146,13 +155,33 @@ export const RobloxOrderReview = ({
             </div>
           )}
         </div>
+        <CouponInput
+          orderAmount={totalPrice}
+          productCategory="roblox"
+          onCouponApplied={setAppliedCoupon}
+          onCouponRemoved={() => setAppliedCoupon(null)}
+          appliedCoupon={appliedCoupon}
+        />
+        {appliedCoupon && (
+          <div className="flex justify-between text-sm">
+            <span className="text-green-500">Discount ({appliedCoupon.code}):</span>
+            <span className="text-green-500 font-semibold">- ₹{discount.toLocaleString()}</span>
+          </div>
+        )}
+        {appliedCoupon && (
+          <div className="flex justify-between font-bold">
+            <span>Final Price:</span>
+            <span>₹{finalPrice.toLocaleString()}</span>
+          </div>
+        )}
+
 
         <DialogFooter>
           <Button variant="outline" onClick={onClose} disabled={isSubmitting} className="bg-slate-800 border-slate-700 text-slate-100 hover:bg-slate-700">
             Cancel
           </Button>
           <Button
-            onClick={onConfirm}
+            onClick={() => onConfirm(appliedCoupon?.code, finalPrice)}
             disabled={isSubmitting || insufficientBalance}
             className="bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800"
           >
