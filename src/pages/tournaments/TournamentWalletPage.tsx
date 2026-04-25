@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Wallet, Crown, Trophy, X, Activity } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Wallet, Crown, Trophy, X, Activity, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { TournamentsLayout } from "@/components/tournaments/TournamentsLayout";
 import { WalletTab } from "@/components/tournaments/WalletTab";
@@ -7,13 +7,14 @@ import { WithdrawalsPanel } from "@/components/tournaments/WithdrawalsPanel";
 import { WithdrawModal } from "@/components/tournaments/WithdrawModal";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLiveBalance } from "@/hooks/useLiveBalance";
-import { useEffect } from "react";
+import { useWinningsBalance } from "@/hooks/useWinningsBalance";
 import { fetchEarningsSummary, type EarningsSummary } from "@/lib/tournamentsApi";
 import { formatCoins } from "@/lib/tournamentsUtils";
 
 const TournamentWalletPage = () => {
   const { user } = useAuth();
   const { balance } = useLiveBalance();
+  const { winnings } = useWinningsBalance();
   const [open, setOpen] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const [summary, setSummary] = useState<EarningsSummary | null>(null);
@@ -26,22 +27,40 @@ const TournamentWalletPage = () => {
   return (
     <TournamentsLayout
       title="Wallet & Withdrawals"
-      subtitle="Manage your IG Coins and cash out winnings to NPR."
+      subtitle="Withdraw your tournament winnings to NPR. Deposited credits are not withdrawable."
       actions={
-        <Button size="sm" onClick={() => setOpen(true)}>
+        <Button size="sm" onClick={() => setOpen(true)} disabled={winnings <= 0}>
           Withdraw winnings
         </Button>
       }
     >
+      {/* Balance breakdown */}
+      <div className="mb-4 grid gap-3 sm:grid-cols-2">
+        <div className="rounded-xl border border-emerald-500/20 bg-gradient-to-br from-emerald-500/10 to-transparent p-4">
+          <div className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wide text-emerald-400">
+            <Trophy className="h-3.5 w-3.5" /> Withdrawable winnings
+          </div>
+          <div className="mt-1 text-3xl font-bold text-emerald-400">{formatCoins(winnings)}</div>
+          <div className="text-[11px] text-muted-foreground">Tournament prizes only · cash out to NPR</div>
+        </div>
+        <div className="rounded-xl border border-border/60 bg-card p-4">
+          <div className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+            <Lock className="h-3.5 w-3.5" /> Credit balance (not withdrawable)
+          </div>
+          <div className="mt-1 text-3xl font-bold text-foreground">{formatCoins(balance)}</div>
+          <div className="text-[11px] text-muted-foreground">Used for entry fees & store purchases</div>
+        </div>
+      </div>
+
       <div className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Card icon={Wallet} label="Available" value={formatCoins(balance)} sub="IG Coins" tint="primary" />
+        <Card icon={Wallet} label="Available" value={formatCoins(winnings)} sub="winnings" tint="emerald" />
         <Card icon={Crown} label="Total earned" value={formatCoins(summary?.totalEarnings ?? 0)} sub="all time" tint="amber" />
-        <Card icon={Trophy} label="Wins" value={String(summary?.wins ?? 0)} sub="matches won" tint="emerald" />
+        <Card icon={Trophy} label="Wins" value={String(summary?.wins ?? 0)} sub="matches won" tint="primary" />
         <Card icon={X} label="Losses" value={String(summary?.losses ?? 0)} sub="matches lost" tint="destructive" />
       </div>
 
       <div className="mb-4">
-        <WalletTab balance={balance} onWithdraw={() => setOpen(true)} />
+        <WalletTab balance={winnings} onWithdraw={() => setOpen(true)} />
       </div>
 
       <div className="mb-2 flex items-center gap-2 text-[13px] font-medium text-foreground">
@@ -52,7 +71,7 @@ const TournamentWalletPage = () => {
       <WithdrawModal
         open={open}
         onOpenChange={setOpen}
-        balance={balance}
+        balance={winnings}
         onSuccess={() => setRefreshKey((k) => k + 1)}
       />
     </TournamentsLayout>
