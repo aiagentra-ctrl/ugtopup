@@ -3,33 +3,51 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { CheckCircle2 } from "lucide-react";
+import { CheckCircle2, Loader2 } from "lucide-react";
 import { formatCoins } from "@/lib/tournamentsUtils";
+import { requestWithdrawal } from "@/lib/tournamentsApi";
+import { toast } from "sonner";
 
 const MIN = 500;
-const RATE = 1; // 1 coin = 1 NPR (mock)
+const RATE = 1; // 1 coin = 1 NPR (mock conversion)
 
 export const WithdrawModal = ({
   open,
   onOpenChange,
   balance,
+  onSuccess,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   balance: number;
+  onSuccess?: () => void;
 }) => {
   const [amount, setAmount] = useState(balance.toString());
   const [method, setMethod] = useState("");
   const [destination, setDestination] = useState("");
   const [success, setSuccess] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
   const amt = Number(amount) || 0;
-  const valid = amt >= MIN && amt <= balance && method && destination.trim().length >= 3;
+  const valid = amt >= MIN && amt <= balance && !!method && destination.trim().length >= 3 && !submitting;
 
-  const submit = () => {
+  const submit = async () => {
     if (!valid) return;
-    const ref = "WD-" + Math.random().toString(36).slice(2, 8).toUpperCase();
-    setSuccess(ref);
+    setSubmitting(true);
+    try {
+      const row = await requestWithdrawal({
+        amount_coins: amt,
+        amount_npr: amt * RATE,
+        method,
+        account_detail: destination.trim(),
+      });
+      setSuccess(row.id.slice(0, 8).toUpperCase());
+      onSuccess?.();
+    } catch (e: any) {
+      toast.error(e?.message || "Withdrawal failed");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const close = (v: boolean) => {
@@ -38,6 +56,7 @@ export const WithdrawModal = ({
       setMethod("");
       setDestination("");
       setAmount(balance.toString());
+      setSubmitting(false);
     }
     onOpenChange(v);
   };
