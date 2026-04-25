@@ -240,18 +240,23 @@ const CreateMatchPage = () => {
               </div>
 
               {/* Live prize preview */}
-              <div className="card-premium p-4">
+              <div className="card-premium p-4 space-y-2">
                 <div className="flex items-center justify-between">
                   <div>
                     <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-amber-400">
-                      <Trophy className="h-3 w-3" /> Prize pool preview
+                      <Trophy className="h-3 w-3" /> Winner takes
                     </div>
-                    <div className="mt-0.5 text-[11px] text-muted-foreground">{entryNum} × {maxPlayers} players × 90% (10% fee)</div>
+                    <div className="mt-0.5 text-[11px] text-muted-foreground">Pool {formatCoins(grossPool)} − {commissionPct}% commission</div>
                   </div>
                   <div className="text-right">
-                    <div className="font-stat text-3xl font-bold text-amber-400">{formatCoins(prize)}</div>
+                    <div className="font-stat text-3xl font-bold text-amber-400">{formatCoins(winnerPrize)}</div>
                     <div className="text-[10px] uppercase tracking-wide text-muted-foreground">IG Coins</div>
                   </div>
+                </div>
+                <div className="grid grid-cols-3 gap-2 border-t border-border/50 pt-2 text-[11px]">
+                  <div><div className="text-muted-foreground">Host fee (held)</div><div className="font-stat font-bold text-foreground">{formatCoins(hostFee)}</div></div>
+                  <div><div className="text-muted-foreground">Commission</div><div className="font-stat font-bold text-foreground">{formatCoins(commissionAmt)}</div></div>
+                  <div><div className="text-muted-foreground">Pool gross</div><div className="font-stat font-bold text-foreground">{formatCoins(grossPool)}</div></div>
                 </div>
               </div>
             </div>
@@ -274,7 +279,8 @@ const CreateMatchPage = () => {
                   <dt className="text-muted-foreground">Name</dt><dd className="text-right font-semibold text-foreground">{name || "—"}</dd>
                   <dt className="text-muted-foreground">Players</dt><dd className="text-right font-stat font-bold text-foreground">{maxPlayers}</dd>
                   <dt className="text-muted-foreground">Entry fee</dt><dd className="text-right font-stat font-bold text-foreground">{formatCoins(entryNum)} IG</dd>
-                  <dt className="text-muted-foreground">Prize pool</dt><dd className="text-right font-stat font-bold text-amber-400">{formatCoins(prize)} IG</dd>
+                  <dt className="text-muted-foreground">Host fee (held)</dt><dd className="text-right font-stat font-bold text-amber-400">{formatCoins(hostFee)} IG</dd>
+                  <dt className="text-muted-foreground">Winner prize</dt><dd className="text-right font-stat font-bold text-amber-400">{formatCoins(winnerPrize)} IG</dd>
                 </dl>
               </div>
 
