@@ -12,6 +12,8 @@ import { createOrder, generateOrderNumber } from "@/lib/orderApi";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 
+import { GamePageDescription } from "@/components/GamePageDescription";
+
 const RobloxTopUp = () => {
   const { user, profile, refreshProfile } = useAuth();
   const navigate = useNavigate();
@@ -138,6 +140,7 @@ const RobloxTopUp = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-background">
       <RobloxProductHeader />
+      <GamePageDescription slug="roblox" />
       
       <div className="container mx-auto px-4 py-6 pb-28">
         <div className="space-y-6">

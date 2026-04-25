@@ -14,6 +14,8 @@ import { requestDeduplicator } from "@/lib/requestDeduplicator";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
+import { GamePageDescription } from "@/components/GamePageDescription";
+
 // All ML diamond packages are now fully API-based via Liana
 
 const MobileLegends = () => {
@@ -247,6 +249,7 @@ const MobileLegends = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-background">
       <MLProductHeader />
+      <GamePageDescription slug="mobile-legends" />
       
       <div className="container mx-auto px-4 py-6 pb-28">
         <div className="space-y-6">

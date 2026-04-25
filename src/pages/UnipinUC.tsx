@@ -13,6 +13,8 @@ import { QuantitySelector } from "@/components/ui/quantity-selector";
 import { createOrder, generateOrderNumber } from "@/lib/orderApi";
 import { supabase } from "@/integrations/supabase/client";
 
+import { GamePageDescription } from "@/components/GamePageDescription";
+
 const UnipinUC = () => {
   const { user, profile } = useAuth();
   const { toast } = useToast();
@@ -154,6 +156,7 @@ const UnipinUC = () => {
   return (
     <div className="min-h-screen bg-background">
       <UnipinProductHeader />
+      <GamePageDescription slug="unipin-uc" />
       
       <main className="container mx-auto px-4 py-6 pb-32">
         <div className="max-w-4xl mx-auto space-y-6">

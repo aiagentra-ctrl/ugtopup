@@ -11,6 +11,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { createOrder, generateOrderNumber } from "@/lib/orderApi";
 
+import { GamePageDescription } from "@/components/GamePageDescription";
+
 const ChatGPT = () => {
   const [formData, setFormData] = useState<ChatGPTFormData | null>(null);
   const [isFormValid, setIsFormValid] = useState(false);
@@ -98,6 +100,7 @@ const ChatGPT = () => {
   return (
     <div className="min-h-screen bg-background pb-32">
       <ChatGPTProductHeader />
+      <GamePageDescription slug="chatgpt" />
       
       <div className="container mx-auto px-4 py-6 space-y-6">
         <ChatGPTUserInputForm onDataChange={handleFormDataChange} initialData={formData || undefined} />

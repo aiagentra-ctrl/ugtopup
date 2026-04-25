@@ -14,6 +14,8 @@ import { createOrder, generateOrderNumber } from "@/lib/orderApi";
 import { ensureSufficientBalance } from "@/lib/creditApi";
 import { requestDeduplicator } from "@/lib/requestDeduplicator";
 
+import { GamePageDescription } from "@/components/GamePageDescription";
+
 const FreefireDiamond = () => {
   const [formData, setFormData] = useState<UserFormData | null>(null);
   const [selectedPackage, setSelectedPackage] = useState<Package | null>(null);
@@ -166,6 +168,7 @@ const FreefireDiamond = () => {
   return (
     <div className="min-h-screen bg-background pb-24">
       <ProductHeader />
+      <GamePageDescription slug="freefire" />
 
       <main className="container mx-auto px-4 py-8 space-y-8 max-w-6xl animate-fade-in">
         {/* User Input Section */}
