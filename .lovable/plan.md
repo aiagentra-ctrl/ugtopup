@@ -1,184 +1,189 @@
-# 🎮 IG Arena — God-Tier Premium Redesign
+# Free Fire Tournaments — Real Product-Level System
 
-A complete visual overhaul of every Tournaments page with esports-grade design, animated hero, glow effects, and richer landing sections — built on the existing real-time Supabase data layer (no backend changes).
+This plan turns the current tournament feature into a true competitive-gaming product with a wallet/escrow engine, a prize-pool calculator, configurable commission, withdrawals, and a full admin command center.
 
 ---
 
-## 1. Design system upgrade
+## 1. Money Model (Wallet, Escrow, Winnings)
 
-**Fonts** — add gaming-style typography via Google Fonts in `index.html`:
-- **Display / headings**: `Orbitron` (futuristic esports look)
-- **Accent / numbers**: `Rajdhani` (tech-stat feel)
-- Body keeps existing Inter
+Three distinct balances on `profiles`:
 
-Register in `tailwind.config.ts`:
-```ts
-fontFamily: {
-  display: ['Orbitron', 'sans-serif'],
-  stat: ['Rajdhani', 'sans-serif'],
-}
+| Field | Meaning | Withdrawable? |
+|---|---|---|
+| `balance` | Deposited IG Coins (top-ups) | ❌ |
+| `held_balance` *(NEW)* | Coins locked in pending/live tournaments (entry fee + creator's host fee) | ❌ |
+| `winnings_balance` *(existing)* | Prize money won from tournaments | ✅ |
+
+**Escrow rule:** When a user joins or hosts, their coins move `balance → held_balance`. On finish: held funds are released — winner's share moves to `winnings_balance`, commission moves to platform, losers' held coins are simply consumed (already paid in).
+
+---
+
+## 2. Database Schema Migration
+
+### A. Extend `profiles`
+- Add `held_balance NUMERIC NOT NULL DEFAULT 0`.
+
+### B. Extend `tournaments`
+- `host_fee NUMERIC DEFAULT 0` — coins deducted from creator at creation (held in escrow).
+- `commission_percent NUMERIC DEFAULT 10` — snapshot of platform fee at creation time.
+- `prize_pool NUMERIC DEFAULT 0` — auto-computed: `host_fee + (entry_fee * current_players)`.
+- `commission_amount NUMERIC DEFAULT 0` — finalized at `finish_tournament`.
+- `winner_prize NUMERIC DEFAULT 0` — finalized at `finish_tournament`.
+- `auto_start_at TIMESTAMPTZ` — for scheduled match start.
+
+### C. New table `tournament_settings` (singleton, admin-managed)
+```
+id, default_commission_percent, min_entry_fee, max_entry_fee,
+host_fee_flat, host_fee_percent,
+withdrawal_fee_percent, min_withdrawal_npr, coin_to_npr_rate,
+premium_boost_price, allow_user_creation, updated_at
 ```
 
-**New animations** in `tailwind.config.ts`:
-- `glow-pulse` — soft outer glow loop for CTAs & live badges
-- `float` — gentle Y-axis float for hero orbs
-- `shimmer` — diagonal sheen across cards on hover
-- `bg-pan` — slow gradient pan for hero background
-- `border-flow` — animated gradient borders for premium cards
-- `count-up` — slide+fade for stat numbers
+### D. New table `tournament_ledger` (audit trail of every coin movement)
+```
+id, user_id, tournament_id, type ('escrow_lock' | 'escrow_release' |
+'prize_credit' | 'commission' | 'host_fee' | 'refund' | 'withdrawal'),
+amount, balance_before, balance_after, balance_kind ('balance'|'held'|'winnings'),
+metadata jsonb, created_at
+```
 
-**Reusable utility classes** in `src/index.css`:
-- `.btn-glow` — glowing primary button (uses primary HSL token)
-- `.card-premium` — gradient border + hover sheen + lift
-- `.text-gradient-gold`, `.text-gradient-primary`
-- `.bg-mesh` — multi-radial mesh gradient background
-- `.bg-grid-fade` — subtle grid with radial fade mask
-- `.particle-field` — pure-CSS animated particles container
+### E. New table `platform_revenue` (commission + fees earned)
+```
+id, source ('commission'|'host_fee'|'withdrawal_fee'|'boost'),
+tournament_id, amount, created_at
+```
 
-All colors continue using existing HSL semantic tokens (primary, emerald, amber, destructive). No hardcoded hex.
-
----
-
-## 2. New shared components (`src/components/tournaments/`)
-
-| Component | Purpose |
-|---|---|
-| `ArenaHero.tsx` | Animated hero: mesh gradient + floating orbs + CSS particles + live stats ticker + dual CTA |
-| `FeaturedCarousel.tsx` | Horizontal snap-scroll carousel of top-prize tournaments with parallax hover |
-| `LiveTicker.tsx` | Marquee of currently live matches with pulsing dots |
-| `RecentWinnersStrip.tsx` | Auto-scrolling row of recent winners pulled from `tournament_participants` (result=won, ordered by finished_at) |
-| `LeaderboardPreview.tsx` | Top-5 mini leaderboard for the hub |
-| `FAQSection.tsx` | Accordion with 6 esports/tournament FAQs |
-| `TestimonialsSection.tsx` | Static curated player testimonials (3 cards) |
-| `AppCTASection.tsx` | "Install IG Arena PWA" CTA tied to existing `usePWAInstall` |
-| `StatChip.tsx` | Animated count-up stat chip used across pages |
-| `PremiumCard.tsx` | Wrapper applying gradient border + sheen used everywhere |
-| `SectionHeader.tsx` | Consistent section title with icon, eyebrow, view-all link |
+### F. New table `tournament_boosts` (premium feature highlight)
+```
+id, tournament_id, paid_by, amount, expires_at, created_at
+```
 
 ---
 
-## 3. Page-by-page redesign
+## 3. Atomic RPC Functions (rebuild)
 
-### `TournamentsHub.tsx` — Landing page
-Sections in order:
-1. **ArenaHero** — animated background, headline in Orbitron, dual CTA, 4 live stats
-2. **Quick action grid** — 4 premium cards (Browse / Host / My Games / Leaderboard) with icon glow + arrow slide
-3. **LiveTicker** — currently ongoing matches scrolling marquee
-4. **FeaturedCarousel** — top 8 tournaments by prize
-5. **How it works** — 3 steps with numbered glowing badges + connecting line
-6. **LeaderboardPreview** — top 5 + "View full leaderboard" link
-7. **RecentWinnersStrip** — last 10 winners
-8. **Wallet snapshot** — withdrawable winnings card with shimmer
-9. **TestimonialsSection** — 3 player quotes
-10. **FAQSection** — 6 Q&As
-11. **AppCTASection** — install PWA
+All money flows go through `SECURITY DEFINER` functions with `FOR UPDATE` locking and ledger writes.
 
-### `JoinTournamentPage.tsx`
-- Sticky filter bar with glassmorphism (game pills + status pills + search)
-- Result count chip
-- Grid uses upgraded `TournamentCard` (glow border on live, sheen on hover, animated progress bar)
-- Empty state illustration with floating icon
+1. **`create_tournament_v2(...)`** — validates settings, deducts host_fee from creator's `balance` → `held_balance`, snapshots commission %, writes ledger row.
+2. **`join_tournament` (rewrite)** — moves entry_fee from `balance` → `held_balance`, increments `prize_pool`, writes ledger.
+3. **`leave_tournament` (rewrite)** — only allowed while `upcoming` and `auto_start_at` is in the future; releases held back to `balance`.
+4. **`start_tournament` (rewrite)** — sets `room_status='ongoing'`, broadcasts room credentials, prevents further joins.
+5. **`finish_tournament_v2(tournament_id, winner_user_id)`** —
+   - Compute `commission_amount = round(prize_pool * commission_percent / 100)`.
+   - `winner_prize = prize_pool - commission_amount`.
+   - For each participant: drain their entry_fee from `held_balance` (it was already there).
+   - Drain creator's `host_fee` from their `held_balance`.
+   - Credit `winner_prize` to winner's `winnings_balance`.
+   - Insert `platform_revenue` row for commission and host_fee.
+   - Mark losers' `result='lost'`, winner `result='won', coins_won=winner_prize`.
+   - Notify all participants.
+6. **`cancel_tournament(tournament_id, reason)`** — admin-only; refunds all held coins to participants and creator.
+7. **`process_withdrawal(withdrawal_id, action, remarks)`** — admin processes payout, applies `withdrawal_fee_percent`.
 
-### `CreateMatchPage.tsx` — Step-by-step wizard
-Convert single form to 3-step wizard with progress indicator:
-1. **Game & Mode** — large icon tiles for game; mode selector
-2. **Details** — name, description, max players, entry fee with live prize-pool preview card
-3. **Schedule & confirm** — datetime picker + summary card + agree checkbox + create button
-- Animated step transitions (fade-in + slide)
-- Success screen gets confetti-style glow + animated checkmark
-
-### `MyGamesPage.tsx` — Dashboard
-- Top row: 4 animated stat cards (Total earned / Active / Wins / Win-rate %) using `StatChip` with count-up
-- Tabs (Overview / Joined / Created / Reported / Wallet) restyled with gaming pill design
-- Match cards get status-tinted left border + hover lift
-- Add mini sparkline / win-loss ratio bar (CSS-only, no chart library)
-
-### `LiveMatchesPage.tsx`
-- Full-bleed live banner header with red pulse
-- Cards filtered to live/ongoing — show elapsed timer instead of countdown
-- Spectator-style layout with prominent "Watch room" CTA for joined players
-
-### `LeaderboardPage.tsx`
-- New podium: 3D-tilted cards, gold/silver/bronze gradient borders, crown icon for #1
-- Tabs restyled (Top earnings / Most wins / Most played)
-- Table rows: rank badge, animated avatar ring, win-rate bar, glowing coin chip
-- Highlight current user row with primary glow
-- "Your rank" sticky callout if user not in top 50
-
-### `TournamentWalletPage.tsx`
-- Hero balance card: large Rajdhani number, shimmer effect, "Withdrawable winnings only" badge
-- Side-by-side: deposited credits (locked, shown in muted style) vs winnings (active emerald)
-- Quick withdraw amount chips (500 / 1000 / 2500 / All)
-- Withdrawal history timeline with status pills
-- Reuses existing `useWinningsBalance` hook & withdrawal RPCs (no logic changes)
-
-### `MatchHistoryPage.tsx`
-- Top: 3 stat tiles + win-rate ring (CSS conic-gradient, no library)
-- Filters: All / Won / Lost / Cancelled pills
-- Each row gets result-tinted background, animated trophy/X icon, coin delta with +/- color
-
-### `ReportsPage.tsx`
-- Cleaner card list with status badges (Under review / Resolved / Rejected)
-- File-report dialog gets stepped UI: select match → describe issue → submit
-- Empty state with shield illustration
+All of these append rows to `tournament_ledger`.
 
 ---
 
-## 4. Layout polish (`TournamentsLayout.tsx`)
-- Sub-nav becomes glassmorphic with backdrop blur + bottom glow line under active item
-- Animated underline indicator that slides between nav items
-- Add page-transition fade-in wrapper around children
-- Mobile: nav becomes scrollable pill bar with edge fade masks
-- Optional breadcrumb under title for deep pages
+## 4. RLS Policies
+
+- `tournament_ledger`: users can SELECT only their own rows; admins all (via `is_admin()`).
+- `tournament_settings`: SELECT public; UPDATE admin only.
+- `platform_revenue`: admin only.
+- `tournament_boosts`: SELECT public; INSERT only via RPC.
 
 ---
 
-## 5. Responsive & motion guarantees
-- All hero animations respect `prefers-reduced-motion` (disable particle/float/pan)
-- Mobile (<640px): hero compresses, particles reduced, carousels become snap-scroll
-- All interactive elements keep 44px tap targets
-- No layout shift during count-up animations (reserve width)
+## 5. Frontend — User-Facing Changes
+
+### A. Wallet display (3-balance model)
+Update `useLiveBalance`, add `useHeldBalance` hook. The header / dashboard wallet card now shows:
+
+```
+Available    Held in matches    Winnings (withdrawable)
+  1,250            450                  2,300
+```
+
+Files: `src/components/dashboard/CreditBalanceCard.tsx`, `src/components/tournaments/WalletTab.tsx`, `src/pages/tournaments/TournamentWalletPage.tsx`.
+
+### B. Tournament card / detail drawer
+Add explicit rows: **Entry fee**, **Prize pool (live)**, **Commission %**, **Winner takes**. `TournamentCard.tsx` and `TournamentDetailDrawer.tsx` recompute on every realtime tick.
+
+### C. `CreateMatchPage` (rewrite step 2)
+- Show live calculator: *prize pool = host_fee + entry × players*; *winner gets = prize_pool × (1 − commission%)*; commission preview pulled from `tournament_settings`.
+- Validate against `min_entry_fee` / `max_entry_fee`.
+- "Schedule start at" field → fills `auto_start_at`.
+
+### D. Live match flow
+On `start_tournament`, room credentials become visible to participants (drawer already supports this — wired to new realtime payload). Add a 5-minute pre-start countdown banner and push notification.
+
+### E. Withdrawal page
+Show `winnings_balance`, NPR conversion using `coin_to_npr_rate`, fee preview, and history. Disable button when `< min_withdrawal_npr`.
+
+### F. New `useHeldBalance.ts` hook
+Mirrors `useWinningsBalance` pattern, subscribes to `profiles.held_balance`.
 
 ---
 
-## 6. Data — uses existing real-time layer
-- `fetchOpenTournaments`, `fetchJoinedMatches`, `fetchEarningsSummary`, `subscribeTournaments` (already exist)
-- Add small helpers in `src/lib/tournamentsApi.ts`:
-  - `fetchRecentWinners(limit)` — last N `result='won'` participants joined with profile + tournament
-  - `fetchTopLeaderboard(sortKey, limit)` — already covered client-side, optionally server-aggregated later
-- **No DB migrations.** No schema changes. All winnings-only withdrawal rules from previous plan remain intact.
+## 6. Admin Panel — New Section "Tournaments"
+
+Add a new top-level admin sidebar group `tournaments` with 8 sub-views, each a new component under `src/components/admin/tournaments/`:
+
+| Section key | Component | Purpose |
+|---|---|---|
+| `tournaments-dashboard` | `TournamentDashboard.tsx` | KPIs: revenue today, active matches, total held coins, withdrawals pending, commission earned |
+| `tournaments-list` | `TournamentManager.tsx` | Full CRUD list, force-cancel with refund, edit room creds |
+| `tournaments-participants` | `TournamentParticipants.tsx` | Drill into a match: roster, mark winner, kick player (with refund) |
+| `tournaments-wallets` | `WalletOverview.tsx` | Per-user balance / held / winnings table |
+| `tournaments-ledger` | `LedgerViewer.tsx` | Searchable audit trail (user, type, amount, date) |
+| `tournaments-withdrawals` | `WithdrawalQueue.tsx` | Approve/reject queue with applied fees |
+| `tournaments-revenue` | `RevenueDashboard.tsx` | Commission/host-fee/boost charts |
+| `tournaments-reports` | `DisputeManager.tsx` | Resolve `tournament_reports`, can trigger refund |
+| `tournaments-settings` | `TournamentSettingsPanel.tsx` | Edit `tournament_settings` (commission %, fees, rates, on/off switches) |
+
+Wire them in `src/pages/AdminPanel.tsx` (new switch cases) and `src/components/admin/AdminLayout.tsx` (sidebar entries with a `Trophy` icon group).
 
 ---
 
-## 7. Files touched
+## 7. Realtime + Notifications
 
-**Created**
-- `src/components/tournaments/ArenaHero.tsx`
-- `src/components/tournaments/FeaturedCarousel.tsx`
-- `src/components/tournaments/LiveTicker.tsx`
-- `src/components/tournaments/RecentWinnersStrip.tsx`
-- `src/components/tournaments/LeaderboardPreview.tsx`
-- `src/components/tournaments/FAQSection.tsx`
-- `src/components/tournaments/TestimonialsSection.tsx`
-- `src/components/tournaments/AppCTASection.tsx`
-- `src/components/tournaments/StatChip.tsx`
-- `src/components/tournaments/PremiumCard.tsx`
-- `src/components/tournaments/SectionHeader.tsx`
-
-**Edited**
-- `index.html` (add Google Fonts)
-- `tailwind.config.ts` (fonts + new keyframes/animations)
-- `src/index.css` (utility classes)
-- `src/components/tournaments/TournamentsLayout.tsx` (glass nav)
-- `src/components/tournaments/TournamentCard.tsx` (premium styling)
-- All 9 pages in `src/pages/tournaments/`
-- `src/lib/tournamentsApi.ts` (small helper additions)
+- Subscribe admin dashboard channels to `tournament_withdrawals` (new pending) and `tournament_reports` for live alerts.
+- DB trigger on `tournaments` status change (`upcoming → live`) → push notification to participants with room creds reminder.
+- DB trigger on `finish_tournament_v2` → push to winner with prize amount.
 
 ---
 
-## 8. Out of scope (kept as-is)
-- Database schema, RPCs, withdrawal rules
-- Auth, header, footer, dashboard entry card
-- Other product pages
+## 8. Edge Function (optional automation)
 
-✅ Verification: `tsc --noEmit` after each batch of edits.
+`supabase/functions/tournament-auto-start/index.ts` — pg_cron-invoked every minute; finds tournaments where `auto_start_at <= now()` and `status='upcoming'`, calls `start_tournament` server-side. Keeps schedule reliable even when creator is offline.
+
+---
+
+## 9. Code Changes Summary
+
+**New files**
+- `supabase/migrations/<ts>_tournament_product_v2.sql`
+- `src/hooks/useHeldBalance.ts`
+- `src/lib/tournamentAdminApi.ts` (admin-side queries / mutations)
+- `src/components/admin/tournaments/{TournamentDashboard,TournamentManager,TournamentParticipants,WalletOverview,LedgerViewer,WithdrawalQueue,RevenueDashboard,DisputeManager,TournamentSettingsPanel}.tsx`
+- `supabase/functions/tournament-auto-start/index.ts`
+
+**Edited files**
+- `src/lib/tournamentsApi.ts` — new fields, new functions (`fetchSettings`, `cancelTournament`, ledger queries).
+- `src/integrations/supabase/types.ts` — auto-regenerated.
+- `src/components/tournaments/{TournamentCard,TournamentDetailDrawer,WalletTab,WithdrawModal}.tsx` — surface prize-pool / commission / held balance.
+- `src/pages/tournaments/{CreateMatchPage,TournamentWalletPage,JoinTournamentPage,MyGamesPage,TournamentsHub}.tsx` — wire new data.
+- `src/pages/AdminPanel.tsx` + `src/components/admin/AdminLayout.tsx` — register the 9 new admin sections.
+- `src/components/dashboard/CreditBalanceCard.tsx` — show held + winnings inline (small footer chips).
+
+---
+
+## 10. Verification
+
+After implementation:
+1. Run Supabase linter (RLS coverage on all new tables).
+2. Type-check (`tsc --noEmit`).
+3. Manual flow: deposit → create match (host fee held) → 3 users join (entry fee held) → start → finish → confirm winner gets `prize_pool × (1−commission%)` in `winnings_balance`, platform_revenue rows match, ledger reconciles.
+
+---
+
+**Outcome:** A production-grade tournament platform — strict escrow accounting, configurable revenue model, real-time UX, and a complete admin control room — that can be reused across Free Fire, ML, PUBG, and any future title.
