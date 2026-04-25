@@ -44,7 +44,15 @@ import LoginRequired from "./pages/LoginRequired";
 import Rewards from "./pages/Rewards";
 import Referrals from "./pages/Referrals";
 import ReferAndEarn from "./pages/ReferAndEarn";
-import Tournaments from "./pages/Tournaments";
+import TournamentsHub from "./pages/tournaments/TournamentsHub";
+import JoinTournamentPage from "./pages/tournaments/JoinTournamentPage";
+import CreateMatchPage from "./pages/tournaments/CreateMatchPage";
+import MyGamesPage from "./pages/tournaments/MyGamesPage";
+import LiveMatchesPage from "./pages/tournaments/LiveMatchesPage";
+import LeaderboardPage from "./pages/tournaments/LeaderboardPage";
+import TournamentWalletPage from "./pages/tournaments/TournamentWalletPage";
+import MatchHistoryPage from "./pages/tournaments/MatchHistoryPage";
+import ReportsPage from "./pages/tournaments/ReportsPage";
 
 import NotFound from "./pages/NotFound";
 import Products from "./pages/Products";
@@ -105,7 +113,15 @@ const App = () => (
             <Route path="/product/post-design" element={<PostDesign />} />
             <Route path="/product/banner-design" element={<BannerDesign />} />
             <Route path="/product/thumbnail-design" element={<ThumbnailDesign />} />
-            <Route path="/tournaments" element={<Tournaments />} />
+            <Route path="/tournaments" element={<TournamentsHub />} />
+            <Route path="/tournaments/join" element={<JoinTournamentPage />} />
+            <Route path="/tournaments/create" element={<ProtectedRoute><CreateMatchPage /></ProtectedRoute>} />
+            <Route path="/tournaments/my-games" element={<ProtectedRoute><MyGamesPage /></ProtectedRoute>} />
+            <Route path="/tournaments/live" element={<LiveMatchesPage />} />
+            <Route path="/tournaments/leaderboard" element={<LeaderboardPage />} />
+            <Route path="/tournaments/wallet" element={<ProtectedRoute><TournamentWalletPage /></ProtectedRoute>} />
+            <Route path="/tournaments/history" element={<ProtectedRoute><MatchHistoryPage /></ProtectedRoute>} />
+            <Route path="/tournaments/reports" element={<ProtectedRoute><ReportsPage /></ProtectedRoute>} />
             <Route path="/contact" element={<ContactUs />} />
             <Route path="/refund-policy" element={<RefundPolicy />} />
             <Route path="/coupon-policy" element={<CouponPolicy />} />
