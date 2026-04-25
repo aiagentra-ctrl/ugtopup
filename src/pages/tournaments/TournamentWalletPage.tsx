@@ -10,6 +10,7 @@ import { SectionHeader } from "@/components/tournaments/SectionHeader";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLiveBalance } from "@/hooks/useLiveBalance";
 import { useWinningsBalance } from "@/hooks/useWinningsBalance";
+import { useHeldBalance } from "@/hooks/useHeldBalance";
 import { fetchEarningsSummary, type EarningsSummary } from "@/lib/tournamentsApi";
 import { formatCoins } from "@/lib/tournamentsUtils";
 
@@ -17,6 +18,7 @@ const TournamentWalletPage = () => {
   const { user } = useAuth();
   const { balance } = useLiveBalance();
   const { winnings } = useWinningsBalance();
+  const { held } = useHeldBalance();
   const [open, setOpen] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const [summary, setSummary] = useState<EarningsSummary | null>(null);
