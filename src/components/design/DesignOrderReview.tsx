@@ -37,7 +37,11 @@ export const DesignOrderReview = ({
   isSubmitting,
 }: DesignOrderReviewProps) => {
   const { orderId, package: pkg, email, whatsapp, userEmail, currentBalance } = orderData;
-  const hasInsufficientBalance = currentBalance < pkg.price;
+  const totalPrice = pkg.price;
+  const [appliedCoupon, setAppliedCoupon] = useState<(CouponValidation & { code: string }) | null>(null);
+  const discount = appliedCoupon?.discount_amount ?? 0;
+  const finalPrice = appliedCoupon?.final_price ?? totalPrice;
+  const hasInsufficientBalance = currentBalance < finalPrice;
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
