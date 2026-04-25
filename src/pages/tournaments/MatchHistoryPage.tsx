@@ -1,43 +1,87 @@
-import { useEffect, useState } from "react";
-import { History, Trophy, X } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { History, Trophy, X, CheckCircle2 } from "lucide-react";
 import { TournamentsLayout } from "@/components/tournaments/TournamentsLayout";
 import { EmptyState } from "@/components/tournaments/EmptyState";
 import { Skeleton } from "@/components/ui/skeleton";
+import { StatChip } from "@/components/tournaments/StatChip";
 import { useAuth } from "@/contexts/AuthContext";
 import { fetchJoinedMatches, type JoinedMatch } from "@/lib/tournamentsApi";
 import { formatCoins, relativeTime } from "@/lib/tournamentsUtils";
 import { cn } from "@/lib/utils";
 
+type Filter = "all" | "won" | "lost" | "canceled";
+
 const MatchHistoryPage = () => {
   const { user } = useAuth();
   const [list, setList] = useState<JoinedMatch[]>([]);
   const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState<Filter>("all");
 
   useEffect(() => {
-    if (!user?.id) {
-      setLoading(false);
-      return;
-    }
+    if (!user?.id) { setLoading(false); return; }
     (async () => {
       try {
         const data = await fetchJoinedMatches(user.id);
         setList(data.filter((m) => m.status === "finished" || m.status === "canceled"));
-      } finally {
-        setLoading(false);
-      }
+      } finally { setLoading(false); }
     })();
   }, [user?.id]);
 
-  const wins = list.filter((m) => m.result === "won").length;
+  const wins   = list.filter((m) => m.result === "won").length;
   const losses = list.filter((m) => m.result === "lost").length;
   const totalEarned = list.reduce((s, m) => s + (Number(m.coins_won) || 0), 0);
+  const winRate = wins + losses > 0 ? Math.round((wins / (wins + losses)) * 100) : 0;
+
+  const filtered = useMemo(() => {
+    if (filter === "all") return list;
+    if (filter === "canceled") return list.filter((m) => m.status === "canceled");
+    return list.filter((m) => m.result === filter);
+  }, [list, filter]);
 
   return (
-    <TournamentsLayout title="Match History" subtitle="All your finished tournaments.">
-      <div className="mb-4 grid grid-cols-3 gap-3">
-        <Stat label="Total played" value={String(list.length)} icon={History} tint="primary" />
-        <Stat label="Wins" value={String(wins)} icon={Trophy} tint="emerald" />
-        <Stat label="Coins won" value={formatCoins(totalEarned)} icon={Trophy} tint="amber" />
+    <TournamentsLayout title="Match History" subtitle="All your finished tournaments at a glance.">
+      {/* Stats */}
+      <div className="mb-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <StatChip icon={History} label="Total played" value={list.length} tint="primary" />
+        <StatChip icon={Trophy}  label="Wins"         value={wins}         tint="emerald" />
+        <StatChip icon={Trophy}  label="Coins won"    value={totalEarned}  tint="amber" suffix="IG" />
+        {/* Win-rate ring */}
+        <div className="rounded-xl border border-border/60 bg-card/70 p-3">
+          <div className="flex items-center gap-3">
+            <div
+              className="relative grid h-14 w-14 place-items-center rounded-full"
+              style={{
+                background: `conic-gradient(hsl(var(--primary)) ${winRate * 3.6}deg, hsl(var(--muted)) 0)`,
+              }}
+            >
+              <div className="grid h-11 w-11 place-items-center rounded-full bg-card">
+                <span className="font-stat text-sm font-bold text-foreground">{winRate}%</span>
+              </div>
+            </div>
+            <div>
+              <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Win rate</div>
+              <div className="text-[11px] text-foreground">{wins}W · {losses}L</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Filters */}
+      <div className="mb-3 flex gap-1 overflow-x-auto scrollbar-hide">
+        {(["all","won","lost","canceled"] as Filter[]).map((f) => (
+          <button
+            key={f}
+            onClick={() => setFilter(f)}
+            className={cn(
+              "rounded-full border px-3 py-1 text-[12px] font-semibold capitalize transition-colors whitespace-nowrap",
+              filter === f
+                ? "border-primary/50 bg-primary/15 text-primary"
+                : "border-border bg-muted/30 text-muted-foreground hover:text-foreground"
+            )}
+          >
+            {f === "all" ? "All" : f}
+          </button>
+        ))}
       </div>
 
       <div className="overflow-hidden rounded-xl border border-border/60 bg-card">
@@ -45,44 +89,44 @@ const MatchHistoryPage = () => {
           <div className="space-y-2 p-4">
             {[0, 1, 2].map((i) => <Skeleton key={i} className="h-14 w-full" />)}
           </div>
-        ) : list.length === 0 ? (
-          <EmptyState title="No completed matches yet" description="Join a tournament to start your record." />
+        ) : filtered.length === 0 ? (
+          <EmptyState title="No matches in this view" description="Try a different filter or join a tournament." />
         ) : (
-          list.map((m, i) => {
+          filtered.map((m, i) => {
             const isWin = m.result === "won";
             const isLoss = m.result === "lost";
             return (
               <div
                 key={m.id}
                 className={cn(
-                  "flex items-center gap-3 px-4 py-3",
-                  i < list.length - 1 && "border-b border-border/60"
+                  "flex items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/20",
+                  i < filtered.length - 1 && "border-b border-border/60",
+                  isWin && "border-l-2 border-l-emerald-500",
+                  isLoss && "border-l-2 border-l-destructive"
                 )}
               >
                 <div
                   className={cn(
-                    "flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border",
-                    isWin && "border-emerald-500/30 bg-emerald-500/10 text-emerald-400",
-                    isLoss && "border-destructive/30 bg-destructive/10 text-destructive",
+                    "flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border",
+                    isWin && "border-emerald-500/40 bg-emerald-500/15 text-emerald-400 animate-glow-pulse",
+                    isLoss && "border-destructive/40 bg-destructive/15 text-destructive",
                     !isWin && !isLoss && "border-border bg-muted/40 text-muted-foreground"
                   )}
                 >
-                  {isWin ? <Trophy className="h-4 w-4" /> : isLoss ? <X className="h-4 w-4" /> : <History className="h-4 w-4" />}
+                  {isWin ? <Trophy className="h-4 w-4" /> : isLoss ? <X className="h-4 w-4" /> : <CheckCircle2 className="h-4 w-4" />}
                 </div>
                 <div className="min-w-0 flex-1">
-                  <div className="truncate text-[13px] font-medium text-foreground">{m.name}</div>
+                  <div className="truncate text-[13px] font-semibold text-foreground">{m.name}</div>
                   <div className="text-[11px] text-muted-foreground">
                     {m.game} · {m.finished_at ? relativeTime(m.finished_at) : "—"}
                   </div>
                 </div>
                 <div className="text-right">
-                  <div
-                    className={cn(
-                      "text-[13px] font-semibold",
-                      isWin && "text-emerald-400",
-                      isLoss && "text-destructive"
-                    )}
-                  >
+                  <div className={cn(
+                    "font-stat text-[15px] font-bold",
+                    isWin && "text-emerald-400",
+                    isLoss && "text-destructive"
+                  )}>
                     {m.coins_won > 0 ? `+${formatCoins(m.coins_won)}` : isLoss ? "—" : "Pending"}
                   </div>
                   <div className="text-[10px] uppercase tracking-wide text-muted-foreground">
@@ -97,22 +141,5 @@ const MatchHistoryPage = () => {
     </TournamentsLayout>
   );
 };
-
-const tints = {
-  primary: "border-primary/20 bg-primary/5 text-primary",
-  emerald: "border-emerald-500/20 bg-emerald-500/5 text-emerald-400",
-  amber: "border-amber-500/20 bg-amber-500/5 text-amber-400",
-} as const;
-
-const Stat = ({
-  label, value, icon: Icon, tint,
-}: { label: string; value: string; icon: any; tint: keyof typeof tints }) => (
-  <div className={`rounded-lg border p-3 ${tints[tint]}`}>
-    <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wide opacity-80">
-      <Icon className="h-3 w-3" /> {label}
-    </div>
-    <div className="mt-0.5 text-xl font-semibold">{value}</div>
-  </div>
-);
 
 export default MatchHistoryPage;
