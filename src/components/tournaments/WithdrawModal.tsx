@@ -78,8 +78,10 @@ export const WithdrawModal = ({
           </div>
         ) : (
           <div className="space-y-3">
-            <div className="text-[12px] text-muted-foreground">
-              Available: <span className="text-emerald-400">{formatCoins(balance)} IG Coins</span>
+            <div className="rounded-md border border-emerald-500/20 bg-emerald-500/5 px-3 py-2 text-[12px]">
+              <div className="text-muted-foreground">Withdrawable winnings</div>
+              <div className="text-base font-semibold text-emerald-400">{formatCoins(balance)} IG Coins</div>
+              <div className="mt-0.5 text-[11px] text-muted-foreground">Only tournament prize money can be withdrawn — deposited credits cannot.</div>
             </div>
 
             <div>
