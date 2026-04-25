@@ -80,8 +80,7 @@ const MatchHistoryPage = () => {
                     className={cn(
                       "text-[13px] font-semibold",
                       isWin && "text-emerald-400",
-                      isLoss && "text-destructive",
-                      wbWa()
+                      isLoss && "text-destructive"
                     )}
                   >
                     {m.coins_won > 0 ? `+${formatCoins(m.coins_won)}` : isLoss ? "—" : "Pending"}
@@ -98,8 +97,6 @@ const MatchHistoryPage = () => {
     </TournamentsLayout>
   );
 };
-
-const wbWa = () => "";
 
 const tints = {
   primary: "border-primary/20 bg-primary/5 text-primary",
