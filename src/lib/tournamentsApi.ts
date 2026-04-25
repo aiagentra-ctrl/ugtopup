@@ -24,6 +24,13 @@ export interface DBTournament {
   finished_at: string | null;
   created_by: string;
   created_at: string;
+  // v2 financial fields
+  host_fee?: number;
+  commission_percent?: number;
+  prize_pool?: number;
+  commission_amount?: number;
+  winner_prize?: number;
+  auto_start_at?: string | null;
 }
 
 export interface DBParticipant {
@@ -183,30 +190,24 @@ export async function createTournament(input: {
   description?: string | null;
   room_id: string;
   password: string;
-  prize: number;
+  prize: number; // ignored — kept for API compat
   entry_fee: number;
   max_players?: number;
   starts_at?: string | null;
+  auto_start?: boolean;
 }): Promise<DBTournament> {
-  const { data: auth } = await supabase.auth.getUser();
-  if (!auth.user) throw new Error("Not authenticated");
-  const { data, error } = await supabase
-    .from("tournaments")
-    .insert({
-      name: input.name,
-      game: input.game,
-      game_mode: input.game_mode ?? "1v1",
-      description: input.description ?? null,
-      room_id: input.room_id,
-      password: input.password,
-      prize: input.prize,
-      entry_fee: input.entry_fee,
-      max_players: input.max_players ?? 4,
-      starts_at: input.starts_at ?? null,
-      created_by: auth.user.id,
-    })
-    .select()
-    .single();
+  const { data, error } = await supabase.rpc("create_tournament_v2" as any, {
+    p_name: input.name,
+    p_game: input.game,
+    p_game_mode: input.game_mode ?? "1v1",
+    p_description: input.description ?? null,
+    p_room_id: input.room_id,
+    p_password: input.password,
+    p_entry_fee: input.entry_fee,
+    p_max_players: input.max_players ?? 4,
+    p_starts_at: input.starts_at ?? null,
+    p_auto_start: !!input.auto_start,
+  });
   if (error) throw error;
   return data as DBTournament;
 }

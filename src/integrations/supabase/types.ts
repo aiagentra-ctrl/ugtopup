@@ -1271,6 +1271,36 @@ export type Database = {
           },
         ]
       }
+      platform_revenue: {
+        Row: {
+          amount: number
+          created_at: string
+          id: string
+          metadata: Json | null
+          source: string
+          tournament_id: string | null
+          user_id: string | null
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          source: string
+          tournament_id?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          source?: string
+          tournament_id?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       product_categories: {
         Row: {
           created_at: string
@@ -1452,6 +1482,7 @@ export type Database = {
           created_at: string
           email: string
           full_name: string | null
+          held_balance: number
           id: string
           provider: string | null
           referral_code: string | null
@@ -1466,6 +1497,7 @@ export type Database = {
           created_at?: string
           email: string
           full_name?: string | null
+          held_balance?: number
           id: string
           provider?: string | null
           referral_code?: string | null
@@ -1480,6 +1512,7 @@ export type Database = {
           created_at?: string
           email?: string
           full_name?: string | null
+          held_balance?: number
           id?: string
           provider?: string | null
           referral_code?: string | null
@@ -1940,6 +1973,72 @@ export type Database = {
           },
         ]
       }
+      tournament_boosts: {
+        Row: {
+          amount: number
+          created_at: string
+          expires_at: string
+          id: string
+          paid_by: string
+          tournament_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          expires_at: string
+          id?: string
+          paid_by: string
+          tournament_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          expires_at?: string
+          id?: string
+          paid_by?: string
+          tournament_id?: string
+        }
+        Relationships: []
+      }
+      tournament_ledger: {
+        Row: {
+          amount: number
+          balance_after: number | null
+          balance_before: number | null
+          balance_kind: string
+          created_at: string
+          id: string
+          metadata: Json | null
+          tournament_id: string | null
+          type: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          balance_after?: number | null
+          balance_before?: number | null
+          balance_kind: string
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          tournament_id?: string | null
+          type: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          balance_after?: number | null
+          balance_before?: number | null
+          balance_kind?: string
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          tournament_id?: string | null
+          type?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       tournament_participants: {
         Row: {
           coins_won: number
@@ -2019,6 +2118,51 @@ export type Database = {
           },
         ]
       }
+      tournament_settings: {
+        Row: {
+          allow_user_creation: boolean
+          coin_to_npr_rate: number
+          default_commission_percent: number
+          host_fee_flat: number
+          host_fee_percent: number
+          id: string
+          max_entry_fee: number
+          min_entry_fee: number
+          min_withdrawal_npr: number
+          premium_boost_price: number
+          updated_at: string
+          withdrawal_fee_percent: number
+        }
+        Insert: {
+          allow_user_creation?: boolean
+          coin_to_npr_rate?: number
+          default_commission_percent?: number
+          host_fee_flat?: number
+          host_fee_percent?: number
+          id?: string
+          max_entry_fee?: number
+          min_entry_fee?: number
+          min_withdrawal_npr?: number
+          premium_boost_price?: number
+          updated_at?: string
+          withdrawal_fee_percent?: number
+        }
+        Update: {
+          allow_user_creation?: boolean
+          coin_to_npr_rate?: number
+          default_commission_percent?: number
+          host_fee_flat?: number
+          host_fee_percent?: number
+          id?: string
+          max_entry_fee?: number
+          min_entry_fee?: number
+          min_withdrawal_npr?: number
+          premium_boost_price?: number
+          updated_at?: string
+          withdrawal_fee_percent?: number
+        }
+        Relationships: []
+      }
       tournament_withdrawals: {
         Row: {
           account_detail: string
@@ -2063,6 +2207,9 @@ export type Database = {
       }
       tournaments: {
         Row: {
+          auto_start_at: string | null
+          commission_amount: number
+          commission_percent: number
           created_at: string
           created_by: string
           current_players: number
@@ -2071,18 +2218,24 @@ export type Database = {
           finished_at: string | null
           game: string
           game_mode: string
+          host_fee: number
           id: string
           max_players: number
           name: string
           password: string
           prize: number
+          prize_pool: number
           room_id: string
           room_status: string
           starts_at: string | null
           status: Database["public"]["Enums"]["tournament_status"]
           updated_at: string
+          winner_prize: number
         }
         Insert: {
+          auto_start_at?: string | null
+          commission_amount?: number
+          commission_percent?: number
           created_at?: string
           created_by: string
           current_players?: number
@@ -2091,18 +2244,24 @@ export type Database = {
           finished_at?: string | null
           game: string
           game_mode?: string
+          host_fee?: number
           id?: string
           max_players?: number
           name: string
           password: string
           prize?: number
+          prize_pool?: number
           room_id: string
           room_status?: string
           starts_at?: string | null
           status?: Database["public"]["Enums"]["tournament_status"]
           updated_at?: string
+          winner_prize?: number
         }
         Update: {
+          auto_start_at?: string | null
+          commission_amount?: number
+          commission_percent?: number
           created_at?: string
           created_by?: string
           current_players?: number
@@ -2111,16 +2270,19 @@ export type Database = {
           finished_at?: string | null
           game?: string
           game_mode?: string
+          host_fee?: number
           id?: string
           max_players?: number
           name?: string
           password?: string
           prize?: number
+          prize_pool?: number
           room_id?: string
           room_status?: string
           starts_at?: string | null
           status?: Database["public"]["Enums"]["tournament_status"]
           updated_at?: string
+          winner_prize?: number
         }
         Relationships: []
       }
@@ -2491,6 +2653,19 @@ export type Database = {
       }
     }
     Functions: {
+      _tournament_ledger: {
+        Args: {
+          _after: number
+          _amount: number
+          _before: number
+          _kind: string
+          _meta?: Json
+          _tournament: string
+          _type: string
+          _user: string
+        }
+        Returns: undefined
+      }
       apply_referral: { Args: { p_referral_code: string }; Returns: Json }
       approve_payment_request: {
         Args: { admin_remarks_text?: string; request_id: string }
@@ -2502,6 +2677,10 @@ export type Database = {
       }
       cancel_order: {
         Args: { cancellation_reason_text: string; order_id: string }
+        Returns: Json
+      }
+      cancel_tournament_admin: {
+        Args: { p_reason: string; p_tournament_id: string }
         Returns: Json
       }
       complete_ml_order: {
@@ -2516,6 +2695,52 @@ export type Database = {
       confirm_order: {
         Args: { admin_remarks_text?: string; order_id: string }
         Returns: Json
+      }
+      create_tournament_v2: {
+        Args: {
+          p_auto_start?: boolean
+          p_description: string
+          p_entry_fee: number
+          p_game: string
+          p_game_mode: string
+          p_max_players: number
+          p_name: string
+          p_password: string
+          p_room_id: string
+          p_starts_at: string
+        }
+        Returns: {
+          auto_start_at: string | null
+          commission_amount: number
+          commission_percent: number
+          created_at: string
+          created_by: string
+          current_players: number
+          description: string | null
+          entry_fee: number
+          finished_at: string | null
+          game: string
+          game_mode: string
+          host_fee: number
+          id: string
+          max_players: number
+          name: string
+          password: string
+          prize: number
+          prize_pool: number
+          room_id: string
+          room_status: string
+          starts_at: string | null
+          status: Database["public"]["Enums"]["tournament_status"]
+          updated_at: string
+          winner_prize: number
+        }
+        SetofOptions: {
+          from: "*"
+          to: "tournaments"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       create_user_notification: {
         Args: {
@@ -2681,6 +2906,10 @@ export type Database = {
       }
       process_payment_failure: {
         Args: { p_api_response: Json; p_identifier: string; p_status: string }
+        Returns: Json
+      }
+      process_withdrawal_admin: {
+        Args: { p_action: string; p_remarks?: string; p_withdrawal_id: string }
         Returns: Json
       }
       refresh_dashboard_stats: { Args: never; Returns: undefined }

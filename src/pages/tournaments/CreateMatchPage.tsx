@@ -40,12 +40,28 @@ const CreateMatchPage = () => {
   const [agree, setAgree] = useState(false);
   const [success, setSuccess] = useState<{ roomId: string; password: string } | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [settings, setSettings] = useState<{ default_commission_percent: number; host_fee_flat: number; host_fee_percent: number; min_entry_fee: number; max_entry_fee: number } | null>(null);
+
+  // Load live platform settings for accurate preview
+  // eslint-disable-next-line react-hooks/rules-of-hooks
+  useState(() => {
+    import("@/lib/tournamentAdminApi").then(({ fetchTournamentSettings }) =>
+      fetchTournamentSettings().then((s) => s && setSettings(s as any)).catch(() => {})
+    );
+    return null;
+  });
 
   const entryNum = Number(entry) || 0;
-  const prize = Math.floor(entryNum * maxPlayers * 0.9);
+  const commissionPct = settings?.default_commission_percent ?? 10;
+  const hostFee = settings ? settings.host_fee_flat + Math.round((entryNum * settings.host_fee_percent) / 100) : 50;
+  const grossPool = entryNum * maxPlayers + hostFee;
+  const commissionAmt = Math.round((grossPool * commissionPct) / 100);
+  const winnerPrize = grossPool - commissionAmt;
 
   const canNext0 = !!game && !!mode;
-  const canNext1 = name.trim().length > 2 && entryNum >= 20 && maxPlayers >= 2;
+  const minEntry = settings?.min_entry_fee ?? 10;
+  const maxEntry = settings?.max_entry_fee ?? 10000;
+  const canNext1 = name.trim().length > 2 && entryNum >= minEntry && entryNum <= maxEntry && maxPlayers >= 2;
   const canSubmit = canNext0 && canNext1 && date && agree && !submitting;
 
   const submit = async () => {
@@ -61,13 +77,13 @@ const CreateMatchPage = () => {
         description: description.trim() || null,
         room_id: roomId,
         password,
-        prize,
+        prize: winnerPrize,
         entry_fee: entryNum,
         max_players: maxPlayers,
         starts_at: new Date(date).toISOString(),
       });
       setSuccess({ roomId, password });
-      toast.success("Matchroom created!");
+      toast.success(`Matchroom created! ${hostFee} coins held as host fee.`);
     } catch (e: any) {
       toast.error(e?.message || "Failed to create tournament");
     } finally {
@@ -224,18 +240,23 @@ const CreateMatchPage = () => {
               </div>
 
               {/* Live prize preview */}
-              <div className="card-premium p-4">
+              <div className="card-premium p-4 space-y-2">
                 <div className="flex items-center justify-between">
                   <div>
                     <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-amber-400">
-                      <Trophy className="h-3 w-3" /> Prize pool preview
+                      <Trophy className="h-3 w-3" /> Winner takes
                     </div>
-                    <div className="mt-0.5 text-[11px] text-muted-foreground">{entryNum} × {maxPlayers} players × 90% (10% fee)</div>
+                    <div className="mt-0.5 text-[11px] text-muted-foreground">Pool {formatCoins(grossPool)} − {commissionPct}% commission</div>
                   </div>
                   <div className="text-right">
-                    <div className="font-stat text-3xl font-bold text-amber-400">{formatCoins(prize)}</div>
+                    <div className="font-stat text-3xl font-bold text-amber-400">{formatCoins(winnerPrize)}</div>
                     <div className="text-[10px] uppercase tracking-wide text-muted-foreground">IG Coins</div>
                   </div>
+                </div>
+                <div className="grid grid-cols-3 gap-2 border-t border-border/50 pt-2 text-[11px]">
+                  <div><div className="text-muted-foreground">Host fee (held)</div><div className="font-stat font-bold text-foreground">{formatCoins(hostFee)}</div></div>
+                  <div><div className="text-muted-foreground">Commission</div><div className="font-stat font-bold text-foreground">{formatCoins(commissionAmt)}</div></div>
+                  <div><div className="text-muted-foreground">Pool gross</div><div className="font-stat font-bold text-foreground">{formatCoins(grossPool)}</div></div>
                 </div>
               </div>
             </div>
@@ -258,7 +279,8 @@ const CreateMatchPage = () => {
                   <dt className="text-muted-foreground">Name</dt><dd className="text-right font-semibold text-foreground">{name || "—"}</dd>
                   <dt className="text-muted-foreground">Players</dt><dd className="text-right font-stat font-bold text-foreground">{maxPlayers}</dd>
                   <dt className="text-muted-foreground">Entry fee</dt><dd className="text-right font-stat font-bold text-foreground">{formatCoins(entryNum)} IG</dd>
-                  <dt className="text-muted-foreground">Prize pool</dt><dd className="text-right font-stat font-bold text-amber-400">{formatCoins(prize)} IG</dd>
+                  <dt className="text-muted-foreground">Host fee (held)</dt><dd className="text-right font-stat font-bold text-amber-400">{formatCoins(hostFee)} IG</dd>
+                  <dt className="text-muted-foreground">Winner prize</dt><dd className="text-right font-stat font-bold text-amber-400">{formatCoins(winnerPrize)} IG</dd>
                 </dl>
               </div>
 
