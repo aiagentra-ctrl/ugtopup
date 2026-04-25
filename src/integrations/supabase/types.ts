@@ -764,6 +764,36 @@ export type Database = {
         }
         Relationships: []
       }
+      game_page_descriptions: {
+        Row: {
+          created_at: string
+          description: string
+          id: string
+          is_active: boolean
+          page_slug: string
+          title: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string
+          id?: string
+          is_active?: boolean
+          page_slug: string
+          title?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string
+          id?: string
+          is_active?: boolean
+          page_slug?: string
+          title?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       game_product_prices: {
         Row: {
           created_at: string | null
