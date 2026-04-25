@@ -513,8 +513,125 @@ All colors MUST be HSL.
       transition-duration: 0.01ms !important;
     }
   }
-}
+  }
 
+  /* ============================================
+     IG ARENA — Premium Esports Design Utilities
+     ============================================ */
+
+  .font-display { font-family: 'Orbitron', 'Poppins', system-ui, sans-serif; letter-spacing: 0.02em; }
+  .font-stat    { font-family: 'Rajdhani', 'Poppins', system-ui, sans-serif; font-feature-settings: "tnum"; }
+
+  .text-gradient-primary {
+    background-image: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--secondary)));
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  .text-gradient-gold {
+    background-image: linear-gradient(135deg, hsl(45 100% 65%), hsl(38 100% 50%) 50%, hsl(45 100% 65%));
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+
+  /* Mesh hero background using semantic tokens */
+  .bg-arena-mesh {
+    background-color: hsl(var(--background));
+    background-image:
+      radial-gradient(at 18% 12%, hsl(var(--primary) / 0.22) 0px, transparent 55%),
+      radial-gradient(at 82% 8%,  hsl(var(--secondary) / 0.18) 0px, transparent 50%),
+      radial-gradient(at 75% 92%, hsl(var(--primary) / 0.18) 0px, transparent 55%),
+      radial-gradient(at 8% 88%,  hsl(var(--secondary) / 0.14) 0px, transparent 60%);
+    background-size: 200% 200%;
+  }
+  .bg-grid-fade {
+    background-image:
+      linear-gradient(hsl(var(--foreground) / 0.05) 1px, transparent 1px),
+      linear-gradient(90deg, hsl(var(--foreground) / 0.05) 1px, transparent 1px);
+    background-size: 32px 32px;
+    -webkit-mask-image: radial-gradient(ellipse at center, hsl(0 0% 0%) 30%, transparent 75%);
+            mask-image: radial-gradient(ellipse at center, hsl(0 0% 0%) 30%, transparent 75%);
+  }
+
+  /* Premium glow buttons */
+  .btn-glow {
+    position: relative;
+    box-shadow:
+      0 4px 24px hsl(var(--primary) / 0.45),
+      0 0 0 1px hsl(var(--primary) / 0.4) inset;
+    transition: transform .25s ease, box-shadow .25s ease;
+  }
+  .btn-glow:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow:
+      0 8px 32px hsl(var(--primary) / 0.6),
+      0 0 0 1px hsl(var(--primary) / 0.6) inset;
+  }
+
+  /* Gradient-bordered premium card */
+  .card-premium {
+    position: relative;
+    background:
+      linear-gradient(hsl(var(--card)), hsl(var(--card))) padding-box,
+      linear-gradient(135deg, hsl(var(--primary) / 0.55), hsl(var(--secondary) / 0.4) 50%, hsl(var(--primary) / 0.25)) border-box;
+    border: 1px solid transparent;
+    border-radius: var(--radius);
+    transition: transform .3s ease, box-shadow .3s ease;
+  }
+  .card-premium:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 16px 40px -12px hsl(var(--primary) / 0.35);
+  }
+
+  /* Hover sheen sweeping across cards */
+  .sheen { position: relative; overflow: hidden; }
+  .sheen::after {
+    content: ""; position: absolute; inset: 0;
+    background: linear-gradient(115deg, transparent 30%, hsl(0 0% 100% / 0.12) 50%, transparent 70%);
+    transform: translateX(-100%);
+    transition: transform .9s ease;
+    pointer-events: none;
+  }
+  .sheen:hover::after { transform: translateX(100%); }
+
+  /* Floating orbs in hero */
+  .orb { position: absolute; border-radius: 9999px; filter: blur(48px); opacity: 0.55; pointer-events: none; }
+  .orb-primary   { background: hsl(var(--primary) / 0.55); }
+  .orb-secondary { background: hsl(var(--secondary) / 0.45); }
+  .orb-accent    { background: hsl(38 100% 55% / 0.35); }
+
+  /* CSS-only particle field */
+  .particle-field { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+  .particle-field span {
+    position: absolute; bottom: -20px;
+    width: 4px; height: 4px; border-radius: 9999px;
+    background: hsl(var(--primary) / 0.7);
+    box-shadow: 0 0 8px hsl(var(--primary) / 0.7);
+    animation: particle-rise linear infinite;
+  }
+  @keyframes particle-rise {
+    0%   { transform: translateY(0) translateX(0); opacity: 0; }
+    10%  { opacity: 1; }
+    90%  { opacity: 0.6; }
+    100% { transform: translateY(-110vh) translateX(20px); opacity: 0; }
+  }
+
+  /* Marquee row */
+  .marquee-track { display: flex; width: max-content; animation: marquee 40s linear infinite; }
+  .marquee-track:hover { animation-play-state: paused; }
+
+  /* Premium nav pill underline */
+  .nav-pill-active::after {
+    content: ""; position: absolute; left: 20%; right: 20%; bottom: -3px; height: 2px;
+    background: linear-gradient(90deg, transparent, hsl(var(--primary)), transparent);
+    box-shadow: 0 0 12px hsl(var(--primary));
+    border-radius: 2px;
+  }
+
+  /* Live red pulse dot */
+  .live-dot { position: relative; width: 8px; height: 8px; border-radius: 9999px; background: hsl(142 76% 50%); }
+  .live-dot::after {
+    content: ""; position: absolute; inset: -4px; border-radius: 9999px;
+    border: 2px solid hsl(142 76% 50%); animation: ping-slow 2.4s cubic-bezier(0,0,0.2,1) infinite;
+  }
+}
 @layer base {
   * {
     @apply border-border;
