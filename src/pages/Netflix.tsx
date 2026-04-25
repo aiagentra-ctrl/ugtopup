@@ -12,6 +12,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { createOrder, generateOrderNumber } from "@/lib/orderApi";
 
+import { GamePageDescription } from "@/components/GamePageDescription";
+
 const Netflix = () => {
   const [formData, setFormData] = useState<NetflixFormData | null>(null);
   const [isFormValid, setIsFormValid] = useState(false);
@@ -119,6 +121,7 @@ const Netflix = () => {
   return (
     <div className="min-h-screen bg-background pb-32">
       <NetflixProductHeader />
+      <GamePageDescription slug="netflix" />
       
       <div className="container mx-auto px-4 py-6 space-y-6">
         <NetflixUserInputForm onDataChange={handleFormDataChange} initialData={formData || undefined} />

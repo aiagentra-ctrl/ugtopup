@@ -11,6 +11,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { createOrder, generateOrderNumber } from "@/lib/orderApi";
 
+import { GamePageDescription } from "@/components/GamePageDescription";
+
 const YouTube = () => {
   const [formData, setFormData] = useState<YouTubeFormData | null>(null);
   const [isFormValid, setIsFormValid] = useState(false);
@@ -97,6 +99,7 @@ const YouTube = () => {
   return (
     <div className="min-h-screen bg-background pb-32">
       <YouTubeProductHeader />
+      <GamePageDescription slug="youtube" />
       
       <div className="container mx-auto px-4 py-6 space-y-6">
         <YouTubeUserInputForm onDataChange={handleFormDataChange} initialData={formData || undefined} />

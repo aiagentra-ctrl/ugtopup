@@ -12,6 +12,8 @@ import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 import { createOrder, generateOrderNumber } from "@/lib/orderApi";
 
+import { GamePageDescription } from "@/components/GamePageDescription";
+
 const TikTokCoins = () => {
   const [formData, setFormData] = useState<TikTokFormData | null>(null);
   const [selectedPackage, setSelectedPackage] = useState<TikTokPackage | null>(null);
@@ -97,6 +99,7 @@ const TikTokCoins = () => {
   return (
     <div className="min-h-screen bg-background pb-24">
       <TikTokProductHeader />
+      <GamePageDescription slug="tiktok" />
       <main className="container mx-auto px-4 py-8 space-y-8 max-w-6xl animate-fade-in">
         <section><TikTokUserInputForm onDataChange={handleFormDataChange} initialData={formData || undefined} /></section>
         <section><TikTokPackageSelector selectedPackage={selectedPackage} onSelectPackage={handlePackageSelect} /></section>

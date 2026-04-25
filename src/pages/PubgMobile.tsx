@@ -14,6 +14,8 @@ import { createOrder, generateOrderNumber } from "@/lib/orderApi";
 import { ensureSufficientBalance } from "@/lib/creditApi";
 import { requestDeduplicator } from "@/lib/requestDeduplicator";
 
+import { GamePageDescription } from "@/components/GamePageDescription";
+
 const PubgMobile = () => {
   const [formData, setFormData] = useState<PubgFormData | null>(null);
   const [selectedPackage, setSelectedPackage] = useState<PubgPackage | null>(null);
@@ -156,6 +158,7 @@ const PubgMobile = () => {
   return (
     <div className="min-h-screen bg-background pb-24">
       <PubgProductHeader />
+      <GamePageDescription slug="pubg-mobile" />
 
       <main className="container mx-auto px-4 py-8 space-y-8 max-w-6xl animate-fade-in">
         <section>

@@ -16,6 +16,7 @@ import { BannerManager } from "@/components/admin/BannerManager";
 import { OnlinePayments } from "@/components/admin/OnlinePayments";
 import { LianaOrdersDashboard } from "@/components/admin/LianaOrdersDashboard";
 import { DynamicProductManager } from "@/components/admin/DynamicProductManager";
+import { GamePageDescriptionsManager } from "@/components/admin/GamePageDescriptionsManager";
 import { CouponRulesManager } from "@/components/admin/CouponRulesManager";
 import { PromotionAnalytics } from "@/components/admin/PromotionAnalytics";
 import { CategoryManager } from "@/components/admin/CategoryManager";
@@ -129,6 +130,8 @@ const AdminPanel = () => {
         return <SupabaseLimits />;
       case "product-update":
         return <DynamicProductManager />;
+      case "page-descriptions":
+        return <GamePageDescriptionsManager />;
       case "categories":
         return <CategoryManager />;
       case "offers":

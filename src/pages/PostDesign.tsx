@@ -11,6 +11,8 @@ import { createOrder, generateOrderNumber } from "@/lib/orderApi";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 
+import { GamePageDescription } from "@/components/GamePageDescription";
+
 const PostDesign = () => {
   const { user, profile } = useAuth();
   const navigate = useNavigate();
@@ -109,6 +111,7 @@ const PostDesign = () => {
         subtitle="Social Media Posts"
         icon={postDesignPackage.icon}
       />
+      <GamePageDescription slug="post-design" />
       
       <div className="container mx-auto px-4 py-6 space-y-6">
         <DesignContactForm

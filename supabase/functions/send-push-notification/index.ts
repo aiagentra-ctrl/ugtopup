@@ -307,7 +307,7 @@ Deno.serve(async (req) => {
     let title = "UGTOPUPS";
     let body = "You have a new notification";
     let icon = "/icon-192x192.png";
-    let url = "/notifications";
+    let url = "/";
 
     if (direct_payload) {
       // Direct payload from admin triggers - no DB lookup needed
