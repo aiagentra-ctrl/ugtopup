@@ -1458,6 +1458,7 @@ export type Database = {
           referred_by: string | null
           updated_at: string
           username: string | null
+          winnings_balance: number
         }
         Insert: {
           avatar_url?: string | null
@@ -1471,6 +1472,7 @@ export type Database = {
           referred_by?: string | null
           updated_at?: string
           username?: string | null
+          winnings_balance?: number
         }
         Update: {
           avatar_url?: string | null
@@ -1484,6 +1486,7 @@ export type Database = {
           referred_by?: string | null
           updated_at?: string
           username?: string | null
+          winnings_balance?: number
         }
         Relationships: [
           {
