@@ -42,18 +42,16 @@ self.addEventListener('notificationclick', function (event) {
   if (event.action === 'dismiss') return;
 
   const rawUrl = event.notification.data?.url || '/';
-  // Build a same-origin URL. Use hash routes since the app uses HashRouter.
-  // If the URL doesn't already include a hash, treat it as a hash route path.
+  // Build same-origin URL. App uses BrowserRouter so paths like "/" or
+  // "/orders" map directly. Manifest start_url is "/" → Home Screen.
   const origin = self.location.origin;
   let target;
   if (rawUrl.startsWith('http')) {
     target = rawUrl;
-  } else if (rawUrl.startsWith('#')) {
-    target = origin + '/' + rawUrl;
-  } else if (rawUrl === '/' || rawUrl === '') {
-    target = origin + '/#/';
+  } else if (rawUrl.startsWith('/')) {
+    target = origin + rawUrl;
   } else {
-    target = origin + '/#' + (rawUrl.startsWith('/') ? rawUrl : '/' + rawUrl);
+    target = origin + '/' + rawUrl;
   }
 
   event.waitUntil(
