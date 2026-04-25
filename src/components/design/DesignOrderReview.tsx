@@ -1,7 +1,5 @@
 import { useState } from "react";
 import {
-import { CouponInput } from "@/components/checkout/CouponInput";
-import { CouponValidation } from "@/lib/couponApi";
   Dialog,
   DialogContent,
   DialogDescription,
@@ -13,6 +11,8 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { DesignPackage } from "@/data/designPackages";
 import { AlertCircle } from "lucide-react";
+import { CouponInput } from "@/components/checkout/CouponInput";
+import { CouponValidation } from "@/lib/couponApi";
 
 interface DesignOrderReviewProps {
   isOpen: boolean;

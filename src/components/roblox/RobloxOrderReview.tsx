@@ -1,7 +1,5 @@
 import { useState } from "react";
 import {
-import { CouponInput } from "@/components/checkout/CouponInput";
-import { CouponValidation } from "@/lib/couponApi";
   Dialog,
   DialogContent,
   DialogDescription,
@@ -14,6 +12,8 @@ import { Separator } from "@/components/ui/separator";
 import { type RobloxPackage } from "@/data/robloxPackages";
 import { AlertCircle, Shield } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { CouponInput } from "@/components/checkout/CouponInput";
+import { CouponValidation } from "@/lib/couponApi";
 
 interface RobloxOrderReviewProps {
   isOpen: boolean;

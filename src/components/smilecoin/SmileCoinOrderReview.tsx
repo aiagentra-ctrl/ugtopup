@@ -1,7 +1,5 @@
 import { useState } from "react";
 import {
-import { CouponInput } from "@/components/checkout/CouponInput";
-import { CouponValidation } from "@/lib/couponApi";
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -14,6 +12,8 @@ import { CouponValidation } from "@/lib/couponApi";
 import { SmileCoinPackage } from "@/data/smileCoinPackages";
 import { SmileCoinFormData } from "./SmileCoinUserInputForm";
 import { useAuth } from "@/contexts/AuthContext";
+import { CouponInput } from "@/components/checkout/CouponInput";
+import { CouponValidation } from "@/lib/couponApi";
 
 interface SmileCoinOrderReviewProps {
   isOpen: boolean;

@@ -1,7 +1,5 @@
 import { useState } from "react";
 import {
-import { CouponInput } from "@/components/checkout/CouponInput";
-import { CouponValidation } from "@/lib/couponApi";
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -15,6 +13,8 @@ import { NetflixPackage } from "@/data/netflixPackages";
 import { NetflixFormData } from "./NetflixUserInputForm";
 import { useAuth } from "@/contexts/AuthContext";
 import { AlertTriangle } from "lucide-react";
+import { CouponInput } from "@/components/checkout/CouponInput";
+import { CouponValidation } from "@/lib/couponApi";
 
 interface NetflixOrderReviewProps {
   isOpen: boolean;

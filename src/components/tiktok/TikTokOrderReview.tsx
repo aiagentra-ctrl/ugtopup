@@ -1,7 +1,5 @@
 import { useState } from "react";
 import {
-import { CouponInput } from "@/components/checkout/CouponInput";
-import { CouponValidation } from "@/lib/couponApi";
   AlertDialog,
   AlertDialogContent,
   AlertDialogDescription,
@@ -15,6 +13,8 @@ import { TikTokPackage } from "@/data/tiktokPackages";
 import { TikTokFormData } from "./TikTokUserInputForm";
 import { useAuth } from "@/contexts/AuthContext";
 import { AlertTriangle } from "lucide-react";
+import { CouponInput } from "@/components/checkout/CouponInput";
+import { CouponValidation } from "@/lib/couponApi";
 
 interface TikTokOrderReviewProps {
   isOpen: boolean;
