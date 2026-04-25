@@ -2062,14 +2062,19 @@ export type Database = {
         Row: {
           created_at: string
           created_by: string
+          current_players: number
+          description: string | null
           entry_fee: number
           finished_at: string | null
           game: string
+          game_mode: string
           id: string
+          max_players: number
           name: string
           password: string
           prize: number
           room_id: string
+          room_status: string
           starts_at: string | null
           status: Database["public"]["Enums"]["tournament_status"]
           updated_at: string
@@ -2077,14 +2082,19 @@ export type Database = {
         Insert: {
           created_at?: string
           created_by: string
+          current_players?: number
+          description?: string | null
           entry_fee?: number
           finished_at?: string | null
           game: string
+          game_mode?: string
           id?: string
+          max_players?: number
           name: string
           password: string
           prize?: number
           room_id: string
+          room_status?: string
           starts_at?: string | null
           status?: Database["public"]["Enums"]["tournament_status"]
           updated_at?: string
@@ -2092,14 +2102,19 @@ export type Database = {
         Update: {
           created_at?: string
           created_by?: string
+          current_players?: number
+          description?: string | null
           entry_fee?: number
           finished_at?: string | null
           game?: string
+          game_mode?: string
           id?: string
+          max_players?: number
           name?: string
           password?: string
           prize?: number
           room_id?: string
+          room_status?: string
           starts_at?: string | null
           status?: Database["public"]["Enums"]["tournament_status"]
           updated_at?: string
@@ -2518,6 +2533,10 @@ export type Database = {
         }
         Returns: Json
       }
+      finish_tournament: {
+        Args: { p_tournament_id: string; p_winner_user_id: string }
+        Returns: Json
+      }
       get_dashboard_stats: {
         Args: never
         Returns: {
@@ -2552,6 +2571,8 @@ export type Database = {
       is_admin: { Args: never; Returns: boolean }
       is_developer: { Args: never; Returns: boolean }
       is_super_admin: { Args: never; Returns: boolean }
+      join_tournament: { Args: { p_tournament_id: string }; Returns: Json }
+      leave_tournament: { Args: { p_tournament_id: string }; Returns: Json }
       place_order:
         | {
             Args: {
@@ -2664,6 +2685,7 @@ export type Database = {
         Args: { admin_remarks_text: string; request_id: string }
         Returns: Json
       }
+      start_tournament: { Args: { p_tournament_id: string }; Returns: Json }
       try_assign_voucher: {
         Args: { p_game: string; p_order_id: string; p_package_id: string }
         Returns: Json

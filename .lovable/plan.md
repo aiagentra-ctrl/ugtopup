@@ -1,82 +1,172 @@
 
-## Goal
-Add a brand-new **Tournaments** feature ("IG Arena") as a standalone page at `/tournaments`. Adapt the IG Arena brief into the project's existing **dark red/pink theme** (the brief's purple becomes our brand red `--primary`). Reuse the existing `Header` and `Footer`. **No changes to any existing page, component, or DB table.**
+# IG Arena — Production-Ready Tournaments Rebuild
 
-## Scope (strictly additive)
-- **Route added** to `src/App.tsx`: `/tournaments` → new `Tournaments` page (just the route entry — nothing else in App.tsx changes).
-- **No edits** to Index, product pages, admin, auth, theme tokens, or DB schema.
-- All data is **frontend mock state** for v1 (no Supabase tables). Buttons (Withdraw, Join, Create, Report) open local modals/toasts only — no backend wiring yet.
+## Goals
+1. Replace all mock/static data with **real-time Supabase data** (live subscriptions).
+2. Build a **dedicated Tournaments page** with browsing, joining, live status, and countdowns.
+3. Redesign **My Games dashboard** as a fully functional control center.
+4. Add **room capacity & lifecycle states** (Waiting → Full → Ongoing → Finished).
+5. Modern gaming-style UI with animations, responsive layouts.
 
-## New files
-1. `src/pages/Tournaments.tsx` — page shell with `Header`, page container, and section composition; `Footer` at bottom.
-2. `src/components/tournaments/StatsRow.tsx` — 4 metric cards (Total earnings, Win/Loss with bar, Tournaments created, Global rank). 2×2 on mobile, 4-col on desktop.
-3. `src/components/tournaments/MyGamesPanel.tsx` — pill-tab panel using shadcn `Tabs` with 5 tabs: Wallet, Joined, Created, Reported, Finished. Includes "Withdraw winnings" primary button (opens `WithdrawModal`).
-4. `src/components/tournaments/MatchRow.tsx` — reusable row: game icon, name, monospace Room ID chip, masked password chip with eye-reveal (auto re-mask after 5s), status badge, prize. Click expands inline detail panel.
-5. `src/components/tournaments/StatusBadge.tsx` — semantic badges: Live (red pulsing dot), Upcoming (amber), Won (green), Lost (red), Joined (brand red), Pending (gray).
-6. `src/components/tournaments/WalletTab.tsx` — balance display, deposit method buttons (eSewa/Khalti/Bank — visual only, hooks into existing `TopUpModal` if trivial, otherwise placeholder), transaction history list.
-7. `src/components/tournaments/LiveUpcomingSection.tsx` — sub-section with red pulsing dot header + "View all" link.
-8. `src/components/tournaments/RecentlyFinishedSection.tsx` — last 3–5 finished matches.
-9. `src/components/tournaments/Leaderboard.tsx` — Top players card, 5 rows, medals for top 3, deterministic avatar color from name hash, current user's row highlighted in brand red with "(You)" suffix.
-10. `src/components/tournaments/NotificationsPanel.tsx` — local in-page notifications list (separate from the global bell — purely visual for the IG Arena context).
-11. `src/components/tournaments/ActiveTournamentsCard.tsx` — live tournament count, players today, capacity progress bar.
-12. `src/components/tournaments/HowItWorks.tsx` — 4-step horizontal row (Register → Add Coins → Join → Win Prizes). 2×2 on mobile.
-13. `src/components/tournaments/WithdrawModal.tsx` — shadcn `Dialog` with amount input, method selector, destination field, NPR conversion preview, validation, and success state with mock reference ID.
-14. `src/components/tournaments/CreateTournamentModal.tsx` — modeled on the uploaded screenshots (Custom/Lonewolf mode, Team 1v1/2v2/4v4, Throwable Limit, Gun Attribute, Character Skill, Rounds 9/13, Headshot Only, Coin Default IG/9980, Matchroom Name, Entry Fee, Potential Winning, Match Rules, Date/Time picker, "I understand…" checkbox, "Create Matchroom" CTA). Pure UI form with local validation; "Create" simulates success with a generated Room ID + password and pushes a mock row into the Created tab.
-15. `src/components/tournaments/EmptyState.tsx` — shared empty-state component (icon + title + description + CTA).
-16. `src/components/tournaments/SkeletonRow.tsx` — skeleton loaders for rows/cards using existing `Skeleton`.
-17. `src/data/tournamentsMock.ts` — typed mock data (matches, leaderboard players, notifications, transactions). Easy to swap for Supabase later.
-18. `src/lib/tournamentsUtils.ts` — `maskPassword`, `formatCoins`, `relativeTime`, `nameToColor` (deterministic hue from name hash), `formatRoomId`.
+---
 
-## Theme adaptation (no token changes)
-- The brief specifies **purple** as brand accent. Our project's brand is **red/pink** (`--primary: 0 100% 50%`). Map all "purple" usages to `hsl(var(--primary))` so the page matches site identity.
-- Wins/success → existing `--dashboard-green` (`142 76% 36%`).
-- Losses/live status/alerts → `hsl(var(--destructive))`.
-- Upcoming/warnings → amber (`text-amber-400 bg-amber-500/10`).
-- Surfaces use existing `bg-card`, `bg-muted`, `border-border` — no new CSS variables, no new global styles.
-- Cards: `rounded-lg`, `border border-border/60`, no heavy shadow (matches "flat" requirement).
-- Room ID chips use `font-mono` (Tailwind built-in).
-- Status badge "Live" uses a red dot with `animate-pulse` (already in Tailwind core).
+## 1. Database Schema Changes (migration)
 
-## Layout (matches brief)
-```
-[Header (existing)]
-[Page title: "IG Arena — Tournaments"]
-[Stats row: 4 cards | 2x2 on mobile]
-[My Games panel
-   ├─ Tab pills: Wallet | Joined | Created | Reported | Finished
-   ├─ Withdraw winnings button (top-right, primary red)
-   ├─ Joined tab: Live & Upcoming → divider → Recently finished
-   └─ Inline expandable rows]
-[Two-column section
-   ├─ Left: Top Players Leaderboard
-   └─ Right: Notifications panel + Active Tournaments card (stacked)]
-[How It Works: 4 steps]
-[Footer (existing)]
-[Floating "Create Tournament" button on Created tab → opens CreateTournamentModal]
-```
+Add columns to `tournaments` for capacity & lifecycle:
+- `max_players` (int, default 4)
+- `current_players` (int, default 0) — auto-maintained by trigger
+- `room_status` (text: 'waiting' | 'full' | 'ongoing' | 'finished') — derived from participant count + status
+- `description` (text, optional rules)
+- `game_mode` (text: '1v1' | '2v2' | '4v4' | 'squad')
 
-## Mobile behavior
-- Stats: 2×2 grid below `md`.
-- Tabs: horizontally scrollable single row with `scrollbar-hide` and right-edge fade gradient.
-- Two-column section stacks to single column.
-- How It Works: 2×2 grid.
-- All tap targets ≥44×44px (already enforced globally in `index.css`).
+Add SQL functions:
+- `join_tournament(p_tournament_id uuid)` — atomically deducts entry_fee from `profiles.balance`, inserts participant, increments `current_players`, flips `room_status` to 'full' when capacity reached. Returns JSON.
+- `leave_tournament(p_tournament_id uuid)` — refunds entry_fee if status='upcoming', removes participant, decrements counter.
+- `start_tournament(p_id uuid)` — creator/admin only, flips status to 'live' and `room_status` to 'ongoing'.
+- `finish_tournament(p_id uuid, p_winner_user_id uuid)` — credits prize to winner's balance, marks participants won/lost, sets status='finished'.
+- Trigger `tournament_participants_count_trg` keeps `current_players` and `room_status` in sync on insert/delete.
 
-## States
-- **Empty**: every list (Joined/Created/Reported/Finished/Notifications) renders `EmptyState` when its mock array is empty.
-- **Loading**: a 600ms simulated load on first mount renders `SkeletonRow`s, then real mock data.
-- **Error**: a "Retry" inline banner (mocked — never triggered in v1, but component included for future use).
+Notifications: reuse existing `create_user_notification` for join/start/win events.
 
-## Out of scope (explicitly NOT doing)
-- No Supabase tables, RLS, or edge functions.
-- No real wallet/withdrawal/payment integration.
-- No changes to `Header`, navbar wallet pill, or notification bell.
-- No new admin panel section.
-- No changes to existing routes/pages/components/styles.
+---
 
-## Acceptance
-- Visiting `/tournaments` (or `/#/tournaments`) shows the full IG Arena dashboard rendered in the site's red/pink dark theme.
-- All 5 tabs switch correctly, password mask reveal works for 5s then re-masks.
-- Withdraw modal opens, validates, shows success state, closes.
-- Create Tournament modal matches the uploaded screenshots' field set and produces a mock room.
-- Zero diffs in any file outside `src/App.tsx` (one route line) and the new files listed above.
+## 2. API Layer (`src/lib/tournamentsApi.ts`)
+
+Extend with:
+- `joinTournament(id)`, `leaveTournament(id)`, `startTournament(id)`, `finishTournament(id, winnerId)` — RPC wrappers.
+- `fetchLiveTournaments()` — live + upcoming with participant counts.
+- `fetchTournamentDetail(id)` — tournament + participants list (with usernames from profiles).
+- `subscribeTournaments(callback)` — Supabase realtime channel on `tournaments` + `tournament_participants` tables.
+- `reportMatch({ tournament_id, reason })` — insert into `tournament_reports`.
+- `fetchEarningsSummary(userId)` — sum of `coins_won` from participants table for real wins/losses/earnings stats.
+
+Delete `src/data/tournamentsMock.ts` entirely (move only the `MatchStatus` type into `tournamentsApi.ts`).
+
+---
+
+## 3. New Dedicated Tournaments Page (`src/pages/Tournaments.tsx`)
+
+Full rebuild with these sections:
+
+### 3a. Hero header
+Brand title, live counter ("X tournaments live now" — real subscription count), Create Match Room CTA, link to My Games.
+
+### 3b. Filter/Sort bar
+Game (Free Fire, PUBG, ML, Custom), status (All / Live / Upcoming / Full), entry fee range.
+
+### 3c. Tournament Card grid (responsive 1/2/3 cols)
+Each card shows:
+- Game icon + tournament name + game mode chip
+- **Live countdown timer** to `starts_at` (updates every second via shared `useCountdown` hook)
+- Prize pool (large, accent color) and entry fee
+- Player count progress bar `current_players / max_players`
+- **Room status pill**: Waiting (amber pulse) / Full (red) / Ongoing (green pulse) / Finished (gray)
+- Action button: **Join** (deducts coins via RPC) / **Full** (disabled) / **Watch** (live) / **Joined ✓**
+- Hover/tap → opens **Tournament Detail Drawer**
+
+### 3d. Tournament Detail Drawer/Modal
+- Full info, participant list with avatars, room credentials (only visible to joined players, with auto-mask 5s reveal), countdown, leave button (if upcoming), report button.
+
+### 3e. Real-time
+Supabase subscription on `tournaments` + `tournament_participants` channels — list updates instantly when anyone joins, room fills, or status changes.
+
+---
+
+## 4. Redesigned My Games Dashboard (`MyGamesPanel`)
+
+Rewrite with **real data** and these tabs (all backed by Supabase queries):
+
+| Tab | Source | Shows |
+|-----|--------|-------|
+| **Overview** | aggregated | Earnings, win rate, active matches, balance |
+| **Joined** | participants WHERE user_id AND status IN (upcoming,live) | live matches with countdown |
+| **Created** | tournaments WHERE created_by=user | start/cancel/finish controls |
+| **Ongoing** | participants WHERE tournament.status='live' | live room creds + leave |
+| **Finished** | participants WHERE tournament.status='finished' | result, coins won |
+| **Reported** | tournament_reports WHERE user_id | filed disputes |
+| **Wallet** | profiles.balance + tournament_withdrawals + winnings tx | full history |
+
+Each tab uses real-time subscription so status changes propagate immediately.
+
+### Earnings card
+Replace mock `initialStats` with live aggregates: `SUM(coins_won)` for total earnings, `COUNT(result='won')` for wins, etc.
+
+### Wallet/IG Coins
+Use `profiles.balance` (already real). Withdraw button opens existing `WithdrawModal` (already wired).
+
+---
+
+## 5. Improved Create Match Room UI (`CreateTournamentModal`)
+
+Redesign as a 3-step wizard:
+1. **Game & Mode** — visual game tiles (FF/PUBG/ML/Custom), mode (1v1/2v2/4v4/Squad), max players.
+2. **Settings & Rules** — description, headshot only, gun attr, etc., rounds.
+3. **Prize & Schedule** — entry fee, auto-calculated prize pool (`entry_fee × max_players × 0.9` with 10% platform cut shown), date/time picker, agreement checkbox.
+
+Final review screen before submit. On success, show generated Room ID + Password with copy buttons and a "Share" link.
+
+---
+
+## 6. Live Room Status Display
+
+New component `RoomStatusBadge` with 4 visual states:
+- **Waiting** — amber dot + "Waiting (2/4)"
+- **Full** — red filled + "Full — starting soon"
+- **Ongoing** — green pulse + "Live now"
+- **Finished** — gray + "Finished"
+
+Used on cards, drawer, and dashboard rows.
+
+---
+
+## 7. UI/UX polish
+
+- New gaming-style icons (lucide: Swords, Crosshair, Crown, Zap, Flame).
+- Subtle gradient borders on live cards (pulse animation).
+- Skeleton loaders for all data sections (already have `SkeletonRow`).
+- Toast feedback on join/leave/create/finish actions.
+- Empty states with illustrations and CTA.
+- Mobile: bottom-sheet for detail drawer; cards stack; sticky filter bar.
+- Tailwind animations: `animate-pulse` for live indicators, `hover:scale-[1.02]` on cards, `fade-in` on data load.
+
+---
+
+## 8. Files to Create / Edit
+
+**New files:**
+- `src/components/tournaments/TournamentCard.tsx`
+- `src/components/tournaments/TournamentDetailDrawer.tsx`
+- `src/components/tournaments/RoomStatusBadge.tsx`
+- `src/components/tournaments/TournamentFilters.tsx`
+- `src/components/tournaments/CountdownTimer.tsx`
+- `src/components/tournaments/ParticipantList.tsx`
+- `src/components/tournaments/CreateRoomWizard.tsx` (replaces CreateTournamentModal internals)
+- `src/hooks/useCountdown.ts`
+- `src/hooks/useRealtimeTournaments.ts`
+- `supabase/migrations/<timestamp>_tournaments_rooms_capacity.sql` (schema + RPCs + triggers)
+
+**Edit:**
+- `src/pages/Tournaments.tsx` — full rebuild
+- `src/components/tournaments/MyGamesPanel.tsx` — real-data tabs + Overview & Ongoing
+- `src/components/tournaments/MatchRow.tsx` — show countdown, room status, join/leave buttons
+- `src/components/tournaments/StatsRow.tsx` — wire to real aggregates
+- `src/components/tournaments/Leaderboard.tsx` — query top players by `SUM(coins_won)` from participants
+- `src/components/tournaments/ActiveTournamentsCard.tsx` — real live count
+- `src/lib/tournamentsApi.ts` — new RPC wrappers + realtime helpers
+- `src/pages/Dashboard.tsx` — use real stats
+
+**Delete:**
+- `src/data/tournamentsMock.ts` (move types only)
+
+---
+
+## 9. Out of scope (this round)
+- Bracket/match scheduler UI (single-room matches only).
+- Spectator mode / live streaming.
+- Admin moderation panel for reports (uses existing admin patterns later).
+
+---
+
+## Verification
+- `tsc --noEmit` passes.
+- Manually test: create room → see in browse list → join from another tab → counter increments live → start → finish → winner balance increases → entry refunded on leave-while-upcoming.
