@@ -5,10 +5,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
-import { CheckCircle2 } from "lucide-react";
+import { CheckCircle2, Loader2 } from "lucide-react";
 import { generatePassword, generateRoomId } from "@/lib/tournamentsUtils";
 import type { TournamentMatch } from "@/data/tournamentsMock";
 import { cn } from "@/lib/utils";
+import { createTournament } from "@/lib/tournamentsApi";
+import { toast } from "sonner";
 
 const Toggle = ({
   active,
@@ -56,26 +58,45 @@ export const CreateTournamentModal = ({
   const [agree, setAgree] = useState(false);
   const [rules, setRules] = useState("");
   const [success, setSuccess] = useState<TournamentMatch | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
   const entryNum = Number(entry) || 0;
   const winnings = entryNum * 2;
-  const valid = name.trim().length > 2 && entryNum >= 20 && date && agree;
+  const valid = name.trim().length > 2 && entryNum >= 20 && date && agree && !submitting;
 
-  const submit = () => {
+  const submit = async () => {
     if (!valid) return;
-    const m: TournamentMatch = {
-      id: "new-" + Date.now(),
-      name: name.trim(),
-      game: mode === "lonewolf" ? "Lonewolf" : "Custom",
-      roomId: generateRoomId(),
-      password: generatePassword(),
-      prize: winnings,
-      entryFee: entryNum,
-      status: "upcoming",
-      startsAt: new Date(date).toISOString(),
-    };
-    setSuccess(m);
-    onCreated(m);
+    setSubmitting(true);
+    const roomId = generateRoomId();
+    const password = generatePassword();
+    try {
+      const row = await createTournament({
+        name: name.trim(),
+        game: mode === "lonewolf" ? "Lonewolf" : "Custom",
+        room_id: roomId,
+        password,
+        prize: winnings,
+        entry_fee: entryNum,
+        starts_at: new Date(date).toISOString(),
+      });
+      const m: TournamentMatch = {
+        id: row.id,
+        name: row.name,
+        game: row.game,
+        roomId: row.room_id,
+        password: row.password,
+        prize: Number(row.prize),
+        entryFee: Number(row.entry_fee),
+        status: "upcoming",
+        startsAt: row.starts_at ?? undefined,
+      };
+      setSuccess(m);
+      onCreated(m);
+    } catch (e: any) {
+      toast.error(e?.message || "Failed to create tournament");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const close = (v: boolean) => {
@@ -187,7 +208,10 @@ export const CreateTournamentModal = ({
               <span>I understand the match rules and regulations</span>
             </label>
 
-            <Button onClick={submit} disabled={!valid} className="w-full">Create matchroom</Button>
+            <Button onClick={submit} disabled={!valid} className="w-full">
+              {submitting && <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />}
+              Create matchroom
+            </Button>
           </div>
         )}
       </DialogContent>
