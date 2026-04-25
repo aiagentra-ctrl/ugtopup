@@ -44,6 +44,7 @@ import LoginRequired from "./pages/LoginRequired";
 import Rewards from "./pages/Rewards";
 import Referrals from "./pages/Referrals";
 import ReferAndEarn from "./pages/ReferAndEarn";
+import Tournaments from "./pages/Tournaments";
 
 import NotFound from "./pages/NotFound";
 import Products from "./pages/Products";
@@ -104,6 +105,7 @@ const App = () => (
             <Route path="/product/post-design" element={<PostDesign />} />
             <Route path="/product/banner-design" element={<BannerDesign />} />
             <Route path="/product/thumbnail-design" element={<ThumbnailDesign />} />
+            <Route path="/tournaments" element={<Tournaments />} />
             <Route path="/contact" element={<ContactUs />} />
             <Route path="/refund-policy" element={<RefundPolicy />} />
             <Route path="/coupon-policy" element={<CouponPolicy />} />
