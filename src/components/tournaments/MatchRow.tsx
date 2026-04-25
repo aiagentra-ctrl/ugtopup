@@ -1,11 +1,21 @@
 import { useEffect, useState } from "react";
-import { Eye, EyeOff, Gamepad2 } from "lucide-react";
+import { Eye, EyeOff, Gamepad2, Users } from "lucide-react";
 import { StatusBadge } from "./StatusBadge";
+import { RoomStatusBadge } from "./RoomStatusBadge";
+import { CountdownTimer } from "./CountdownTimer";
 import { formatCoins, maskPassword, nameToColor } from "@/lib/tournamentsUtils";
 import type { TournamentMatch } from "@/data/tournamentsMock";
 import { cn } from "@/lib/utils";
 
-export const MatchRow = ({ match, last }: { match: TournamentMatch; last?: boolean }) => {
+export const MatchRow = ({
+  match,
+  last,
+  onClick,
+}: {
+  match: TournamentMatch;
+  last?: boolean;
+  onClick?: () => void;
+}) => {
   const [revealed, setRevealed] = useState(false);
   const [expanded, setExpanded] = useState(false);
 
@@ -15,15 +25,20 @@ export const MatchRow = ({ match, last }: { match: TournamentMatch; last?: boole
     return () => clearTimeout(t);
   }, [revealed]);
 
+  const handleClick = () => {
+    if (onClick) onClick();
+    else setExpanded((e) => !e);
+  };
+
   return (
     <div className={cn(!last && "border-b border-border/60")}>
       <button
         type="button"
-        onClick={() => setExpanded((e) => !e)}
+        onClick={handleClick}
         className="flex w-full items-center gap-3 px-3 py-3 text-left transition-colors hover:bg-muted/50"
       >
         <div
-          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-white"
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-white"
           style={{ background: nameToColor(match.game) }}
         >
           <Gamepad2 className="h-4 w-4" />
@@ -31,9 +46,7 @@ export const MatchRow = ({ match, last }: { match: TournamentMatch; last?: boole
         <div className="min-w-0 flex-1">
           <div className="truncate text-[13px] font-medium text-foreground">{match.name}</div>
           <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[11px] text-muted-foreground">
-            <span className="rounded border border-border bg-muted px-1.5 py-0.5 font-mono">
-              {match.roomId}
-            </span>
+            <span className="rounded border border-border bg-muted px-1.5 py-0.5 font-mono">{match.roomId}</span>
             <span className="inline-flex items-center gap-1 rounded border border-border bg-muted px-1.5 py-0.5 font-mono">
               {revealed ? match.password : maskPassword(match.password)}
               <span
@@ -49,20 +62,34 @@ export const MatchRow = ({ match, last }: { match: TournamentMatch; last?: boole
                 {revealed ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
               </span>
             </span>
+            {typeof match.currentPlayers === "number" && typeof match.maxPlayers === "number" && (
+              <span className="inline-flex items-center gap-1 text-muted-foreground">
+                <Users className="h-3 w-3" /> {match.currentPlayers}/{match.maxPlayers}
+              </span>
+            )}
+            {match.startsAt && match.status === "upcoming" && (
+              <CountdownTimer target={match.startsAt} className="text-[11px]" />
+            )}
           </div>
         </div>
         <div className="flex shrink-0 flex-col items-end gap-1">
-          <StatusBadge status={match.status} />
+          {match.roomStatus ? (
+            <RoomStatusBadge status={match.roomStatus} />
+          ) : (
+            <StatusBadge status={match.status} />
+          )}
           <span className="text-[11px] text-muted-foreground">
-            {match.status === "won"
-              ? <span className="text-emerald-400">+{formatCoins(match.resultCoins ?? 0)}</span>
-              : match.status === "lost"
-                ? <span className="text-muted-foreground">—</span>
-                : `${formatCoins(match.prize)} coins`}
+            {match.status === "won" ? (
+              <span className="text-emerald-400">+{formatCoins(match.resultCoins ?? 0)}</span>
+            ) : match.status === "lost" ? (
+              <span className="text-muted-foreground">—</span>
+            ) : (
+              `${formatCoins(match.prize)} coins`
+            )}
           </span>
         </div>
       </button>
-      {expanded && (
+      {expanded && !onClick && (
         <div className="space-y-1 border-t border-border/60 bg-muted/30 px-3 py-3 text-[12px] text-muted-foreground">
           <div>Game: <span className="text-foreground">{match.game}</span></div>
           <div>Entry fee: <span className="text-foreground">{formatCoins(match.entryFee)} coins</span></div>
