@@ -47,13 +47,10 @@ export const RobloxOrderReview = ({
   const { orderId, package: pkg, username, whatsapp, email, currentBalance } = orderData;
   const totalPrice = propTotalPrice ?? pkg.price * purchaseQuantity;
   const totalItems = propTotalItems ?? pkg.quantity * purchaseQuantity;
-  const insufficientBalance = currentBalance < totalPrice;
   const [appliedCoupon, setAppliedCoupon] = useState<(CouponValidation & { code: string }) | null>(null);
-
   const discount = appliedCoupon?.discount_amount ?? 0;
-
   const finalPrice = appliedCoupon?.final_price ?? totalPrice;
-
+  const insufficientBalance = currentBalance < finalPrice;
   const balanceAfter = currentBalance - finalPrice;
 
   return (
