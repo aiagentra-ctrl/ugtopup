@@ -142,6 +142,24 @@ export function AdminAppDownload() {
         </Card>
       )}
 
+      {/* Android / Desktop manual install fallback — shown when the
+          browser hasn't fired beforeinstallprompt yet. */}
+      {!isIOS && !isInstalled && !isStandalone && !isInstallable && (
+        <Card className="border-primary/20 bg-primary/5">
+          <CardContent className="p-6">
+            <h3 className="font-semibold text-foreground mb-3">📲 Install on Android / Desktop</h3>
+            <ol className="space-y-2 text-sm text-muted-foreground">
+              <li className="flex gap-2"><span className="font-bold text-foreground">1.</span> Tap the browser <strong>menu (⋮)</strong> in the top-right</li>
+              <li className="flex gap-2"><span className="font-bold text-foreground">2.</span> Choose <strong>"Install app"</strong> or <strong>"Add to Home screen"</strong></li>
+              <li className="flex gap-2"><span className="font-bold text-foreground">3.</span> Confirm — it installs as the Admin App, separate from the user app</li>
+            </ol>
+            <p className="text-xs text-muted-foreground mt-3">
+              Tip: tap <strong>Install Admin App</strong> above first — if your browser supports one-click install, it will appear immediately.
+            </p>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Features */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {features.map((feature, i) => (
