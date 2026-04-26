@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -10,7 +11,7 @@ import {
   CheckCircle2,
   Monitor,
 } from "lucide-react";
-import { usePWAInstall } from "@/hooks/usePWAInstall";
+import { usePWAInstall, swapManifest } from "@/hooks/usePWAInstall";
 import { toast } from "sonner";
 
 const features = [
@@ -22,26 +23,41 @@ const features = [
 
 export function AdminAppDownload() {
   const { isInstallable, isInstalled, isLoading, promptInstall, isIOS, isStandalone } = usePWAInstall();
+  const [waitingForPrompt, setWaitingForPrompt] = useState(false);
+
+  // As soon as the admin opens this section, force the admin manifest to be
+  // active so Chrome's install prompt captures the Admin App identity.
+  useEffect(() => {
+    swapManifest(true);
+    return () => {
+      // When leaving, restore the user manifest so user-side installs work.
+      swapManifest(false);
+    };
+  }, []);
 
   const handleInstall = async () => {
     if (isInstalled || isStandalone) {
-      toast.info("App is already installed!");
+      toast.info("Admin App is already installed");
       return;
     }
 
     if (isIOS) {
       try { localStorage.setItem('installed_as_admin_app', 'true'); } catch {}
-      toast.info("Tap the Share button in Safari, then 'Add to Home Screen'");
+      toast.info("On iPhone: tap Share, then 'Add to Home Screen' to install the Admin App");
       return;
     }
 
-    if (!isInstallable) {
-      toast.info("Open this admin page in Chrome or Edge browser to install the Admin App");
-      return;
-    }
-
-    // Mark this install as the Admin App so future launches go straight to /admin
+    // Always make sure the admin manifest is the active one before prompting.
+    const swapped = swapManifest(true);
     try { localStorage.setItem('installed_as_admin_app', 'true'); } catch {}
+
+    // If we just swapped the manifest, give Chrome a moment to refire
+    // beforeinstallprompt for the admin app identity.
+    if (swapped || !isInstallable) {
+      setWaitingForPrompt(true);
+      await new Promise((r) => setTimeout(r, 1200));
+      setWaitingForPrompt(false);
+    }
 
     const result = await promptInstall();
     if (result === 'accepted') {
@@ -49,8 +65,12 @@ export function AdminAppDownload() {
     } else if (result === 'dismissed') {
       try { localStorage.removeItem('installed_as_admin_app'); } catch {}
       toast.info("Installation cancelled");
+    } else {
+      toast.info("Install will be available shortly — please tap Install again");
     }
   };
+
+  const buttonDisabled = isLoading || waitingForPrompt;
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -64,7 +84,7 @@ export function AdminAppDownload() {
             <div className="flex-1 text-center md:text-left">
               <h2 className="text-2xl font-bold text-foreground">Admin Mobile App</h2>
               <p className="text-muted-foreground mt-1">
-                Install the admin panel as a mobile app for instant access and push notifications
+                Install the admin panel as a separate mobile app — independent from the user app.
               </p>
               <div className="flex flex-wrap gap-2 mt-3 justify-center md:justify-start">
                 <Badge variant="secondary">PWA</Badge>
@@ -79,9 +99,9 @@ export function AdminAppDownload() {
                   Installed
                 </Button>
               ) : (
-                <Button onClick={handleInstall} disabled={isLoading} size="lg" className="gap-2">
+                <Button onClick={handleInstall} disabled={buttonDisabled} size="lg" className="gap-2">
                   <Download className="h-5 w-5" />
-                  {isLoading ? "Installing..." : "Install App"}
+                  {buttonDisabled ? "Preparing…" : "Install Admin App"}
                 </Button>
               )}
             </div>
@@ -93,11 +113,11 @@ export function AdminAppDownload() {
       {isIOS && !isInstalled && (
         <Card className="border-orange-500/20 bg-orange-500/5">
           <CardContent className="p-6">
-            <h3 className="font-semibold text-foreground mb-3">📱 iOS Installation</h3>
+            <h3 className="font-semibold text-foreground mb-3">📱 iPhone / iPad install</h3>
             <ol className="space-y-2 text-sm text-muted-foreground">
-              <li className="flex gap-2"><span className="font-bold text-foreground">1.</span> Tap the <strong>Share</strong> button in Safari (square with arrow)</li>
-              <li className="flex gap-2"><span className="font-bold text-foreground">2.</span> Scroll down and tap <strong>"Add to Home Screen"</strong></li>
-              <li className="flex gap-2"><span className="font-bold text-foreground">3.</span> Tap <strong>"Add"</strong> to confirm</li>
+              <li className="flex gap-2"><span className="font-bold text-foreground">1.</span> Tap the <strong>Share</strong> button in Safari</li>
+              <li className="flex gap-2"><span className="font-bold text-foreground">2.</span> Choose <strong>"Add to Home Screen"</strong></li>
+              <li className="flex gap-2"><span className="font-bold text-foreground">3.</span> Tap <strong>"Add"</strong> — it installs as the Admin App</li>
             </ol>
           </CardContent>
         </Card>
