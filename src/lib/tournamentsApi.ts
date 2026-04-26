@@ -6,14 +6,22 @@ export type ParticipantResult = "pending" | "won" | "lost";
 export type ReportStatus = "review" | "resolved" | "rejected";
 export type WithdrawalStatus = "pending" | "processed" | "rejected";
 
+// Columns of `tournaments` that are readable by every authenticated user.
+// `room_id` and `password` are intentionally excluded — they must be fetched
+// via the `get_tournament_credentials` RPC by the creator/participants/admins.
+const TOURNAMENT_PUBLIC_COLUMNS =
+  "id,name,game,game_mode,description,prize,prize_pool,entry_fee,status,room_status,max_players,current_players,starts_at,finished_at,created_by,created_at,updated_at,host_fee,commission_percent,commission_amount,winner_prize,auto_start_at";
+
 export interface DBTournament {
   id: string;
   name: string;
   game: string;
   game_mode: string;
   description: string | null;
-  room_id: string;
-  password: string;
+  /** Only populated after calling `fetchTournamentCredentials`. */
+  room_id: string | null;
+  /** Only populated after calling `fetchTournamentCredentials`. */
+  password: string | null;
   prize: number;
   entry_fee: number;
   status: TournamentStatus;
