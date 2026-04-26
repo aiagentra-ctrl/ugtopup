@@ -7,6 +7,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TournamentsLayout } from "@/components/tournaments/TournamentsLayout";
+import { TournamentBannerStrip } from "@/components/tournaments/TournamentBannerStrip";
 import { TournamentDetailDrawer } from "@/components/tournaments/TournamentDetailDrawer";
 import { ArenaHero } from "@/components/tournaments/ArenaHero";
 import { LiveTicker } from "@/components/tournaments/LiveTicker";
@@ -98,6 +99,7 @@ const TournamentsHub = () => {
 
   return (
     <TournamentsLayout>
+      <TournamentBannerStrip />
       <ArenaHero
         liveCount={stats.live}
         playerCount={stats.players}
