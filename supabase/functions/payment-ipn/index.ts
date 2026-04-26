@@ -126,7 +126,7 @@ Deno.serve(async (req) => {
           p_identifier: identifier,
           p_transaction_id: transactionId || '',
           p_gateway: gateway || 'unknown',
-          p_api_response: ipnData
+          p_api_response: sanitizedPayload
         }
       );
 
@@ -156,7 +156,7 @@ Deno.serve(async (req) => {
         {
           p_identifier: identifier,
           p_status: failureStatus,
-          p_api_response: ipnData
+          p_api_response: sanitizedPayload
         }
       );
 
@@ -182,7 +182,7 @@ Deno.serve(async (req) => {
       await supabaseAdmin
         .from('payment_transactions')
         .update({ 
-          api_response: ipnData,
+          api_response: sanitizedPayload,
           updated_at: new Date().toISOString()
         })
         .eq('identifier', identifier);
