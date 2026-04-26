@@ -51,6 +51,7 @@ interface AdminLayoutProps {
 const menuItems = [
   { id: "dashboard", title: "Dashboard", icon: LayoutDashboard },
   { id: "tournaments-hub", title: "Tournaments", icon: Trophy },
+  { id: "tournament-banners", title: "Tournament Banners", icon: ImageIcon },
   { id: "online-payments", title: "Online Payments", icon: CreditCard },
   { id: "payments", title: "Credit Requests", icon: CreditCard },
   { id: "orders", title: "Order Management", icon: ShoppingCart },

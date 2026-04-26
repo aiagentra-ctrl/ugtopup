@@ -1973,6 +1973,48 @@ export type Database = {
           },
         ]
       }
+      tournament_banners: {
+        Row: {
+          created_at: string
+          cta_link: string | null
+          cta_text: string | null
+          display_order: number
+          id: string
+          image_url: string | null
+          is_active: boolean
+          message: string
+          title: string | null
+          updated_at: string
+          variant: string
+        }
+        Insert: {
+          created_at?: string
+          cta_link?: string | null
+          cta_text?: string | null
+          display_order?: number
+          id?: string
+          image_url?: string | null
+          is_active?: boolean
+          message: string
+          title?: string | null
+          updated_at?: string
+          variant?: string
+        }
+        Update: {
+          created_at?: string
+          cta_link?: string | null
+          cta_text?: string | null
+          display_order?: number
+          id?: string
+          image_url?: string | null
+          is_active?: boolean
+          message?: string
+          title?: string | null
+          updated_at?: string
+          variant?: string
+        }
+        Relationships: []
+      }
       tournament_boosts: {
         Row: {
           amount: number
