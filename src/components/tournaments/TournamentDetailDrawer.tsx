@@ -35,14 +35,18 @@ export const TournamentDetailDrawer = ({
   const [reportReason, setReportReason] = useState("");
   const [busy, setBusy] = useState(false);
   const [winner, setWinner] = useState<string>("");
+  const [creds, setCreds] = useState<{ room_id: string; password: string } | null>(null);
 
   useEffect(() => {
     if (!open || !tournament) return;
     setLoading(true);
+    setCreds(null);
     fetchTournamentParticipants(tournament.id)
       .then((rows) => setParticipants(rows))
       .catch(() => setParticipants([]))
       .finally(() => setLoading(false));
+    // Try to fetch credentials — server returns them only to creator/participants/admins.
+    fetchTournamentCredentials(tournament.id).then((c) => setCreds(c));
   }, [open, tournament?.id]);
 
   useEffect(() => {
