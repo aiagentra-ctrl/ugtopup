@@ -11,7 +11,7 @@ import { CountdownTimer } from "./CountdownTimer";
 import { RoomStatusBadge } from "./RoomStatusBadge";
 import { formatCoins, initials, maskPassword, nameToColor } from "@/lib/tournamentsUtils";
 import {
-  fetchTournamentParticipants, finishTournament, leaveTournament, reportMatch, startTournament,
+  fetchTournamentParticipants, fetchTournamentCredentials, finishTournament, leaveTournament, reportMatch, startTournament,
   type DBTournament,
 } from "@/lib/tournamentsApi";
 import { useAuth } from "@/contexts/AuthContext";
