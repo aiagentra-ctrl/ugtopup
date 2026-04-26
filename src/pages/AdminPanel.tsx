@@ -41,6 +41,7 @@ import { SystemHealthMonitor } from "@/components/admin/SystemHealthMonitor";
 import { AdvancedAnalytics } from "@/components/admin/AdvancedAnalytics";
 import { WhatsAppChatbot } from "@/components/admin/WhatsAppChatbot";
 import { TournamentAdminHub } from "@/components/admin/TournamentAdminHub";
+import { TournamentBannerManager } from "@/components/admin/TournamentBannerManager";
 import { checkAdminAccess } from "@/lib/adminApi";
 import { useAdminPushNotifications } from "@/hooks/useAdminPushNotifications";
 import { toast } from "sonner";
@@ -181,6 +182,8 @@ const AdminPanel = () => {
         return <WhatsAppChatbot />;
       case "tournaments-hub":
         return <TournamentAdminHub />;
+      case "tournament-banners":
+        return <TournamentBannerManager />;
       default:
         return <EnhancedDashboard />;
     }
