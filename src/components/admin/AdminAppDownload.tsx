@@ -35,6 +35,20 @@ export function AdminAppDownload() {
     };
   }, []);
 
+  // Wait for `beforeinstallprompt` (captured globally on window.__deferredInstallPrompt)
+  // to become available, polling up to `timeoutMs`.
+  const waitForPrompt = (timeoutMs = 5000): Promise<boolean> => {
+    return new Promise((resolve) => {
+      const start = Date.now();
+      const check = () => {
+        if (window.__deferredInstallPrompt) return resolve(true);
+        if (Date.now() - start >= timeoutMs) return resolve(false);
+        setTimeout(check, 200);
+      };
+      check();
+    });
+  };
+
   const handleInstall = async () => {
     if (isInstalled || isStandalone) {
       toast.info("Admin App is already installed");
@@ -51,11 +65,11 @@ export function AdminAppDownload() {
     const swapped = swapManifest(true);
     try { localStorage.setItem('installed_as_admin_app', 'true'); } catch {}
 
-    // If we just swapped the manifest, give Chrome a moment to refire
-    // beforeinstallprompt for the admin app identity.
-    if (swapped || !isInstallable) {
+    // After swapping the manifest, Chrome needs a moment to re-evaluate
+    // installability and re-fire beforeinstallprompt. Poll for it.
+    if (swapped || !window.__deferredInstallPrompt) {
       setWaitingForPrompt(true);
-      await new Promise((r) => setTimeout(r, 1200));
+      await waitForPrompt(5000);
       setWaitingForPrompt(false);
     }
 
@@ -66,7 +80,12 @@ export function AdminAppDownload() {
       try { localStorage.removeItem('installed_as_admin_app'); } catch {}
       toast.info("Installation cancelled");
     } else {
-      toast.info("Install will be available shortly — please tap Install again");
+      // Prompt never fired — give the user actionable manual steps instead
+      // of the generic "open in Chrome/Edge" message.
+      toast.info(
+        "Tap your browser menu (⋮) and choose 'Install app' or 'Add to Home screen' to install the Admin App.",
+        { duration: 8000 }
+      );
     }
   };
 
@@ -119,6 +138,24 @@ export function AdminAppDownload() {
               <li className="flex gap-2"><span className="font-bold text-foreground">2.</span> Choose <strong>"Add to Home Screen"</strong></li>
               <li className="flex gap-2"><span className="font-bold text-foreground">3.</span> Tap <strong>"Add"</strong> — it installs as the Admin App</li>
             </ol>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Android / Desktop manual install fallback — shown when the
+          browser hasn't fired beforeinstallprompt yet. */}
+      {!isIOS && !isInstalled && !isStandalone && !isInstallable && (
+        <Card className="border-primary/20 bg-primary/5">
+          <CardContent className="p-6">
+            <h3 className="font-semibold text-foreground mb-3">📲 Install on Android / Desktop</h3>
+            <ol className="space-y-2 text-sm text-muted-foreground">
+              <li className="flex gap-2"><span className="font-bold text-foreground">1.</span> Tap the browser <strong>menu (⋮)</strong> in the top-right</li>
+              <li className="flex gap-2"><span className="font-bold text-foreground">2.</span> Choose <strong>"Install app"</strong> or <strong>"Add to Home screen"</strong></li>
+              <li className="flex gap-2"><span className="font-bold text-foreground">3.</span> Confirm — it installs as the Admin App, separate from the user app</li>
+            </ol>
+            <p className="text-xs text-muted-foreground mt-3">
+              Tip: tap <strong>Install Admin App</strong> above first — if your browser supports one-click install, it will appear immediately.
+            </p>
           </CardContent>
         </Card>
       )}
