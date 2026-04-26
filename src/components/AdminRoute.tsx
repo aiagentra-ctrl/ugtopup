@@ -21,21 +21,13 @@ export const AdminRoute = ({ children }: AdminRouteProps) => {
       }
       
       try {
-        const { data, error } = await supabase
-          .from('user_roles')
-          .select('role')
-          .eq('user_id', user.id)
-          .in('role', ['admin', 'super_admin', 'sub_admin'])
-          .maybeSingle();
-        
+        const { data, error } = await supabase.rpc('is_admin');
         if (error) {
-          console.error('Error checking admin status:', error);
           setIsAdmin(false);
         } else {
-          setIsAdmin(!!data);
+          setIsAdmin(data === true);
         }
-      } catch (error) {
-        console.error('Error checking admin status:', error);
+      } catch {
         setIsAdmin(false);
       } finally {
         setIsLoading(false);
