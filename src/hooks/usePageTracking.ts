@@ -58,30 +58,13 @@ export function usePageTracking() {
       user_agent: navigator.userAgent,
     }).then(() => {});
 
-    // Upsert session
-    if (currentCount === 1) {
-      supabase.from("visitor_sessions").upsert(
-        {
-          session_id: sessionId,
-          traffic_source: source,
-          referrer,
-          page_count: 1,
-          is_bounce: true,
-          last_active_at: new Date().toISOString(),
-        },
-        { onConflict: "session_id" }
-      ).then(() => {});
-    } else {
-      // Update: mark not bounce, update last_active_at
-      supabase
-        .from("visitor_sessions")
-        .update({
-          is_bounce: false,
-          last_active_at: new Date().toISOString(),
-          page_count: currentCount,
-        })
-        .eq("session_id", sessionId)
-        .then(() => {});
-    }
+    // Upsert session via SECURITY DEFINER RPC (prevents cross-session overwrite)
+    (supabase.rpc as any)("upsert_visitor_session", {
+      p_session_id: sessionId,
+      p_traffic_source: source,
+      p_referrer: currentCount === 1 ? referrer : "",
+      p_page_count: currentCount,
+      p_is_bounce: currentCount === 1,
+    }).then(() => {});
   }, [location.pathname]);
 }
