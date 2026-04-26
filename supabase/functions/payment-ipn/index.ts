@@ -85,6 +85,13 @@ Deno.serve(async (req) => {
       received_at: new Date().toISOString(),
     };
 
+    if (!identifier) {
+      return new Response(
+        JSON.stringify({ error: 'Missing identifier' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     // Create admin client
     const supabaseAdmin = createClient(
       Deno.env.get('SUPABASE_URL')!,
