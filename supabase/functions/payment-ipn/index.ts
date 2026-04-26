@@ -42,16 +42,50 @@ Deno.serve(async (req) => {
       }
     }
 
-    console.log('IPN data received:', JSON.stringify(ipnData));
+    console.log('IPN data received');
 
-    // Extract relevant fields from IPN
-    const identifier = ipnData.identifier || ipnData.payment_id;
-    const status = ipnData.status || ipnData.payment_status;
-    const transactionId = ipnData.transaction_id || ipnData.trx_id || ipnData.api_transaction_id;
-    const gateway = ipnData.gateway || ipnData.payment_gateway || ipnData.method;
+    // --- Strict input validation: only accept known fields, with size limits ---
+    const str = (v: unknown, max: number): string | undefined => {
+      if (v === null || v === undefined) return undefined;
+      const s = String(v).slice(0, max);
+      return s.length ? s : undefined;
+    };
+    const num = (v: unknown): number | undefined => {
+      const n = typeof v === 'number' ? v : parseFloat(String(v));
+      return Number.isFinite(n) ? n : undefined;
+    };
+
+    const identifier = str(ipnData.identifier ?? ipnData.payment_id, 50);
+    const status = str(ipnData.status ?? ipnData.payment_status, 30);
+    const transactionId = str(ipnData.transaction_id ?? ipnData.trx_id ?? ipnData.api_transaction_id, 100);
+    const gateway = str(ipnData.gateway ?? ipnData.payment_gateway ?? ipnData.method, 50);
+
+    // Optional shared-secret signature check (set APINEPAL_WEBHOOK_SECRET to enable).
+    const expectedSecret = Deno.env.get('APINEPAL_WEBHOOK_SECRET');
+    if (expectedSecret) {
+      const provided = req.headers.get('x-webhook-secret') || str(ipnData.webhook_secret, 200);
+      if (provided !== expectedSecret) {
+        console.warn('IPN rejected: invalid webhook secret');
+        return new Response(
+          JSON.stringify({ error: 'Unauthorized' }),
+          { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    }
+
+    // Build a sanitized payload that gets persisted to api_response — strips any
+    // attacker-supplied junk fields that could later be rendered in admin tools.
+    const sanitizedPayload = {
+      identifier,
+      status,
+      transaction_id: transactionId,
+      gateway,
+      amount: num(ipnData.amount),
+      currency: str(ipnData.currency, 10),
+      received_at: new Date().toISOString(),
+    };
 
     if (!identifier) {
-      console.error('Missing identifier in IPN');
       return new Response(
         JSON.stringify({ error: 'Missing identifier' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -92,7 +126,7 @@ Deno.serve(async (req) => {
           p_identifier: identifier,
           p_transaction_id: transactionId || '',
           p_gateway: gateway || 'unknown',
-          p_api_response: ipnData
+          p_api_response: sanitizedPayload
         }
       );
 
@@ -122,7 +156,7 @@ Deno.serve(async (req) => {
         {
           p_identifier: identifier,
           p_status: failureStatus,
-          p_api_response: ipnData
+          p_api_response: sanitizedPayload
         }
       );
 
@@ -148,7 +182,7 @@ Deno.serve(async (req) => {
       await supabaseAdmin
         .from('payment_transactions')
         .update({ 
-          api_response: ipnData,
+          api_response: sanitizedPayload,
           updated_at: new Date().toISOString()
         })
         .eq('identifier', identifier);

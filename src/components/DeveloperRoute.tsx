@@ -21,14 +21,8 @@ export const DeveloperRoute = ({ children }: DeveloperRouteProps) => {
       }
 
       try {
-        const { data, error } = await supabase
-          .from('user_roles')
-          .select('role')
-          .eq('user_id', user.id)
-          .eq('role', 'developer')
-          .maybeSingle();
-
-        setIsDeveloper(!error && !!data);
+        const { data, error } = await supabase.rpc('is_developer' as any);
+        setIsDeveloper(!error && data === true);
       } catch {
         setIsDeveloper(false);
       } finally {

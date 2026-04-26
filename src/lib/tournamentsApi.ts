@@ -6,14 +6,22 @@ export type ParticipantResult = "pending" | "won" | "lost";
 export type ReportStatus = "review" | "resolved" | "rejected";
 export type WithdrawalStatus = "pending" | "processed" | "rejected";
 
+// Columns of `tournaments` that are readable by every authenticated user.
+// `room_id` and `password` are intentionally excluded — they must be fetched
+// via the `get_tournament_credentials` RPC by the creator/participants/admins.
+const TOURNAMENT_PUBLIC_COLUMNS =
+  "id,name,game,game_mode,description,prize,prize_pool,entry_fee,status,room_status,max_players,current_players,starts_at,finished_at,created_by,created_at,updated_at,host_fee,commission_percent,commission_amount,winner_prize,auto_start_at";
+
 export interface DBTournament {
   id: string;
   name: string;
   game: string;
   game_mode: string;
   description: string | null;
-  room_id: string;
-  password: string;
+  /** Only populated after calling `fetchTournamentCredentials`. */
+  room_id: string | null;
+  /** Only populated after calling `fetchTournamentCredentials`. */
+  password: string | null;
   prize: number;
   entry_fee: number;
   status: TournamentStatus;
@@ -75,7 +83,7 @@ export type JoinedMatch = DBTournament & {
 export async function fetchJoinedMatches(userId: string): Promise<JoinedMatch[]> {
   const { data, error } = await supabase
     .from("tournament_participants")
-    .select("result, coins_won, tournaments(*)")
+    .select(`result, coins_won, tournaments(${TOURNAMENT_PUBLIC_COLUMNS})`)
     .eq("user_id", userId)
     .order("joined_at", { ascending: false });
   if (error) throw error;
@@ -83,6 +91,8 @@ export async function fetchJoinedMatches(userId: string): Promise<JoinedMatch[]>
     .filter((row: any) => row.tournaments)
     .map((row: any) => ({
       ...(row.tournaments as DBTournament),
+      room_id: null,
+      password: null,
       result: row.result as ParticipantResult,
       coins_won: Number(row.coins_won) || 0,
     }));
@@ -91,22 +101,22 @@ export async function fetchJoinedMatches(userId: string): Promise<JoinedMatch[]>
 export async function fetchOpenTournaments(): Promise<DBTournament[]> {
   const { data, error } = await supabase
     .from("tournaments")
-    .select("*")
+    .select(TOURNAMENT_PUBLIC_COLUMNS)
     .in("status", ["upcoming", "live"])
     .order("starts_at", { ascending: true, nullsFirst: false })
     .limit(100);
   if (error) throw error;
-  return (data ?? []) as DBTournament[];
+  return (data ?? []).map((r: any) => ({ ...r, room_id: null, password: null })) as DBTournament[];
 }
 
 export async function fetchAllTournaments(): Promise<DBTournament[]> {
   const { data, error } = await supabase
     .from("tournaments")
-    .select("*")
+    .select(TOURNAMENT_PUBLIC_COLUMNS)
     .order("created_at", { ascending: false })
     .limit(200);
   if (error) throw error;
-  return (data ?? []) as DBTournament[];
+  return (data ?? []).map((r: any) => ({ ...r, room_id: null, password: null })) as DBTournament[];
 }
 
 export async function fetchTournamentParticipants(tournamentId: string): Promise<
@@ -128,11 +138,27 @@ export async function fetchTournamentParticipants(tournamentId: string): Promise
 export async function fetchCreatedTournaments(userId: string): Promise<DBTournament[]> {
   const { data, error } = await supabase
     .from("tournaments")
-    .select("*")
+    .select(TOURNAMENT_PUBLIC_COLUMNS)
     .eq("created_by", userId)
     .order("created_at", { ascending: false });
   if (error) throw error;
-  return (data ?? []) as DBTournament[];
+  return (data ?? []).map((r: any) => ({ ...r, room_id: null, password: null })) as DBTournament[];
+}
+
+/**
+ * Fetch room credentials (room_id + password) for a tournament. Server enforces
+ * that only the creator, joined participants, or admins receive the values.
+ */
+export async function fetchTournamentCredentials(
+  tournamentId: string
+): Promise<{ room_id: string; password: string } | null> {
+  const { data, error } = await (supabase.rpc as any)("get_tournament_credentials", {
+    _tournament_id: tournamentId,
+  });
+  if (error) return null;
+  const row = Array.isArray(data) ? data[0] : data;
+  if (!row) return null;
+  return { room_id: row.room_id, password: row.password };
 }
 
 export async function fetchUserReports(userId: string): Promise<DBReport[]> {
@@ -144,6 +170,7 @@ export async function fetchUserReports(userId: string): Promise<DBReport[]> {
   if (error) throw error;
   return (data ?? []) as DBReport[];
 }
+
 
 export async function fetchUserWithdrawals(userId: string): Promise<DBWithdrawal[]> {
   const { data, error } = await supabase

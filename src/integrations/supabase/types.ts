@@ -2675,6 +2675,10 @@ export type Database = {
         Args: { p_game: string; p_order_id: string; p_package_id: string }
         Returns: string
       }
+      can_view_tournament_credentials: {
+        Args: { _tournament_id: string }
+        Returns: boolean
+      }
       cancel_order: {
         Args: { cancellation_reason_text: string; order_id: string }
         Returns: Json
@@ -2785,6 +2789,13 @@ export type Database = {
         }[]
       }
       get_storage_usage: { Args: never; Returns: Json }
+      get_tournament_credentials: {
+        Args: { _tournament_id: string }
+        Returns: {
+          password: string
+          room_id: string
+        }[]
+      }
       has_permission: {
         Args: { _permission: string; _user_id: string }
         Returns: boolean
@@ -2921,6 +2932,16 @@ export type Database = {
       try_assign_voucher: {
         Args: { p_game: string; p_order_id: string; p_package_id: string }
         Returns: Json
+      }
+      upsert_visitor_session: {
+        Args: {
+          p_is_bounce: boolean
+          p_page_count: number
+          p_referrer: string
+          p_session_id: string
+          p_traffic_source: string
+        }
+        Returns: undefined
       }
       validate_coupon: {
         Args: {
