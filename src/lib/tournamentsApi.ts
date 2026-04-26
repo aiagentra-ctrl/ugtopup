@@ -160,7 +160,17 @@ export async function fetchTournamentCredentials(
   if (!row) return null;
   return { room_id: row.room_id, password: row.password };
 }
+
+export async function fetchUserReports(userId: string): Promise<DBReport[]> {
+  const { data, error } = await supabase
+    .from("tournament_reports")
+    .select("*")
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  return (data ?? []) as DBReport[];
 }
+
 
 export async function fetchUserWithdrawals(userId: string): Promise<DBWithdrawal[]> {
   const { data, error } = await supabase
