@@ -192,15 +192,15 @@ export const TournamentDetailDrawer = ({
             <div className="mb-2 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
               Room credentials
             </div>
-            {canSeeCreds ? (
+            {canSeeCreds && creds ? (
               <div className="space-y-2">
                 <div className="flex items-center justify-between gap-2">
                   <span className="text-[12px] text-muted-foreground">Room ID</span>
                   <div className="flex items-center gap-1">
                     <code className="rounded border border-border bg-background px-2 py-0.5 font-mono text-[12px]">
-                      {tournament.room_id}
+                      {creds.room_id}
                     </code>
-                    <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => copy(tournament.room_id, "Room ID")}>
+                    <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => copy(creds.room_id, "Room ID")}>
                       <Copy className="h-3.5 w-3.5" />
                     </Button>
                   </div>
@@ -209,17 +209,19 @@ export const TournamentDetailDrawer = ({
                   <span className="text-[12px] text-muted-foreground">Password</span>
                   <div className="flex items-center gap-1">
                     <code className="rounded border border-border bg-background px-2 py-0.5 font-mono text-[12px]">
-                      {revealed ? tournament.password : maskPassword(tournament.password)}
+                      {revealed ? creds.password : maskPassword(creds.password)}
                     </code>
                     <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => setRevealed((r) => !r)}>
                       {revealed ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
                     </Button>
-                    <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => copy(tournament.password, "Password")}>
+                    <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => copy(creds.password, "Password")}>
                       <Copy className="h-3.5 w-3.5" />
                     </Button>
                   </div>
                 </div>
               </div>
+            ) : canSeeCreds ? (
+              <div className="text-[12px] text-muted-foreground">Loading credentials…</div>
             ) : (
               <div className="text-[12px] text-muted-foreground">
                 Join the tournament to see Room ID & password.
