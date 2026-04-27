@@ -16,8 +16,7 @@ import {
 } from "@/lib/tournamentsApi";
 import { cn } from "@/lib/utils";
 
-type StatusFilter = "all" | "live" | "upcoming" | "full";
-const games = ["All", "Free Fire", "PUBG", "Mobile Legends", "Custom"] as const;
+type StatusFilter = "all" | "starting-soon" | "live";
 
 const JoinTournamentPage = () => {
   const { user } = useAuth();
@@ -28,7 +27,7 @@ const JoinTournamentPage = () => {
   const [joiningId, setJoiningId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
-  const [gameFilter, setGameFilter] = useState<(typeof games)[number]>("All");
+  const [showAllGames, setShowAllGames] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -71,19 +70,23 @@ const JoinTournamentPage = () => {
   };
 
   const filtered = useMemo(() => {
+    const now = Date.now();
     return list.filter((t) => {
-      if (gameFilter !== "All" && t.game !== gameFilter) return false;
+      if (!showAllGames && !t.game.toLowerCase().includes("free fire")) return false;
       if (statusFilter === "live" && t.status !== "live") return false;
-      if (statusFilter === "upcoming" && t.status !== "upcoming") return false;
-      if (statusFilter === "full" && t.room_status !== "full") return false;
+      if (statusFilter === "starting-soon") {
+        if (!t.starts_at) return false;
+        const diff = new Date(t.starts_at).getTime() - now;
+        if (diff < 0 || diff > 60 * 60 * 1000) return false;
+      }
       if (search && !t.name.toLowerCase().includes(search.toLowerCase())) return false;
       return true;
     });
-  }, [list, gameFilter, statusFilter, search]);
+  }, [list, statusFilter, search, showAllGames]);
 
   return (
     <TournamentsLayout
-      title="Join a Tournament"
+      title="Free Fire Rooms"
       subtitle="Browse open match rooms and join with IG Coins."
       actions={
         <Button asChild size="sm">
@@ -91,35 +94,33 @@ const JoinTournamentPage = () => {
         </Button>
       }
     >
-      {/* Filters */}
       <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center">
         <div className="relative flex-1">
           <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search tournaments…"
+            placeholder="Search rooms…"
             className="pl-8"
           />
         </div>
         <div className="-mx-1 overflow-x-auto scrollbar-hide">
           <div className="flex w-max gap-1 px-1">
-            {(["all", "live", "upcoming", "full"] as const).map((s) => (
+            {(["all", "starting-soon", "live"] as const).map((s) => (
               <Pill key={s} active={statusFilter === s} onClick={() => setStatusFilter(s)}>
-                {s.charAt(0).toUpperCase() + s.slice(1)}
+                {s === "all" ? "All" : s === "starting-soon" ? "Starting soon" : "Live"}
               </Pill>
             ))}
             <span className="mx-1 my-auto h-5 w-px bg-border" />
-            {games.map((g) => (
-              <Pill key={g} active={gameFilter === g} onClick={() => setGameFilter(g)}>{g}</Pill>
-            ))}
+            <Pill active={!showAllGames} onClick={() => setShowAllGames(false)}>Free Fire</Pill>
+            <Pill active={showAllGames} onClick={() => setShowAllGames(true)}>All games</Pill>
           </div>
         </div>
       </div>
 
       <div className="mb-2 flex items-center gap-2 text-[13px] font-medium text-foreground">
         <Trophy className="h-4 w-4 text-primary" />
-        Open tournaments
+        Open rooms
         <span className="text-muted-foreground">({filtered.length})</span>
       </div>
 
@@ -130,7 +131,7 @@ const JoinTournamentPage = () => {
       ) : filtered.length === 0 ? (
         <div className="rounded-xl border border-border/60 bg-card">
           <EmptyState
-            title="No tournaments match your filters"
+            title="No rooms match your filters"
             description="Try clearing filters or be the first to create one."
             ctaLabel="Create matchroom"
           />
