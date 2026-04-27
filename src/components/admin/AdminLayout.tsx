@@ -29,7 +29,10 @@ import {
   BookOpen,
   ThumbsUp,
   PieChart,
+  Calculator,
+  Sparkles,
 } from "lucide-react";
+import { AdminCommandBar, type AdminCommandItem } from "./AdminCommandBar";
 import {
   Sidebar,
   SidebarContent,
@@ -50,6 +53,7 @@ interface AdminLayoutProps {
 
 const menuItems = [
   { id: "dashboard", title: "Dashboard", icon: LayoutDashboard },
+  { id: "profit-calculator", title: "Profit Calculator", icon: Calculator },
   { id: "tournaments-hub", title: "Tournaments", icon: Trophy },
   { id: "tournament-banners", title: "Tournament Banners", icon: ImageIcon },
   { id: "online-payments", title: "Online Payments", icon: CreditCard },
@@ -92,9 +96,10 @@ const menuItems = [
 
 // Bottom nav items for mobile quick access
 const bottomNavItems = [
-  { id: "dashboard", title: "Dashboard", icon: LayoutDashboard },
+  { id: "dashboard", title: "Home", icon: LayoutDashboard },
   { id: "orders", title: "Orders", icon: ShoppingCart },
-  { id: "payments", title: "Payments", icon: CreditCard },
+  { id: "__search", title: "Search", icon: Sparkles },
+  { id: "profit-calculator", title: "Profit", icon: Calculator },
   { id: "notifications", title: "Alerts", icon: Bell },
 ];
 
