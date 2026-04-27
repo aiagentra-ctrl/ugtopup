@@ -141,12 +141,9 @@ export const MyGamesPanel = () => {
             <TabsList className="flex w-max gap-1 bg-transparent p-0">
               {[
                 { v: "overview", label: "Overview", icon: Activity },
-                { v: "wallet", label: `Wallet · ${formatCoins(balance)}`, icon: Wallet },
-                { v: "joined", label: "Joined", icon: Gamepad2 },
-                { v: "created", label: "Created", icon: Plus },
-                { v: "ongoing", label: "Ongoing", icon: Activity },
-                { v: "finished", label: "Finished", icon: Trophy },
-                { v: "reported", label: "Reported", icon: Flag },
+                { v: "joined", label: "Active", icon: Gamepad2 },
+                { v: "created", label: "Hosted by me", icon: Plus },
+                { v: "finished", label: "Completed", icon: Trophy },
               ].map(({ v, label, icon: Icon }) => (
                 <TabsTrigger
                   key={v}
