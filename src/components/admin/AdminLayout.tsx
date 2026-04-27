@@ -256,6 +256,14 @@ function MobileBottomNav({
 }
 
 export function AdminLayout({ children, activeSection, onSectionChange }: AdminLayoutProps) {
+  const commandItems: AdminCommandItem[] = menuItems.map((m) => ({
+    id: m.id,
+    title: m.title,
+    group: "Navigation",
+  }));
+  // Imperative trigger for the AI search via custom event (keeps layout simple)
+  const openSearch = () => window.dispatchEvent(new CustomEvent("admin:open-search"));
+
   return (
     <SidebarProvider>
       <div className="min-h-screen flex w-full bg-background">
@@ -263,46 +271,119 @@ export function AdminLayout({ children, activeSection, onSectionChange }: AdminL
         <div className="hidden lg:block">
           <AdminSidebar activeSection={activeSection} onSectionChange={onSectionChange} />
         </div>
-        
+
         <div className="flex-1 flex flex-col min-w-0">
           {/* Top Header Bar */}
-          <header className="h-14 lg:h-16 border-b border-border bg-card/50 backdrop-blur-lg flex items-center px-3 lg:px-6 sticky top-0 z-10 shadow-sm">
+          <header className="h-14 lg:h-16 border-b border-border bg-card/50 backdrop-blur-lg flex items-center gap-2 px-3 lg:px-6 sticky top-0 z-10 shadow-sm">
             {/* Mobile Menu */}
             <Sheet>
-              <SheetTrigger asChild className="lg:hidden mr-3">
-                <Button variant="ghost" size="icon" className="h-9 w-9">
+              <SheetTrigger asChild className="lg:hidden">
+                <Button variant="ghost" size="icon" className="h-10 w-10">
                   <Menu className="h-5 w-5" />
                 </Button>
               </SheetTrigger>
               <SheetContent side="left" className="w-72 p-0 bg-slate-950 border-slate-800">
-                <AdminSidebar 
-                  activeSection={activeSection} 
+                <AdminSidebar
+                  activeSection={activeSection}
                   onSectionChange={onSectionChange}
-                  isMobile 
+                  isMobile
                 />
               </SheetContent>
             </Sheet>
 
             {/* Desktop Sidebar Trigger */}
-            <SidebarTrigger className="hidden lg:flex mr-4" />
+            <SidebarTrigger className="hidden lg:flex mr-2" />
 
             <div className="flex-1 min-w-0">
               <h1 className="text-base lg:text-xl font-bold text-foreground truncate">
-                {menuItems.find(item => item.id === activeSection)?.title || "Dashboard"}
+                {menuItems.find((item) => item.id === activeSection)?.title || "Dashboard"}
               </h1>
-              <p className="text-xs text-muted-foreground hidden sm:block">Manage your gaming store operations</p>
+              <p className="text-xs text-muted-foreground hidden sm:block">
+                Manage your gaming store operations
+              </p>
             </div>
+
+            {/* Desktop search trigger */}
+            <AdminCommandBar items={commandItems} onSelect={onSectionChange} />
           </header>
 
           {/* Main Content */}
-          <main className="flex-1 p-3 lg:p-6 overflow-auto pb-20 lg:pb-6">
-            {children}
-          </main>
+          <main className="flex-1 p-3 lg:p-6 overflow-auto pb-24 lg:pb-6">{children}</main>
         </div>
 
         {/* Mobile Bottom Navigation */}
-        <MobileBottomNav activeSection={activeSection} onSectionChange={onSectionChange} />
+        <MobileBottomNav
+          activeSection={activeSection}
+          onSectionChange={onSectionChange}
+          onOpenSearch={openSearch}
+        />
+
+        {/* Mobile-only command bar listener */}
+        <MobileSearchHost items={commandItems} onSelect={onSectionChange} />
       </div>
     </SidebarProvider>
   );
 }
+
+// Listens for the bottom-nav search button event and opens the dialog.
+function MobileSearchHost({
+  items,
+  onSelect,
+}: {
+  items: AdminCommandItem[];
+  onSelect: (id: string) => void;
+}) {
+  return (
+    <div className="lg:hidden">
+      <AdminCommandBarBridge items={items} onSelect={onSelect} />
+    </div>
+  );
+}
+
+import { useEffect as useEffectBridge, useState as useStateBridge } from "react";
+import {
+  CommandDialog as CmdDialog,
+  CommandEmpty as CmdEmpty,
+  CommandGroup as CmdGroup,
+  CommandInput as CmdInput,
+  CommandItem as CmdItem,
+  CommandList as CmdList,
+} from "@/components/ui/command";
+
+function AdminCommandBarBridge({
+  items,
+  onSelect,
+}: {
+  items: AdminCommandItem[];
+  onSelect: (id: string) => void;
+}) {
+  const [open, setOpen] = useStateBridge(false);
+  useEffectBridge(() => {
+    const h = () => setOpen(true);
+    window.addEventListener("admin:open-search", h);
+    return () => window.removeEventListener("admin:open-search", h);
+  }, []);
+  return (
+    <CmdDialog open={open} onOpenChange={setOpen}>
+      <CmdInput placeholder="Ask AI or jump to a section…" />
+      <CmdList>
+        <CmdEmpty>No matches.</CmdEmpty>
+        <CmdGroup heading="Navigation">
+          {items.map((it) => (
+            <CmdItem
+              key={it.id}
+              value={it.title}
+              onSelect={() => {
+                setOpen(false);
+                onSelect(it.id);
+              }}
+            >
+              {it.title}
+            </CmdItem>
+          ))}
+        </CmdGroup>
+      </CmdList>
+    </CmdDialog>
+  );
+}
+
