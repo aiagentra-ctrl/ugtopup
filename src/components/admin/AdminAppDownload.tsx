@@ -130,6 +130,9 @@ export function AdminAppDownload() {
         </CardContent>
       </Card>
 
+      {/* QR Code — easy install for client on mobile */}
+      <AdminInstallQRCard />
+
       {/* iOS Instructions */}
       {isIOS && !isInstalled && (
         <Card className="border-orange-500/20 bg-orange-500/5">
