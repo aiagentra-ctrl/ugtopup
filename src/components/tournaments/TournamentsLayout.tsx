@@ -3,20 +3,15 @@ import { NavLink, Link } from "react-router-dom";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import {
-  LayoutDashboard, Swords, Plus, Gamepad2, Activity, Crown, Wallet, History, Flag, ArrowLeft,
+  Swords, Plus, Gamepad2, Wallet, ArrowLeft,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const navItems = [
-  { to: "/tournaments", label: "Hub", icon: LayoutDashboard, end: true },
-  { to: "/tournaments/join", label: "Join", icon: Swords },
+  { to: "/tournaments", label: "Play", icon: Swords, end: true },
   { to: "/tournaments/create", label: "Create", icon: Plus },
   { to: "/tournaments/my-games", label: "My Games", icon: Gamepad2 },
-  { to: "/tournaments/live", label: "Live", icon: Activity },
-  { to: "/tournaments/leaderboard", label: "Leaderboard", icon: Crown },
   { to: "/tournaments/wallet", label: "Wallet", icon: Wallet },
-  { to: "/tournaments/history", label: "History", icon: History },
-  { to: "/tournaments/reports", label: "Reports", icon: Flag },
 ];
 
 export const TournamentsLayout = ({
