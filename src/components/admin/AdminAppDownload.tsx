@@ -10,7 +10,6 @@ import {
   Zap,
   CheckCircle2,
   Monitor,
-  Loader2,
 } from "lucide-react";
 import { usePWAInstall, swapManifest } from "@/hooks/usePWAInstall";
 import { toast } from "sonner";
@@ -26,17 +25,20 @@ export function AdminAppDownload() {
   const { isInstallable, isInstalled, isLoading, promptInstall, isIOS, isStandalone } = usePWAInstall();
   const [waitingForPrompt, setWaitingForPrompt] = useState(false);
 
-  // Force the admin manifest to be active so the install prompt
-  // captures the Admin App identity (separate from the user app).
+  // As soon as the admin opens this section, force the admin manifest to be
+  // active so Chrome's install prompt captures the Admin App identity.
   useEffect(() => {
     swapManifest(true);
     return () => {
+      // When leaving, restore the user manifest so user-side installs work.
       swapManifest(false);
     };
   }, []);
 
-  const waitForPrompt = (timeoutMs = 6000): Promise<boolean> =>
-    new Promise((resolve) => {
+  // Wait for `beforeinstallprompt` (captured globally on window.__deferredInstallPrompt)
+  // to become available, polling up to `timeoutMs`.
+  const waitForPrompt = (timeoutMs = 5000): Promise<boolean> => {
+    return new Promise((resolve) => {
       const start = Date.now();
       const check = () => {
         if (window.__deferredInstallPrompt) return resolve(true);
@@ -45,6 +47,7 @@ export function AdminAppDownload() {
       };
       check();
     });
+  };
 
   const handleInstall = async () => {
     if (isInstalled || isStandalone) {
@@ -54,16 +57,19 @@ export function AdminAppDownload() {
 
     if (isIOS) {
       try { localStorage.setItem('installed_as_admin_app', 'true'); } catch {}
-      toast.info("Tap Share, then 'Add to Home Screen' to install the Admin App");
+      toast.info("On iPhone: tap Share, then 'Add to Home Screen' to install the Admin App");
       return;
     }
 
-    swapManifest(true);
+    // Always make sure the admin manifest is the active one before prompting.
+    const swapped = swapManifest(true);
     try { localStorage.setItem('installed_as_admin_app', 'true'); } catch {}
 
-    if (!window.__deferredInstallPrompt) {
+    // After swapping the manifest, Chrome needs a moment to re-evaluate
+    // installability and re-fire beforeinstallprompt. Poll for it.
+    if (swapped || !window.__deferredInstallPrompt) {
       setWaitingForPrompt(true);
-      await waitForPrompt(6000);
+      await waitForPrompt(5000);
       setWaitingForPrompt(false);
     }
 
@@ -74,22 +80,20 @@ export function AdminAppDownload() {
       try { localStorage.removeItem('installed_as_admin_app'); } catch {}
       toast.info("Installation cancelled");
     } else {
-      // Quietly inform — no Chrome/Edge or Home Screen messages.
-      toast.info("Install will be available shortly. Please try again in a moment.");
+      // Prompt never fired — give the user actionable manual steps instead
+      // of the generic "open in Chrome/Edge" message.
+      toast.info(
+        "Tap your browser menu (⋮) and choose 'Install app' or 'Add to Home screen' to install the Admin App.",
+        { duration: 8000 }
+      );
     }
   };
 
   const buttonDisabled = isLoading || waitingForPrompt;
-  const buttonLabel = isInstalled || isStandalone
-    ? "Installed"
-    : waitingForPrompt
-      ? "Preparing install…"
-      : isLoading
-        ? "Installing…"
-        : "Install Admin App";
 
   return (
     <div className="space-y-6 animate-fade-in">
+      {/* Hero Card */}
       <Card className="overflow-hidden border-primary/20 bg-gradient-to-br from-primary/5 to-primary/10">
         <CardContent className="p-6 lg:p-8">
           <div className="flex flex-col md:flex-row items-center gap-6">
@@ -115,8 +119,8 @@ export function AdminAppDownload() {
                 </Button>
               ) : (
                 <Button onClick={handleInstall} disabled={buttonDisabled} size="lg" className="gap-2">
-                  {waitingForPrompt ? <Loader2 className="h-5 w-5 animate-spin" /> : <Download className="h-5 w-5" />}
-                  {buttonLabel}
+                  <Download className="h-5 w-5" />
+                  {buttonDisabled ? "Preparing…" : "Install Admin App"}
                 </Button>
               )}
             </div>
@@ -124,7 +128,7 @@ export function AdminAppDownload() {
         </CardContent>
       </Card>
 
-      {/* iOS only: Apple does not allow programmatic PWA install */}
+      {/* iOS Instructions */}
       {isIOS && !isInstalled && (
         <Card className="border-orange-500/20 bg-orange-500/5">
           <CardContent className="p-6">
@@ -138,6 +142,25 @@ export function AdminAppDownload() {
         </Card>
       )}
 
+      {/* Android / Desktop manual install fallback — shown when the
+          browser hasn't fired beforeinstallprompt yet. */}
+      {!isIOS && !isInstalled && !isStandalone && !isInstallable && (
+        <Card className="border-primary/20 bg-primary/5">
+          <CardContent className="p-6">
+            <h3 className="font-semibold text-foreground mb-3">📲 Install on Android / Desktop</h3>
+            <ol className="space-y-2 text-sm text-muted-foreground">
+              <li className="flex gap-2"><span className="font-bold text-foreground">1.</span> Tap the browser <strong>menu (⋮)</strong> in the top-right</li>
+              <li className="flex gap-2"><span className="font-bold text-foreground">2.</span> Choose <strong>"Install app"</strong> or <strong>"Add to Home screen"</strong></li>
+              <li className="flex gap-2"><span className="font-bold text-foreground">3.</span> Confirm — it installs as the Admin App, separate from the user app</li>
+            </ol>
+            <p className="text-xs text-muted-foreground mt-3">
+              Tip: tap <strong>Install Admin App</strong> above first — if your browser supports one-click install, it will appear immediately.
+            </p>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Features */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {features.map((feature, i) => (
           <Card key={i} className="bg-card/50 border-border hover:bg-card/80 transition-colors">
@@ -156,6 +179,7 @@ export function AdminAppDownload() {
         ))}
       </div>
 
+      {/* Notification Types */}
       <Card>
         <CardHeader>
           <CardTitle className="text-lg">Push Notification Events</CardTitle>

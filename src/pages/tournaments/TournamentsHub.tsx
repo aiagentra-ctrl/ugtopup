@@ -1,17 +1,27 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { Flame, Plus, Swords, Trophy, Wallet, Gamepad2, Users, Crown, ArrowRight } from "lucide-react";
+import {
+  Crown, Plus, Swords, Users, Wallet, Trophy, ArrowRight, Flame, Zap, ShieldCheck,
+  Gamepad2, Activity, MessageCircle, HelpCircle,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TournamentsLayout } from "@/components/tournaments/TournamentsLayout";
 import { TournamentBannerStrip } from "@/components/tournaments/TournamentBannerStrip";
 import { TournamentDetailDrawer } from "@/components/tournaments/TournamentDetailDrawer";
-import { TournamentCard } from "@/components/tournaments/TournamentCard";
-import { EmptyState } from "@/components/tournaments/EmptyState";
+import { ArenaHero } from "@/components/tournaments/ArenaHero";
+import { LiveTicker } from "@/components/tournaments/LiveTicker";
+import { FeaturedCarousel } from "@/components/tournaments/FeaturedCarousel";
+import { LeaderboardPreview } from "@/components/tournaments/LeaderboardPreview";
+import { RecentWinnersStrip } from "@/components/tournaments/RecentWinnersStrip";
+import { FAQSection } from "@/components/tournaments/FAQSection";
+import { TestimonialsSection } from "@/components/tournaments/TestimonialsSection";
+import { AppCTASection } from "@/components/tournaments/AppCTASection";
+import { SectionHeader } from "@/components/tournaments/SectionHeader";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWinningsBalance } from "@/hooks/useWinningsBalance";
 import {
-  fetchOpenTournaments, fetchJoinedMatches, joinTournament,
+  fetchOpenTournaments, fetchJoinedMatches, fetchEarningsSummary, joinTournament,
   subscribeTournaments, type DBTournament,
 } from "@/lib/tournamentsApi";
 import { formatCoins } from "@/lib/tournamentsUtils";
@@ -22,6 +32,7 @@ const TournamentsHub = () => {
   const { winnings } = useWinningsBalance();
   const [list, setList] = useState<DBTournament[]>([]);
   const [joinedIds, setJoinedIds] = useState<Set<string>>(new Set());
+  const [earnings, setEarnings] = useState({ totalEarnings: 0, wins: 0, losses: 0 });
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<DBTournament | null>(null);
   const [joiningId, setJoiningId] = useState<string | null>(null);
@@ -32,8 +43,12 @@ const TournamentsHub = () => {
       const data = await fetchOpenTournaments();
       setList(data);
       if (user?.id) {
-        const j = await fetchJoinedMatches(user.id);
+        const [j, s] = await Promise.all([
+          fetchJoinedMatches(user.id),
+          fetchEarningsSummary(user.id),
+        ]);
         setJoinedIds(new Set(j.map((m) => m.id)));
+        setEarnings({ totalEarnings: s.totalEarnings, wins: s.wins, losses: s.losses });
       }
     } catch {
       setList([]);
@@ -49,9 +64,19 @@ const TournamentsHub = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
 
-  // Free Fire first; show others below if any.
-  const freeFireRooms = useMemo(
-    () => list.filter((t) => t.game.toLowerCase().includes("free fire")).slice(0, 9),
+  const stats = useMemo(() => {
+    const live = list.filter((t) => t.status === "live").length;
+    const players = list.reduce((s, t) => s + (t.current_players || 0), 0);
+    const prize = list.reduce((s, t) => s + Number(t.prize), 0);
+    return { live, players, prize, total: list.length };
+  }, [list]);
+
+  const featured = useMemo(
+    () => [...list].sort((a, b) => Number(b.prize) - Number(a.prize)).slice(0, 8),
+    [list]
+  );
+  const liveItems = useMemo(
+    () => list.filter((t) => t.status === "live" || t.room_status === "ongoing").slice(0, 12),
     [list]
   );
 
@@ -75,104 +100,126 @@ const TournamentsHub = () => {
   return (
     <TournamentsLayout>
       <TournamentBannerStrip />
+      <ArenaHero
+        liveCount={stats.live}
+        playerCount={stats.players}
+        prizePool={stats.prize}
+        openRooms={stats.total}
+      />
 
-      {/* Simple Free Fire hero */}
-      <section className="mb-6 overflow-hidden rounded-2xl border border-primary/30 bg-gradient-to-br from-primary/15 via-card to-card p-6 sm:p-8">
-        <div className="inline-flex items-center gap-1.5 rounded-full border border-primary/40 bg-primary/15 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.2em] text-primary">
-          <Flame className="h-3 w-3" /> Free Fire Tournaments
-        </div>
-        <h1 className="font-display mt-3 text-3xl font-extrabold leading-tight sm:text-4xl">
-          Play. Win. <span className="text-gradient-primary">Cash out.</span>
-        </h1>
-        <p className="mt-2 max-w-xl text-sm text-muted-foreground">
-          Join Free Fire match rooms with your IG Coins. Winners take the prize pool — withdraw straight to NPR.
-        </p>
-        <div className="mt-5 flex flex-wrap gap-3">
-          <Button asChild size="lg" className="btn-glow gap-2 font-semibold">
-            <a href="#rooms"><Swords className="h-4 w-4" /> Join a Match</a>
-          </Button>
-          <Button asChild size="lg" variant="outline" className="gap-2 border-primary/40 hover:bg-primary/10">
-            <Link to="/tournaments/create"><Plus className="h-4 w-4" /> Create Match</Link>
-          </Button>
-        </div>
+      {/* Quick actions */}
+      <section className="mb-8 grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <ActionCard to="/tournaments/join"        icon={Swords}    label="Browse Rooms" desc="Find matches to join" />
+        <ActionCard to="/tournaments/create"      icon={Plus}      label="Host a Match" desc="Set up your own room" />
+        <ActionCard to="/tournaments/my-games"    icon={Gamepad2}  label="My Games"     desc="Joined & created" />
+        <ActionCard to="/tournaments/leaderboard" icon={Crown}     label="Leaderboard"  desc="Top earners & wins" />
       </section>
 
-      {/* Quick links */}
-      <section className="mb-8 grid grid-cols-3 gap-3">
-        <QuickLink to="/tournaments/my-games" icon={Gamepad2} label="My Games" />
-        <QuickLink to="/tournaments/wallet"   icon={Wallet}   label="Wallet" />
-        <QuickLink to="/tournaments/create"   icon={Plus}     label="Create" />
-      </section>
+      {/* Live ticker */}
+      <LiveTicker items={liveItems} />
 
-      {/* Wallet snapshot for logged-in users */}
-      {user && (
-        <Link
-          to="/tournaments/wallet"
-          className="mb-8 flex items-center justify-between rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-4 transition-colors hover:bg-emerald-500/10"
-        >
-          <div>
-            <div className="text-[11px] font-bold uppercase tracking-wider text-emerald-400">Withdrawable winnings</div>
-            <div className="font-stat mt-1 text-2xl font-bold text-emerald-400">
-              {formatCoins(winnings)} <span className="text-xs font-semibold text-muted-foreground">IG Coins</span>
-            </div>
-          </div>
-          <ArrowRight className="h-5 w-5 text-muted-foreground" />
-        </Link>
-      )}
-
-      {/* Available Free Fire rooms */}
-      <section id="rooms" className="mb-10">
-        <div className="mb-4 flex items-end justify-between">
-          <div>
-            <h2 className="font-display flex items-center gap-2 text-xl font-bold sm:text-2xl">
-              <Trophy className="h-5 w-5 text-primary" /> Available Free Fire Rooms
-            </h2>
-            <p className="text-[12px] text-muted-foreground">Tap a room to view details and join.</p>
-          </div>
-        </div>
-
+      {/* Featured */}
+      <section className="mb-10">
+        <SectionHeader
+          eyebrow="Featured"
+          icon={Flame}
+          title="Trending tournaments"
+          description="Highest prize pools — joining now"
+          viewAllTo="/tournaments/join"
+        />
         {loading ? (
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {[0, 1, 2].map((i) => <Skeleton key={i} className="h-[260px] rounded-xl" />)}
+            {[0, 1, 2].map((i) => <Skeleton key={i} className="h-[280px] rounded-xl" />)}
           </div>
-        ) : freeFireRooms.length === 0 ? (
-          <div className="rounded-xl border border-border/60 bg-card">
-            <EmptyState
-              title="No Free Fire rooms right now"
-              description="Be the first to host one — it only takes a minute."
-              ctaLabel="Create a match"
-            />
-            <div className="border-t border-border/60 p-4 text-center">
-              <Button asChild size="sm" className="btn-glow gap-1.5">
-                <Link to="/tournaments/create"><Plus className="h-3.5 w-3.5" /> Create Free Fire match</Link>
-              </Button>
-            </div>
+        ) : featured.length === 0 ? (
+          <div className="rounded-xl border border-dashed border-border/60 bg-card/50 p-10 text-center">
+            <Trophy className="mx-auto mb-3 h-12 w-12 text-muted-foreground/40" />
+            <div className="font-display text-lg font-bold text-foreground">No live tournaments yet</div>
+            <p className="mt-1 text-[13px] text-muted-foreground">Be the first to host a match.</p>
+            <Button asChild size="sm" className="btn-glow mt-4 gap-1.5">
+              <Link to="/tournaments/create"><Plus className="h-3.5 w-3.5" /> Create the first one</Link>
+            </Button>
           </div>
         ) : (
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {freeFireRooms.map((t) => (
-              <TournamentCard
-                key={t.id}
-                t={t}
-                joined={joinedIds.has(t.id)}
-                isCreator={user?.id === t.created_by}
-                onOpen={() => setSelected(t)}
-                onJoin={() => handleJoin(t)}
-                joining={joiningId === t.id}
-              />
-            ))}
-          </div>
+          <FeaturedCarousel
+            items={featured}
+            joinedIds={joinedIds}
+            currentUserId={user?.id}
+            onOpen={setSelected}
+            onJoin={handleJoin}
+            joiningId={joiningId}
+          />
         )}
       </section>
 
-      {/* Simple how to play */}
+      {/* Wallet snapshot */}
+      <section className="mb-10 grid gap-3 sm:grid-cols-3">
+        <Link to="/tournaments/wallet" className="group sheen relative overflow-hidden sm:col-span-2 rounded-xl border border-emerald-500/30 bg-gradient-to-br from-emerald-500/15 via-card to-card p-6 transition-all hover:border-emerald-500/50 hover:shadow-[0_0_24px_-6px_hsl(142_76%_50%/0.5)]">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider text-emerald-400">
+              <Wallet className="h-4 w-4" /> Withdrawable winnings
+            </div>
+            <ArrowRight className="h-4 w-4 text-muted-foreground transition-transform group-hover:translate-x-1" />
+          </div>
+          <div className="mt-3 flex items-baseline gap-2">
+            <span className="font-stat text-5xl font-bold text-emerald-400 sm:text-6xl">{formatCoins(winnings)}</span>
+            <span className="text-sm font-semibold text-muted-foreground">IG Coins</span>
+          </div>
+          <div className="mt-1 text-[11px] text-muted-foreground">
+            Tournament prizes only — deposited credits cannot be withdrawn.
+          </div>
+        </Link>
+
+        <Link to="/tournaments/history" className="group sheen overflow-hidden rounded-xl border border-amber-500/20 bg-gradient-to-br from-amber-500/10 via-card to-card p-6 transition-all hover:border-amber-500/40">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider text-amber-400">
+              <Crown className="h-4 w-4" /> Total earned
+            </div>
+            <ArrowRight className="h-4 w-4 text-muted-foreground transition-transform group-hover:translate-x-1" />
+          </div>
+          <div className="mt-3 font-stat text-4xl font-bold text-foreground">{formatCoins(earnings.totalEarnings)}</div>
+          <div className="mt-1 text-[11px] text-muted-foreground">{earnings.wins}W · {earnings.losses}L all-time</div>
+        </Link>
+      </section>
+
+      {/* How it works */}
       <section className="mb-10">
-        <h2 className="font-display mb-4 text-xl font-bold sm:text-2xl">How it works</h2>
-        <div className="grid gap-3 sm:grid-cols-3">
-          <Step n={1} icon={Wallet}  title="Add IG Coins"  desc="Top up your wallet to enter rooms." />
-          <Step n={2} icon={Swords}  title="Join a match"  desc="Pick a Free Fire room and pay the entry." />
-          <Step n={3} icon={Crown}   title="Win & cash out" desc="Winners get the pool — withdraw to NPR." />
+        <SectionHeader eyebrow="Get started" icon={Zap} title="How it works" />
+        <div className="grid gap-3 sm:grid-cols-4">
+          <Step n={1} icon={Users}      title="Register"    desc="Create your account and grab your player ID." />
+          <Step n={2} icon={Wallet}     title="Add coins"   desc="Top up via eSewa, Khalti, Bank, or API Nepal." />
+          <Step n={3} icon={Swords}     title="Join match"  desc="Browse open rooms and enter with IG Coins." />
+          <Step n={4} icon={ShieldCheck} title="Win & cash" desc="Winners earn coins instantly — withdraw to NPR." />
         </div>
+      </section>
+
+      {/* Leaderboard preview + Recent winners */}
+      <section className="mb-10 grid gap-4 lg:grid-cols-2">
+        <div>
+          <SectionHeader eyebrow="Hall of fame" icon={Crown} title="Top players" viewAllTo="/tournaments/leaderboard" />
+          <LeaderboardPreview />
+        </div>
+        <div>
+          <SectionHeader eyebrow="Just won" icon={Trophy} title="Recent winners" />
+          <RecentWinnersStrip />
+        </div>
+      </section>
+
+      {/* Testimonials */}
+      <section className="mb-10">
+        <SectionHeader eyebrow="Player voices" icon={MessageCircle} title="What players say" />
+        <TestimonialsSection />
+      </section>
+
+      {/* App CTA */}
+      <section className="mb-10">
+        <AppCTASection />
+      </section>
+
+      {/* FAQ */}
+      <section className="mb-10">
+        <SectionHeader eyebrow="Help" icon={HelpCircle} title="Frequently asked questions" />
+        <FAQSection />
       </section>
 
       <TournamentDetailDrawer
@@ -188,26 +235,30 @@ const TournamentsHub = () => {
   );
 };
 
-const QuickLink = ({ to, icon: Icon, label }: { to: string; icon: any; label: string }) => (
+const ActionCard = ({
+  to, icon: Icon, label, desc,
+}: { to: string; icon: any; label: string; desc: string }) => (
   <Link
     to={to}
-    className="group flex flex-col items-center justify-center gap-2 rounded-xl border border-border/60 bg-card p-4 transition-all hover:border-primary/40 hover:bg-primary/5"
+    className="card-premium sheen group relative overflow-hidden p-4 transition-all"
   >
-    <div className="flex h-10 w-10 items-center justify-center rounded-lg border border-primary/30 bg-primary/10 text-primary">
+    <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-xl border border-primary/40 bg-primary/15 text-primary shadow-[0_0_18px_-4px_hsl(var(--primary)/0.6)] transition-transform group-hover:scale-110 group-hover:rotate-3">
       <Icon className="h-5 w-5" />
     </div>
-    <span className="text-[12px] font-semibold text-foreground">{label}</span>
+    <div className="font-display text-[14px] font-bold text-foreground">{label}</div>
+    <div className="mt-0.5 text-[11px] text-muted-foreground">{desc}</div>
+    <ArrowRight className="absolute right-3 top-3 h-4 w-4 text-muted-foreground/50 transition-all group-hover:right-2 group-hover:text-primary" />
   </Link>
 );
 
 const Step = ({ n, icon: Icon, title, desc }: { n: number; icon: any; title: string; desc: string }) => (
-  <div className="rounded-xl border border-border/60 bg-card p-4">
+  <div className="card-premium sheen p-4">
     <div className="flex items-center gap-2">
-      <div className="font-stat flex h-8 w-8 items-center justify-center rounded-lg border border-primary/40 bg-primary/15 text-[14px] font-bold text-primary">{n}</div>
+      <div className="font-stat flex h-8 w-8 items-center justify-center rounded-lg border border-primary/40 bg-primary/15 text-[14px] font-bold text-primary shadow-[0_0_14px_-4px_hsl(var(--primary)/0.6)]">{n}</div>
       <Icon className="h-4 w-4 text-primary" />
     </div>
     <div className="mt-3 font-display text-[14px] font-bold text-foreground">{title}</div>
-    <div className="mt-1 text-[12px] text-muted-foreground">{desc}</div>
+    <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">{desc}</p>
   </div>
 );
 
