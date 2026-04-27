@@ -156,31 +156,14 @@ const CreateMatchPage = () => {
         </div>
 
         <div className="card-premium p-5 sm:p-6">
-          {/* STEP 1 */}
+          {/* STEP 1 — Free Fire mode */}
           {step === 0 && (
             <div className="space-y-6 animate-fade-in">
-              <div>
-                <Label className="font-display mb-3 flex items-center gap-2 text-sm font-bold uppercase tracking-wider"><Gamepad2 className="h-4 w-4 text-primary" /> Pick a game</Label>
-                <div className="grid grid-cols-2 gap-2">
-                  {GAMES.map((g) => (
-                    <button
-                      key={g.v}
-                      type="button"
-                      onClick={() => setGame(g.v)}
-                      className={cn(
-                        "sheen flex items-center gap-3 overflow-hidden rounded-xl border p-3 text-left transition-all",
-                        game === g.v
-                          ? "border-primary bg-primary/10 shadow-[0_0_18px_-4px_hsl(var(--primary)/0.6)]"
-                          : "border-border/60 bg-muted/20 hover:border-primary/40"
-                      )}
-                    >
-                      <span className="text-2xl">{g.emoji}</span>
-                      <div className="min-w-0">
-                        <div className={cn("text-[13px] font-bold", game === g.v ? "text-primary" : "text-foreground")}>{g.v}</div>
-                        <div className="text-[11px] text-muted-foreground">{g.desc}</div>
-                      </div>
-                    </button>
-                  ))}
+              <div className="rounded-xl border border-primary/30 bg-primary/5 p-3 flex items-center gap-3">
+                <span className="text-2xl">🔥</span>
+                <div>
+                  <div className="text-[13px] font-bold text-foreground">Free Fire match</div>
+                  <div className="text-[11px] text-muted-foreground">Create a custom Free Fire room. Players join with IG Coins.</div>
                 </div>
               </div>
 
