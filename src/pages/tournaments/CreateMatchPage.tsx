@@ -15,17 +15,10 @@ import { createTournament } from "@/lib/tournamentsApi";
 import { generatePassword, generateRoomId, formatCoins } from "@/lib/tournamentsUtils";
 import { cn } from "@/lib/utils";
 
-type Game = "Free Fire" | "PUBG" | "Mobile Legends" | "Custom";
+type Game = "Free Fire";
 type Mode = "1v1" | "2v2" | "4v4" | "Squad";
 
-const GAMES: { v: Game; emoji: string; desc: string }[] = [
-  { v: "Free Fire", emoji: "🔥", desc: "Battle royale" },
-  { v: "PUBG", emoji: "🎯", desc: "Tactical shooter" },
-  { v: "Mobile Legends", emoji: "⚔️", desc: "MOBA 5v5" },
-  { v: "Custom", emoji: "🎮", desc: "Any other game" },
-];
-
-const STEPS = ["Game & Mode", "Match details", "Schedule"] as const;
+const STEPS = ["Mode", "Match details", "Schedule"] as const;
 
 const CreateMatchPage = () => {
   const navigate = useNavigate();
