@@ -210,3 +210,73 @@ export function AdminAppDownload() {
     </div>
   );
 }
+
+function AdminInstallQRCard() {
+  // The install URL points to the admin section. When opened on a phone,
+  // the AdminAppDownload component automatically swaps to the admin manifest
+  // so the browser's native install prompt registers the Admin App identity.
+  const installUrl = `${window.location.origin}/#/admin?section=admin-app`;
+
+  const copyLink = async () => {
+    try {
+      await navigator.clipboard.writeText(installUrl);
+      toast.success("Install link copied — share with your client");
+    } catch {
+      toast.error("Could not copy link");
+    }
+  };
+
+  const shareLink = async () => {
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: "Install UGTOPUPS Admin App",
+          text: "Tap the link, then 'Install Admin App' to add it to your home screen.",
+          url: installUrl,
+        });
+      } catch {}
+    } else {
+      copyLink();
+    }
+  };
+
+  return (
+    <Card className="border-primary/20">
+      <CardHeader>
+        <CardTitle className="text-lg">📱 Easy Install for Your Client</CardTitle>
+        <CardDescription>
+          Scan this QR code with any phone camera — it opens the install page directly.
+          Your client just taps <strong>Install Admin App</strong> and it lands on their home screen.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="flex flex-col md:flex-row items-center gap-6">
+          <div className="bg-white p-4 rounded-xl shadow-sm border">
+            <QRCodeSVG value={installUrl} size={180} level="M" includeMargin={false} />
+          </div>
+          <div className="flex-1 w-full space-y-3">
+            <div>
+              <p className="text-xs text-muted-foreground mb-1">Install link</p>
+              <code className="block text-xs bg-muted p-2 rounded break-all">{installUrl}</code>
+            </div>
+            <div className="flex gap-2 flex-wrap">
+              <Button onClick={copyLink} variant="outline" size="sm" className="gap-2">
+                <Copy className="h-4 w-4" />
+                Copy Link
+              </Button>
+              <Button onClick={shareLink} size="sm" className="gap-2">
+                <Share2 className="h-4 w-4" />
+                Share
+              </Button>
+            </div>
+            <ol className="text-xs text-muted-foreground space-y-1 mt-2">
+              <li><strong>1.</strong> Send the QR or link to your client</li>
+              <li><strong>2.</strong> They open it on their phone (Chrome / Safari)</li>
+              <li><strong>3.</strong> They tap <strong>Install Admin App</strong> — done ✅</li>
+            </ol>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
