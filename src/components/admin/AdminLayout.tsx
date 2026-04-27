@@ -213,26 +213,39 @@ function AdminSidebar({
 function MobileBottomNav({
   activeSection,
   onSectionChange,
+  onOpenSearch,
 }: {
   activeSection: string;
   onSectionChange: (section: string) => void;
+  onOpenSearch: () => void;
 }) {
   return (
     <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-card/95 backdrop-blur-lg border-t border-border safe-area-bottom">
-      <div className="flex items-center justify-around h-16">
+      <div className="flex items-center justify-around h-16 px-1">
         {bottomNavItems.map((item) => {
-          const isActive = activeSection === item.id;
+          const isSearch = item.id === "__search";
+          const isActive = !isSearch && activeSection === item.id;
+          if (isSearch) {
+            return (
+              <button
+                key={item.id}
+                onClick={onOpenSearch}
+                className="flex flex-col items-center justify-center -mt-6 h-14 w-14 rounded-full bg-gradient-to-br from-primary to-secondary text-primary-foreground shadow-lg shadow-primary/40 active:scale-95 transition-transform"
+                aria-label="AI search"
+              >
+                <item.icon className="h-6 w-6" />
+              </button>
+            );
+          }
           return (
             <button
               key={item.id}
               onClick={() => onSectionChange(item.id)}
-              className={`flex flex-col items-center justify-center gap-0.5 flex-1 h-full transition-colors ${
-                isActive
-                  ? "text-primary"
-                  : "text-muted-foreground"
+              className={`flex flex-col items-center justify-center gap-0.5 flex-1 h-full min-h-[44px] transition-colors ${
+                isActive ? "text-primary" : "text-muted-foreground"
               }`}
             >
-              <item.icon className={`h-5 w-5 ${isActive ? "text-primary" : ""}`} />
+              <item.icon className="h-5 w-5" />
               <span className="text-[10px] font-medium">{item.title}</span>
             </button>
           );
