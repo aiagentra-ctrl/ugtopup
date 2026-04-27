@@ -42,6 +42,7 @@ import { AdvancedAnalytics } from "@/components/admin/AdvancedAnalytics";
 import { WhatsAppChatbot } from "@/components/admin/WhatsAppChatbot";
 import { TournamentAdminHub } from "@/components/admin/TournamentAdminHub";
 import { TournamentBannerManager } from "@/components/admin/TournamentBannerManager";
+import { ProfitCalculator } from "@/components/admin/ProfitCalculator";
 import { checkAdminAccess } from "@/lib/adminApi";
 import { useAdminPushNotifications } from "@/hooks/useAdminPushNotifications";
 import { toast } from "sonner";
