@@ -185,6 +185,8 @@ const AdminPanel = () => {
         return <TournamentAdminHub />;
       case "tournament-banners":
         return <TournamentBannerManager />;
+      case "profit-calculator":
+        return <ProfitCalculator />;
       default:
         return <EnhancedDashboard />;
     }
