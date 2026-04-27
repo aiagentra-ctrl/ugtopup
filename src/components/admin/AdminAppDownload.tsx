@@ -13,6 +13,8 @@ import {
 } from "lucide-react";
 import { usePWAInstall, swapManifest } from "@/hooks/usePWAInstall";
 import { toast } from "sonner";
+import { QRCodeSVG } from "qrcode.react";
+import { Copy, Share2 } from "lucide-react";
 
 const features = [
   { icon: Bell, title: "Real-Time Push Notifications", description: "Get instant alerts for new orders, credit requests, and API failures" },
