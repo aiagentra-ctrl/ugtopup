@@ -7,7 +7,6 @@ import { MLIgnVerification } from "@/components/ml/MLIgnVerification";
 import { MLOrderReview } from "@/components/ml/MLOrderReview";
 import { MLSuccessModal } from "@/components/ml/MLSuccessModal";
 import { Button } from "@/components/ui/button";
-import { QuantitySelector } from "@/components/ui/quantity-selector";
 import { createOrder, generateOrderNumber } from "@/lib/orderApi";
 import { ensureSufficientBalance } from "@/lib/creditApi";
 import { requestDeduplicator } from "@/lib/requestDeduplicator";
@@ -30,7 +29,6 @@ const MobileLegends = () => {
   
   const [errors, setErrors] = useState<{ userId?: string; zoneId?: string }>({});
   const [selectedPackage, setSelectedPackage] = useState<MLPackage | null>(null);
-  const [purchaseQuantity, setPurchaseQuantity] = useState(1);
   const [showReviewModal, setShowReviewModal] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -47,8 +45,8 @@ const MobileLegends = () => {
   }>({ show: false, loading: false, ign: "", error: null, variationId: null });
   const [verifiedIgn, setVerifiedIgn] = useState<string | null>(null);
 
-  const totalPrice = selectedPackage ? selectedPackage.price * purchaseQuantity : 0;
-  const totalItems = selectedPackage ? selectedPackage.quantity * purchaseQuantity : 0;
+  const totalPrice = selectedPackage?.price ?? 0;
+  const totalItems = selectedPackage?.quantity ?? 0;
 
   const handleInputChange = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -57,7 +55,6 @@ const MobileLegends = () => {
 
   const handlePackageSelect = (pkg: MLPackage) => {
     setSelectedPackage(pkg);
-    setPurchaseQuantity(1);
     setVerifiedIgn(null); // Reset verification when package changes
   };
 
@@ -170,7 +167,7 @@ const MobileLegends = () => {
     
     try {
       const order = await requestDeduplicator.dedupe(
-        `place_order:${user.id}:${selectedPackage.name}:${purchaseQuantity}:${couponCode || ''}`,
+        `place_order:${user.id}:${selectedPackage.name}:${couponCode || ''}`,
         async () => {
           return await createOrder({
             order_number: currentOrderId,
@@ -185,9 +182,6 @@ const MobileLegends = () => {
               zoneId: formData.zoneId,
               whatsapp: formData.whatsapp || "",
               packageType: selectedPackage.type,
-              purchase_quantity: purchaseQuantity,
-              unit_price: selectedPackage.price,
-              unit_quantity: selectedPackage.quantity,
               verified_ign: verifiedIgn || undefined,
               skip_verification: !!verifiedIgn,
               variation_id: ignVerification.variationId || undefined,
@@ -231,7 +225,6 @@ const MobileLegends = () => {
     setFormData({ userId: "", zoneId: "", whatsapp: "" });
     setSelectedPackage(null);
     setCurrentOrderId("");
-    setPurchaseQuantity(1);
     setVerifiedIgn(null);
     setIgnVerification({ show: false, loading: false, ign: "", error: null, variationId: null });
   };
@@ -263,18 +256,6 @@ const MobileLegends = () => {
             selectedPackage={selectedPackage}
             onSelectPackage={handlePackageSelect}
           />
-
-          {selectedPackage && (
-            <QuantitySelector
-              value={purchaseQuantity}
-              onChange={setPurchaseQuantity}
-              min={1}
-              max={10}
-              unitPrice={selectedPackage.price}
-              unitQuantity={selectedPackage.quantity}
-              itemLabel="Diamonds"
-            />
-          )}
         </div>
       </div>
 
@@ -326,7 +307,6 @@ const MobileLegends = () => {
             email: user.email!,
           }}
           isPlacingOrder={isPlacingOrder}
-          purchaseQuantity={purchaseQuantity}
           totalPrice={totalPrice}
           totalItems={totalItems}
         />
