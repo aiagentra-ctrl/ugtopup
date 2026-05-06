@@ -15,6 +15,8 @@ import {
   Database, Settings, Archive, Activity, Trash2, RefreshCw, Download, RotateCcw,
 } from "lucide-react";
 import { format } from "date-fns";
+import { useSupabaseStatus } from "@/hooks/useSupabaseStatus";
+import { SupabaseStatusBanner } from "./SupabaseStatusBanner";
 
 interface CleanupSetting {
   id: string;
@@ -53,6 +55,7 @@ export function DatabaseManagement() {
   const [loading, setLoading] = useState(true);
   const [running, setRunning] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const supabaseStatus = useSupabaseStatus(60_000);
 
   useEffect(() => {
     loadAll();
@@ -120,6 +123,14 @@ export function DatabaseManagement() {
   };
 
   const runCleanupNow = async () => {
+    if (supabaseStatus.suspended) {
+      toast.error(
+        "Supabase project is suspended (" +
+          (supabaseStatus.reason || "restricted") +
+          "). Cleanup is blocked until the project is unlocked."
+      );
+      return;
+    }
     setRunning(true);
     try {
       const { data, error } = await supabase.functions.invoke("database-cleanup");
@@ -209,6 +220,7 @@ export function DatabaseManagement() {
 
   return (
     <div className="space-y-6">
+      <SupabaseStatusBanner status={supabaseStatus} />
       <Tabs defaultValue="monitoring">
         <TabsList>
           <TabsTrigger value="monitoring" className="gap-2">
@@ -289,9 +301,18 @@ export function DatabaseManagement() {
             <p className="text-sm text-muted-foreground">
               Configure retention periods and cleanup rules
             </p>
-            <Button onClick={runCleanupNow} disabled={running} className="gap-2">
+            <Button
+              onClick={runCleanupNow}
+              disabled={running || supabaseStatus.suspended}
+              className="gap-2"
+              title={supabaseStatus.suspended ? "Project suspended — unlock first" : undefined}
+            >
               <Trash2 className="h-4 w-4" />
-              {running ? "Running..." : "Run Cleanup Now"}
+              {running
+                ? "Running..."
+                : supabaseStatus.suspended
+                ? "Disabled (Project Suspended)"
+                : "Run Cleanup Now"}
             </Button>
           </div>
 
