@@ -8,6 +8,7 @@ import { OrderHistoryCard } from "@/components/dashboard/OrderHistoryCard";
 import { TrustBadges } from "@/components/dashboard/TrustBadges";
 import { CreditRequestHistory } from "@/components/topup/CreditRequestHistory";
 import { TopUpModal } from "@/components/topup/TopUpModal";
+import { triggerInstallPopup } from "@/components/InstallAppPopup";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { fetchUserPaymentRequests, type CreditHistoryEntry } from "@/lib/creditApi";
@@ -169,6 +170,8 @@ const Dashboard = () => {
   const handleTopUpSuccess = async () => {
     toast.success("Credit request submitted successfully!");
     setTopUpModalOpen(false);
+    // Re-prompt install popup after a top-up action
+    triggerInstallPopup();
     // Real-time subscriptions will handle the updates automatically
   };
 
