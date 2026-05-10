@@ -18,10 +18,10 @@ const RefundPolicy = () => {
               <span className="text-sm font-medium text-primary">Read Carefully</span>
             </div>
             
-            <h1 className="text-3xl md:text-4xl font-bold mb-3 text-foreground">
+            <h1 className="text-4xl md:text-6xl font-extrabold mb-4 text-foreground leading-tight">
               ⚔️ Battle Terms & Conditions ⚔️
             </h1>
-            <p className="text-base text-muted-foreground">
+            <p className="text-base md:text-lg text-muted-foreground">
               Read Before Adding Credit
             </p>
           </div>

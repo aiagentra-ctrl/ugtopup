@@ -43,17 +43,21 @@ export const OrderHistoryCard = ({ orders, loading, error }: OrderHistoryCardPro
   return (
     <Card className="bg-slate-950/50 backdrop-blur-sm border-slate-800">
       <CardHeader>
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-green-500/10">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="p-2 rounded-lg bg-green-500/10 shrink-0">
               <ShoppingBag className="h-6 w-6 text-green-500" />
             </div>
-            <div>
+            <div className="min-w-0">
               <CardTitle className="text-xl">Order History</CardTitle>
-              <CardDescription>Track your product orders</CardDescription>
+              <CardDescription className="flex items-center gap-1 text-xs sm:text-sm">
+                <span className="sm:hidden animate-pulse">←</span>
+                <span className="sm:hidden">Slide left to track your product orders</span>
+                <span className="hidden sm:inline">Track your product orders</span>
+              </CardDescription>
             </div>
           </div>
-          <Badge variant="outline" className="text-lg px-3 py-1">
+          <Badge variant="outline" className="text-base sm:text-lg px-3 py-1 self-start sm:self-auto shrink-0">
             {orders.length} {orders.length === 1 ? 'Order' : 'Orders'}
           </Badge>
         </div>
