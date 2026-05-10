@@ -43,7 +43,7 @@ export const CreditBalanceCard = ({ balance, email, loading, onTopUpClick }: Cre
               onClick={onTopUpClick}
               className="w-full topup-submit-button text-white font-semibold py-6 text-base rounded-lg transition-all duration-300 hover:scale-[1.02] shadow-lg"
             >
-              + Top-Up
+              + Credit Topup
             </Button>
           </>
         )}

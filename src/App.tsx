@@ -7,7 +7,8 @@ import { Suspense } from "react";
 import { AuthProvider } from "./contexts/AuthContext";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { AdminRoute } from "./components/AdminRoute";
-import { ChatWidget } from "./components/chat/ChatWidget";
+import { SupportFAB } from "./components/SupportFAB";
+import { InstallAppPopup } from "./components/InstallAppPopup";
 import { LoadingScreen } from "./components/LoadingScreen";
 import { NotificationPermissionModal } from "./components/NotificationPermissionModal";
 import { OfflineIndicator } from "./components/OfflineIndicator";
@@ -224,7 +225,8 @@ const App = () => (
           </Routes>
           </PageTrackingProvider>
           </Suspense>
-          <ChatWidget />
+          <SupportFAB />
+          <InstallAppPopup />
           <NotificationPermissionModal />
         </AuthProvider>
       </BrowserRouter>
