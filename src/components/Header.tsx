@@ -100,7 +100,7 @@ export const Header = () => {
   }, [user?.id, profile?.balance]);
 
   return (
-    <header className="sticky top-0 z-50 bg-black border-b border-white/5">
+    <header className="sticky top-0 z-50 bg-black/70 backdrop-blur-xl border-b border-white/5 relative after:content-[''] after:absolute after:inset-x-0 after:-bottom-px after:h-px after:bg-gradient-to-r after:from-transparent after:via-primary/60 after:to-transparent after:opacity-70">
       <div className="container mx-auto px-4">
         <div className="flex h-14 sm:h-16 md:h-20 items-center justify-between gap-2 sm:gap-4">
           {/* Logo */}
