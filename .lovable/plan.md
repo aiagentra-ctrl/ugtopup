@@ -1,63 +1,73 @@
+## Goal
+Bring the futuristic gaming look from `/tournaments` (sheen sweep, gradient borders, glow, glass) to the rest of the site — homepage, product cards/banners, header, Why Choose Us, Customer Reviews, Products page, and footer — without changing any business logic.
 
-## Plan — UI changes from your screenshots
+## Scope
+Frontend & presentation only. No API, DB, or routing changes. Reuse existing utilities (`.sheen`, `.card-premium`, `.glass-card`, `.glow-border`, `animate-shimmer`, `animate-float`, `animate-bg-pan`, `animate-glow-pulse`) already defined in `src/index.css` and `tailwind.config.ts`.
 
-### 1. Dashboard — Credit Balance card (image 1)
-- `src/components/dashboard/CreditBalanceCard.tsx`: change the button label `+ Top-Up` → `+ Credit Topup` (keep same gradient/style).
+## Changes by file
 
-### 2. Dashboard — Order History card (image 2)
-- `src/components/dashboard/OrderHistoryCard.tsx`:
-  - Fix the cramped header on mobile: stack the title/description above the order count `Badge` on small screens (`flex-col sm:flex-row`) so "101 Orders" no longer overlaps "Order History" / "Track your product orders".
-  - Replace the `CardDescription` text "Track your product orders" with **"← Slide left to track your product orders"** and add a subtle horizontal-scroll hint (small chevron + `animate-pulse`) above the table on mobile only.
-  - Keep the underlying horizontal scroll behaviour as-is.
+### 1. `src/index.css` — add reusable next-gen utilities
+- `.sheen-strong` — brighter sweep variant for product cards (white/15% gradient, 1.1s sweep).
+- `.glow-ring` — animated conic/gradient border ring on hover (uses `--primary`/`--secondary`).
+- `.glass-premium-hover` — glassmorphism + lift + inner border glow on hover.
+- `.animated-gradient-text` — uses `bg-pan` keyframe across primary→secondary→primary.
+- `.bg-grid` — subtle radial-grid background pattern for sections (CSS only, low cost).
+- New keyframes: `star-twinkle`, `card-glow-pulse`.
 
-### 3. Replace chatbot with Messenger + WhatsApp floating buttons (image 3)
-- Remove the chatbot floating widget from the site:
-  - In `src/App.tsx`, remove the `<ChatWidget />` mount (do **not** delete the chat files — just unmount, so admin-side data stays intact).
-- Create new `src/components/SupportFAB.tsx`: a stacked floating action group in the bottom-right with three circular buttons matching the reference style:
-  - Messenger (blue) → `https://m.me/<page>` (placeholder until you give the handle)
-  - WhatsApp (green) → `https://wa.me/9779708562001` (existing number)
-  - Toggle (purple X / chat icon) to expand/collapse the stack
-- Mount `<SupportFAB />` globally in `src/App.tsx` so it shows on every page.
-- Uses semantic tokens; no hard-coded hex outside the brand colors for the two channels.
+### 2. `src/components/ProductCard.tsx`
+- Wrap outer card in `card-premium sheen-strong` (gradient border + sweep).
+- Add `group-hover:shadow-[0_0_28px_-4px_hsl(var(--primary)/0.5)]` glow.
+- Image: keep aspect, add `group-hover:brightness-110` and slow zoom (`duration-700`).
+- Title: `group-hover:text-primary transition-colors`.
 
-**I need from you:** the Facebook Page username/ID for the Messenger link (e.g. `m.me/ugtopups`).
+### 3. `src/components/HeroBanner.tsx`
+- Add `sheen-strong` to outer slide container so banner inherits the same sweep on hover/touch.
+- Strengthen ring with `ring-1 ring-white/5 hover:ring-primary/40 transition`.
+- Active dot: switch to `animate-glow-pulse`.
 
-### 4. Terms & Conditions page (image 4)
-- `src/pages/RefundPolicy.tsx`: bump the heading "⚔️ Battle Terms & Conditions ⚔️" from `text-3xl md:text-4xl` → `text-4xl md:text-6xl` and increase top/bottom spacing slightly. No other changes.
+### 4. `src/components/Header.tsx`
+- Replace flat `bg-black` with translucent `bg-black/70 backdrop-blur-xl` + bottom gradient hairline (`after:` pseudo with primary→secondary).
+- Logo: subtle `hover:drop-shadow-[0_0_12px_hsl(var(--primary)/0.6)]`.
+- Credit pill: glassmorphism (`bg-white/5 backdrop-blur` + animated gradient border via `card-premium` mini variant).
+- Add Plus button: keep `neon-button`, add `animate-glow-pulse` on idle.
+- User pill / mobile avatar: glass + ring on hover.
+- Mobile menu panel: glass surface + slide-in animation (`animate-fade-in`).
 
-### 5. Homepage PWA install popup (image 5)
-- New component `src/components/InstallAppPopup.tsx`: centered/bottom card matching the reference (app icon + "Install UGTOPUPS App" + subtitle + Install button + close X).
-- Logic via existing `usePWAInstall` hook:
-  - Show only when `isInstallable && !isInstalled` and the device is not iOS-standalone.
-  - Trigger conditions:
-    1. First visit to homepage after a short delay (~3s) if the user has never dismissed it.
-    2. Re-show after the user completes a top-up (`handleTopUpSuccess` in `Dashboard.tsx`) or a successful product purchase (hook into the existing success modals' `onClose` / order-created event).
-  - "Install App" → calls `promptInstall()` (one-click on Android/desktop, iOS instructions modal already exists in Footer — reuse it).
-  - "Cancel" (X) → hides popup for the current session via `sessionStorage` flag `install_popup_dismissed`. Clearing happens automatically after a purchase/top-up event so it reappears as you requested.
-- Mount popup on `src/pages/Index.tsx` (homepage) and `src/pages/Dashboard.tsx`. Works for new and existing users since it relies on the browser's native `beforeinstallprompt` event already wired up in `usePWAInstall`.
+### 5. `src/components/WhyChooseUs.tsx`
+- Section background: add `bg-grid` overlay + two floating `.orb` (primary, secondary).
+- Heading: wrap "UG TOP-UP" with `animated-gradient-text`.
+- Cards: replace plain card with `card-premium sheen glass-premium-hover`, icon container gets `animate-glow-pulse` ring on hover, value bumps with `group-hover:scale-110`.
+- Add staggered entry via `animate-fade-in` + inline `style={{animationDelay}}`.
 
-### 6. Footer redesign (image 7)
-- Rework `src/components/Footer.tsx` to match the dark navy "Reaper Topups" reference:
-  - Two-column layout: **Social Media** (left) and **Support** (right), with the brand block (logo + tagline) on top.
-  - Replace the Instagram link slot with **TikTok** (icon + label) — note: current footer has Facebook/YouTube/TikTok/WhatsApp social row; per your request the social column will list **TikTok** and **Facebook**, support column will list **WhatsApp** and **Email**.
-  - Add a horizontally-scrollable strip at the bottom (above the copyright) showing: Refund Policy, Coupon Policy, Products, Contact Us, API Docs, Dashboard — as scrollable chips/pills (`overflow-x-auto`, `snap-x`) so users can swipe through them on mobile.
-  - Keep existing colors/tokens (`--footer-bg`, `--footer-heading`, etc.); only restructure layout and labels.
+### 6. `src/components/Testimonials.tsx` — full premium redesign
+- Section background: dark with `bg-grid` and two soft orbs.
+- Title: `animated-gradient-text`, add small "PLAYERS LOVE US" eyebrow chip.
+- Cards: 3-up on desktop (md+), 1-up auto-rotating on mobile. Use `card-premium sheen` with glass body, large quote glyph, animated 5-star row using `star-twinkle` keyframe (staggered delays).
+- Auto-rotation kept (4s) on mobile; on desktop, show 3 simultaneously with subtle hover lift + glow.
+- Avatar: gradient ring + initial.
+- Dot indicators: glow-pulse on active.
 
-### Files to edit
-- `src/components/dashboard/CreditBalanceCard.tsx`
-- `src/components/dashboard/OrderHistoryCard.tsx`
-- `src/App.tsx` (remove ChatWidget, mount SupportFAB)
-- `src/pages/RefundPolicy.tsx`
-- `src/pages/Index.tsx`, `src/pages/Dashboard.tsx` (mount InstallAppPopup + clear dismiss flag on purchase/top-up)
-- `src/components/Footer.tsx`
+### 7. `src/components/Footer.tsx`
+- Background: layer `bg-grid` + top gradient hairline + faint orb on the left.
+- Brand title: `animated-gradient-text`.
+- Section headings: keep color, add small underline accent (`after:` gradient bar).
+- Social/Support items: glass chip pills with `sheen` and color-tinted hover (TikTok pink, Facebook blue, WhatsApp green, Email primary).
+- Quick-links chips: upgrade to `card-premium`-style gradient border + `sheen` hover.
+- Bottom copyright: subtle separator gradient.
 
-### Files to create
-- `src/components/SupportFAB.tsx`
-- `src/components/InstallAppPopup.tsx`
+### 8. `src/pages/Products.tsx`
+- Page header: `animated-gradient-text` for "All Products", subtle `bg-grid` strip.
+- Search bar: glassmorphism (`bg-white/5 backdrop-blur` + focus ring glow).
+- Category tabs: gradient-border pills with `sheen` and active glow.
+- Empty state: glass card with icon glow.
+- Grid items already use updated `ProductCard` so they inherit the new effect.
 
-### Out of scope / preserved
-- No backend / Supabase changes (project is still under egress restriction).
-- Chatbot code remains in repo, just unmounted — easy to re-enable later.
-- Liana / orders / payment logic untouched.
+## Performance / accessibility
+- Sheen and orbs are CSS-only (no JS), respect `prefers-reduced-motion` via existing global behavior — add a `@media (prefers-reduced-motion: reduce)` rule disabling sheen/glow-pulse/float.
+- All colors stay in HSL semantic tokens; no hardcoded color classes outside what's already there.
+- Mobile: keep existing tap targets; sheen on touch fires via `:active` (add `.sheen-strong:active::after` rule).
 
-Reply **"approve"** to implement, or tell me the Messenger page handle + any tweaks first.
+## Out of scope
+- No business logic, data fetching, routing, or copy changes beyond what's stated.
+- Chatbot, dashboard, admin panels untouched.
+- No new dependencies.

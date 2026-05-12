@@ -37,7 +37,7 @@ export const ProductCard = ({ image, title, link, badgeText, badgeColor, badgeTe
 
   const CardContent = (
     <div className="group cursor-pointer">
-      <div className="overflow-hidden rounded-xl bg-card border border-border transition-all duration-300 ease-out hover:border-muted-foreground/30 hover:shadow-xl hover:shadow-background/50 hover:-translate-y-1 relative">
+      <div className="card-premium sheen-strong overflow-hidden rounded-xl transition-all duration-500 ease-out hover:-translate-y-1.5 hover:shadow-[0_18px_40px_-12px_hsl(var(--primary)/0.55)] relative">
         <div className="aspect-square overflow-hidden relative">
           {badgeText && (
             <OfferBadge text={badgeText} color={badgeColor} textColor={badgeTextColor} animation={badgeAnimation} />
@@ -61,7 +61,7 @@ export const ProductCard = ({ image, title, link, badgeText, badgeColor, badgeTe
               alt={title}
               loading="lazy"
               decoding="async"
-              className={`h-full w-full object-cover transition-all duration-500 ease-out group-hover:scale-105 ${
+              className={`h-full w-full object-cover transition-all duration-700 ease-out group-hover:scale-110 group-hover:brightness-110 ${
                 imageLoading ? 'opacity-0' : 'opacity-100'
               }`}
               onLoad={() => setImageLoading(false)}
@@ -73,7 +73,7 @@ export const ProductCard = ({ image, title, link, badgeText, badgeColor, badgeTe
           )}
         </div>
         <div className="p-2.5 sm:p-4 text-center">
-          <p className="text-xs sm:text-sm font-medium text-foreground/90 tracking-wide line-clamp-2">
+          <p className="text-xs sm:text-sm font-medium text-foreground/90 tracking-wide line-clamp-2 transition-colors group-hover:text-primary">
             {title}
           </p>
         </div>

@@ -56,11 +56,14 @@ const Products = () => {
   return (
     <div className="min-h-screen bg-background">
       <Header />
-      <main className="container mx-auto px-3 sm:px-4 py-6 sm:py-8 space-y-6 sm:space-y-8">
+      <main className="container mx-auto px-3 sm:px-4 py-6 sm:py-8 space-y-6 sm:space-y-8 relative">
+        <div className="absolute inset-x-0 top-0 h-64 bg-grid opacity-20 pointer-events-none -z-10" />
         {/* Page Title */}
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-foreground">All Products</h1>
-          <p className="text-muted-foreground text-sm mt-1">Browse our full catalog of games, subscriptions, and services.</p>
+          <h1 className="text-3xl sm:text-5xl font-bold">
+            <span className="animated-gradient-text">All Products</span>
+          </h1>
+          <p className="text-muted-foreground text-sm mt-2">Browse our full catalog of games, subscriptions, and services.</p>
         </div>
 
         {/* Trending Section */}
@@ -69,12 +72,12 @@ const Products = () => {
         {/* Search + Filter Bar */}
         <div className="flex flex-col sm:flex-row gap-3">
           <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground z-10" />
             <Input
               placeholder="Search products..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="pl-10 bg-card border-border"
+              className="pl-10 bg-white/5 backdrop-blur-md border-white/10 focus-visible:border-primary/50 focus-visible:ring-primary/30 transition-all"
             />
           </div>
           <Select value={selectedCategory} onValueChange={setSelectedCategory}>
@@ -108,10 +111,10 @@ const Products = () => {
         <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
           <button
             onClick={() => setSelectedCategory("all")}
-            className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${
+            className={`sheen px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all ${
               selectedCategory === "all"
-                ? "bg-primary text-primary-foreground"
-                : "bg-card text-muted-foreground hover:text-foreground border border-border"
+                ? "bg-gradient-to-r from-primary to-secondary text-white shadow-[0_0_20px_-4px_hsl(var(--primary)/0.7)]"
+                : "card-premium text-muted-foreground hover:text-foreground hover:-translate-y-0.5"
             }`}
           >
             All
@@ -120,10 +123,10 @@ const Products = () => {
             <button
               key={cat.id}
               onClick={() => setSelectedCategory(cat.id)}
-              className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${
+              className={`sheen px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all ${
                 selectedCategory === cat.id
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-card text-muted-foreground hover:text-foreground border border-border"
+                  ? "bg-gradient-to-r from-primary to-secondary text-white shadow-[0_0_20px_-4px_hsl(var(--primary)/0.7)]"
+                  : "card-premium text-muted-foreground hover:text-foreground hover:-translate-y-0.5"
               }`}
             >
               {cat.name}

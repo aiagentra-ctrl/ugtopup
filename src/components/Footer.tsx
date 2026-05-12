@@ -55,19 +55,23 @@ export const Footer = () => {
 
   return (
     <>
-      <footer className="bg-[hsl(var(--footer-bg))] border-t border-[hsl(var(--footer-border))] py-12 md:py-16">
-        <div className="container mx-auto px-6 md:px-8 lg:px-12 max-w-5xl">
+      <footer className="relative bg-[hsl(var(--footer-bg))] border-t border-[hsl(var(--footer-border))] py-12 md:py-16 overflow-hidden">
+        <div className="absolute inset-0 bg-grid opacity-20 pointer-events-none" />
+        <div className="orb orb-primary w-72 h-72 -top-24 -left-20 animate-float-slow opacity-40" />
+        <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-primary/60 to-transparent" />
+
+        <div className="container mx-auto px-6 md:px-8 lg:px-12 max-w-5xl relative">
           {/* Brand */}
           <div className="mb-10">
             <div className="flex items-center gap-4 mb-3">
-              <h2 className="text-3xl md:text-4xl font-bold text-[hsl(var(--footer-heading))]">
+              <h2 className="text-3xl md:text-4xl font-bold animated-gradient-text">
                 UGC Top Up
               </h2>
               {showDownloadOption && (
                 <button
                   onClick={handleInstallClick}
                   disabled={isLoading}
-                  className="group relative w-10 h-10 rounded-full bg-gradient-to-br from-blue-500/30 to-purple-600/30 flex items-center justify-center hover:scale-110 transition-transform duration-300 shadow-md disabled:opacity-50"
+                  className="group relative w-10 h-10 rounded-full bg-gradient-to-br from-blue-500/30 to-purple-600/30 flex items-center justify-center hover:scale-110 transition-transform duration-300 shadow-md disabled:opacity-50 animate-glow-pulse"
                   aria-label="Install UGTOPUPS App"
                   title={isInstalled ? "App Installed" : "Install UGTOPUPS App"}
                 >
@@ -143,12 +147,12 @@ export const Footer = () => {
 
           {/* Scrollable quick links strip */}
           <div className="mb-8 -mx-6 px-6 md:-mx-8 md:px-8">
-            <div className="flex gap-2 overflow-x-auto pb-2 snap-x snap-mandatory scrollbar-thin">
+            <div className="flex gap-2 overflow-x-auto pb-2 snap-x snap-mandatory scrollbar-hide">
               {quickLinks.map((link) => (
                 <Link
                   key={link.to}
                   to={link.to}
-                  className="snap-start shrink-0 px-4 py-2 rounded-full border border-[hsl(var(--footer-border))] text-sm text-[hsl(var(--footer-text))] hover:text-[hsl(var(--footer-heading))] hover:border-[hsl(var(--footer-heading))] transition-colors whitespace-nowrap"
+                  className="snap-start shrink-0 card-premium sheen px-4 py-2 rounded-full text-sm text-[hsl(var(--footer-text))] hover:text-primary transition-all whitespace-nowrap hover:-translate-y-0.5 hover:shadow-[0_8px_20px_-8px_hsl(var(--primary)/0.5)]"
                 >
                   {link.label}
                 </Link>
@@ -157,7 +161,8 @@ export const Footer = () => {
           </div>
 
           {/* Bottom */}
-          <div className="border-t border-[hsl(var(--footer-border))] pt-6 text-center space-y-2">
+          <div className="border-t border-[hsl(var(--footer-border))] pt-6 text-center space-y-2 relative">
+            <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-primary/40 to-transparent" />
             <div className="text-sm text-[hsl(var(--footer-muted))]">
               © 2025 UGTOPUPS. All rights reserved.
             </div>

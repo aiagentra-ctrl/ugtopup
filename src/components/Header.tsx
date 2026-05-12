@@ -100,15 +100,15 @@ export const Header = () => {
   }, [user?.id, profile?.balance]);
 
   return (
-    <header className="sticky top-0 z-50 bg-black border-b border-white/5">
+    <header className="sticky top-0 z-50 bg-black/70 backdrop-blur-xl border-b border-white/5 relative after:content-[''] after:absolute after:inset-x-0 after:-bottom-px after:h-px after:bg-gradient-to-r after:from-transparent after:via-primary/60 after:to-transparent after:opacity-70">
       <div className="container mx-auto px-4">
         <div className="flex h-14 sm:h-16 md:h-20 items-center justify-between gap-2 sm:gap-4">
           {/* Logo */}
-          <Link to="/" className="flex items-center py-2">
+          <Link to="/" className="flex items-center py-2 group">
             <img 
               src={ugGamingLogo} 
               alt="UG GAMING" 
-              className="h-10 md:h-12 w-auto object-contain"
+              className="h-10 md:h-12 w-auto object-contain transition-all duration-300 group-hover:drop-shadow-[0_0_14px_hsl(var(--primary)/0.7)] group-hover:scale-105"
               loading="eager"
             />
           </Link>
@@ -118,7 +118,7 @@ export const Header = () => {
             {isAuthenticated ? (
               <>
                 {/* Credit Balance - Visible on all devices */}
-                <div className="flex items-center bg-black/60 border border-white/10 rounded-lg sm:rounded-xl px-2 py-1 sm:px-4 sm:py-2">
+                <div className="flex items-center bg-white/5 backdrop-blur-md border border-white/10 rounded-lg sm:rounded-xl px-2 py-1 sm:px-4 sm:py-2 transition-all hover:border-primary/50 hover:shadow-[0_0_18px_-4px_hsl(var(--primary)/0.6)]">
                   <span className="text-[11px] sm:text-sm font-semibold text-white whitespace-nowrap">
                     {balance || 0} Cr.
                   </span>
@@ -127,7 +127,7 @@ export const Header = () => {
                 {/* Add Credit Button */}
                 <Button
                   size="icon"
-                  className="neon-button h-8 w-8 sm:h-10 sm:w-10 rounded-lg sm:rounded-xl"
+                  className="neon-button h-8 w-8 sm:h-10 sm:w-10 rounded-lg sm:rounded-xl animate-glow-pulse"
                   onClick={() => setTopUpModalOpen(true)}
                 >
                   <Plus className="h-4 w-4 sm:h-5 sm:w-5" />
