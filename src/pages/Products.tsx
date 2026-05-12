@@ -72,12 +72,12 @@ const Products = () => {
         {/* Search + Filter Bar */}
         <div className="flex flex-col sm:flex-row gap-3">
           <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground z-10" />
             <Input
               placeholder="Search products..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="pl-10 bg-card border-border"
+              className="pl-10 bg-white/5 backdrop-blur-md border-white/10 focus-visible:border-primary/50 focus-visible:ring-primary/30 transition-all"
             />
           </div>
           <Select value={selectedCategory} onValueChange={setSelectedCategory}>
