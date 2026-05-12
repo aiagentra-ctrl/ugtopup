@@ -147,12 +147,12 @@ export const Footer = () => {
 
           {/* Scrollable quick links strip */}
           <div className="mb-8 -mx-6 px-6 md:-mx-8 md:px-8">
-            <div className="flex gap-2 overflow-x-auto pb-2 snap-x snap-mandatory scrollbar-thin">
+            <div className="flex gap-2 overflow-x-auto pb-2 snap-x snap-mandatory scrollbar-hide">
               {quickLinks.map((link) => (
                 <Link
                   key={link.to}
                   to={link.to}
-                  className="snap-start shrink-0 px-4 py-2 rounded-full border border-[hsl(var(--footer-border))] text-sm text-[hsl(var(--footer-text))] hover:text-[hsl(var(--footer-heading))] hover:border-[hsl(var(--footer-heading))] transition-colors whitespace-nowrap"
+                  className="snap-start shrink-0 card-premium sheen px-4 py-2 rounded-full text-sm text-[hsl(var(--footer-text))] hover:text-primary transition-all whitespace-nowrap hover:-translate-y-0.5 hover:shadow-[0_8px_20px_-8px_hsl(var(--primary)/0.5)]"
                 >
                   {link.label}
                 </Link>
@@ -161,7 +161,8 @@ export const Footer = () => {
           </div>
 
           {/* Bottom */}
-          <div className="border-t border-[hsl(var(--footer-border))] pt-6 text-center space-y-2">
+          <div className="border-t border-[hsl(var(--footer-border))] pt-6 text-center space-y-2 relative">
+            <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-primary/40 to-transparent" />
             <div className="text-sm text-[hsl(var(--footer-muted))]">
               © 2025 UGTOPUPS. All rights reserved.
             </div>
