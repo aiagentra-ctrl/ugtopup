@@ -118,7 +118,7 @@ export const Header = () => {
             {isAuthenticated ? (
               <>
                 {/* Credit Balance - Visible on all devices */}
-                <div className="flex items-center bg-black/60 border border-white/10 rounded-lg sm:rounded-xl px-2 py-1 sm:px-4 sm:py-2">
+                <div className="flex items-center bg-white/5 backdrop-blur-md border border-white/10 rounded-lg sm:rounded-xl px-2 py-1 sm:px-4 sm:py-2 transition-all hover:border-primary/50 hover:shadow-[0_0_18px_-4px_hsl(var(--primary)/0.6)]">
                   <span className="text-[11px] sm:text-sm font-semibold text-white whitespace-nowrap">
                     {balance || 0} Cr.
                   </span>
@@ -127,7 +127,7 @@ export const Header = () => {
                 {/* Add Credit Button */}
                 <Button
                   size="icon"
-                  className="neon-button h-8 w-8 sm:h-10 sm:w-10 rounded-lg sm:rounded-xl"
+                  className="neon-button h-8 w-8 sm:h-10 sm:w-10 rounded-lg sm:rounded-xl animate-glow-pulse"
                   onClick={() => setTopUpModalOpen(true)}
                 >
                   <Plus className="h-4 w-4 sm:h-5 sm:w-5" />
