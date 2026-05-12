@@ -111,10 +111,10 @@ const Products = () => {
         <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
           <button
             onClick={() => setSelectedCategory("all")}
-            className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${
+            className={`sheen px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all ${
               selectedCategory === "all"
-                ? "bg-primary text-primary-foreground"
-                : "bg-card text-muted-foreground hover:text-foreground border border-border"
+                ? "bg-gradient-to-r from-primary to-secondary text-white shadow-[0_0_20px_-4px_hsl(var(--primary)/0.7)]"
+                : "card-premium text-muted-foreground hover:text-foreground hover:-translate-y-0.5"
             }`}
           >
             All
@@ -123,10 +123,10 @@ const Products = () => {
             <button
               key={cat.id}
               onClick={() => setSelectedCategory(cat.id)}
-              className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${
+              className={`sheen px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all ${
                 selectedCategory === cat.id
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-card text-muted-foreground hover:text-foreground border border-border"
+                  ? "bg-gradient-to-r from-primary to-secondary text-white shadow-[0_0_20px_-4px_hsl(var(--primary)/0.7)]"
+                  : "card-premium text-muted-foreground hover:text-foreground hover:-translate-y-0.5"
               }`}
             >
               {cat.name}
