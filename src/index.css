@@ -629,6 +629,69 @@ All colors MUST be HSL.
     content: ""; position: absolute; inset: -4px; border-radius: 9999px;
     border: 2px solid hsl(142 76% 50%); animation: ping-slow 2.4s cubic-bezier(0,0,0.2,1) infinite;
   }
+
+  /* Stronger sheen sweep for product cards / banners */
+  .sheen-strong { position: relative; overflow: hidden; }
+  .sheen-strong::after {
+    content: ""; position: absolute; inset: 0;
+    background: linear-gradient(115deg, transparent 25%, hsl(0 0% 100% / 0.18) 50%, transparent 75%);
+    transform: translateX(-110%);
+    transition: transform 1.1s ease;
+    pointer-events: none;
+    z-index: 2;
+  }
+  .sheen-strong:hover::after,
+  .sheen-strong:active::after,
+  .sheen-strong:focus-within::after { transform: translateX(110%); }
+
+  /* Glassmorphism with hover lift + inner glow */
+  .glass-premium-hover {
+    background: hsl(var(--card) / 0.55);
+    backdrop-filter: blur(14px) saturate(160%);
+    border: 1px solid hsl(0 0% 100% / 0.06);
+    transition: transform .35s ease, box-shadow .35s ease, border-color .35s ease, background .35s ease;
+  }
+  .glass-premium-hover:hover {
+    transform: translateY(-4px);
+    border-color: hsl(var(--primary) / 0.45);
+    box-shadow:
+      0 20px 40px -16px hsl(var(--primary) / 0.45),
+      inset 0 0 0 1px hsl(var(--primary) / 0.18);
+  }
+
+  /* Animated gradient text */
+  .animated-gradient-text {
+    background: linear-gradient(90deg, hsl(var(--primary)), hsl(var(--secondary)), hsl(38 100% 60%), hsl(var(--primary)));
+    background-size: 300% 100%;
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    animation: bg-pan 8s ease infinite;
+  }
+
+  /* Subtle radial grid background */
+  .bg-grid {
+    background-image:
+      linear-gradient(hsl(var(--border) / 0.35) 1px, transparent 1px),
+      linear-gradient(90deg, hsl(var(--border) / 0.35) 1px, transparent 1px);
+    background-size: 40px 40px;
+    mask-image: radial-gradient(ellipse at center, black 30%, transparent 75%);
+    -webkit-mask-image: radial-gradient(ellipse at center, black 30%, transparent 75%);
+  }
+
+  /* Star twinkle */
+  @keyframes star-twinkle {
+    0%, 100% { transform: scale(1); filter: drop-shadow(0 0 0 hsl(var(--primary) / 0)); }
+    50% { transform: scale(1.18); filter: drop-shadow(0 0 6px hsl(var(--primary) / 0.7)); }
+  }
+  .animate-star-twinkle { animation: star-twinkle 2.4s ease-in-out infinite; }
+
+  /* Reduced motion */
+  @media (prefers-reduced-motion: reduce) {
+    .sheen::after, .sheen-strong::after { transition: none; }
+    .animate-float, .animate-float-slow, .animate-glow-pulse, .animate-pulse-glow,
+    .animate-star-twinkle, .animated-gradient-text { animation: none !important; }
+  }
 }
 @layer base {
   * {
