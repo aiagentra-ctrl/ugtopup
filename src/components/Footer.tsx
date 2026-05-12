@@ -55,19 +55,23 @@ export const Footer = () => {
 
   return (
     <>
-      <footer className="bg-[hsl(var(--footer-bg))] border-t border-[hsl(var(--footer-border))] py-12 md:py-16">
-        <div className="container mx-auto px-6 md:px-8 lg:px-12 max-w-5xl">
+      <footer className="relative bg-[hsl(var(--footer-bg))] border-t border-[hsl(var(--footer-border))] py-12 md:py-16 overflow-hidden">
+        <div className="absolute inset-0 bg-grid opacity-20 pointer-events-none" />
+        <div className="orb orb-primary w-72 h-72 -top-24 -left-20 animate-float-slow opacity-40" />
+        <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-primary/60 to-transparent" />
+
+        <div className="container mx-auto px-6 md:px-8 lg:px-12 max-w-5xl relative">
           {/* Brand */}
           <div className="mb-10">
             <div className="flex items-center gap-4 mb-3">
-              <h2 className="text-3xl md:text-4xl font-bold text-[hsl(var(--footer-heading))]">
+              <h2 className="text-3xl md:text-4xl font-bold animated-gradient-text">
                 UGC Top Up
               </h2>
               {showDownloadOption && (
                 <button
                   onClick={handleInstallClick}
                   disabled={isLoading}
-                  className="group relative w-10 h-10 rounded-full bg-gradient-to-br from-blue-500/30 to-purple-600/30 flex items-center justify-center hover:scale-110 transition-transform duration-300 shadow-md disabled:opacity-50"
+                  className="group relative w-10 h-10 rounded-full bg-gradient-to-br from-blue-500/30 to-purple-600/30 flex items-center justify-center hover:scale-110 transition-transform duration-300 shadow-md disabled:opacity-50 animate-glow-pulse"
                   aria-label="Install UGTOPUPS App"
                   title={isInstalled ? "App Installed" : "Install UGTOPUPS App"}
                 >
