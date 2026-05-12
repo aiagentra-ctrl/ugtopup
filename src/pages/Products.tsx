@@ -56,11 +56,14 @@ const Products = () => {
   return (
     <div className="min-h-screen bg-background">
       <Header />
-      <main className="container mx-auto px-3 sm:px-4 py-6 sm:py-8 space-y-6 sm:space-y-8">
+      <main className="container mx-auto px-3 sm:px-4 py-6 sm:py-8 space-y-6 sm:space-y-8 relative">
+        <div className="absolute inset-x-0 top-0 h-64 bg-grid opacity-20 pointer-events-none -z-10" />
         {/* Page Title */}
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-foreground">All Products</h1>
-          <p className="text-muted-foreground text-sm mt-1">Browse our full catalog of games, subscriptions, and services.</p>
+          <h1 className="text-3xl sm:text-5xl font-bold">
+            <span className="animated-gradient-text">All Products</span>
+          </h1>
+          <p className="text-muted-foreground text-sm mt-2">Browse our full catalog of games, subscriptions, and services.</p>
         </div>
 
         {/* Trending Section */}
