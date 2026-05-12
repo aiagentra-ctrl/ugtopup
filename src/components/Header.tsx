@@ -104,11 +104,11 @@ export const Header = () => {
       <div className="container mx-auto px-4">
         <div className="flex h-14 sm:h-16 md:h-20 items-center justify-between gap-2 sm:gap-4">
           {/* Logo */}
-          <Link to="/" className="flex items-center py-2">
+          <Link to="/" className="flex items-center py-2 group">
             <img 
               src={ugGamingLogo} 
               alt="UG GAMING" 
-              className="h-10 md:h-12 w-auto object-contain"
+              className="h-10 md:h-12 w-auto object-contain transition-all duration-300 group-hover:drop-shadow-[0_0_14px_hsl(var(--primary)/0.7)] group-hover:scale-105"
               loading="eager"
             />
           </Link>
