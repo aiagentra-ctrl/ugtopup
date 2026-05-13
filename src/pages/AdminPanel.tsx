@@ -136,19 +136,21 @@ const AdminPanel = () => {
       case "users":
         return <UserData />;
       case "activity":
-        return <ActivityLogs />;
+        return <SystemHealthHub defaultTab="activity" />;
       case "supabase-limits":
-        return <SupabaseLimits />;
+        return <DatabaseHub defaultTab="limits" />;
       case "product-update":
         return <DynamicProductManager />;
-      case "page-descriptions":
-        return <GamePageDescriptionsManager />;
       case "categories":
         return <CategoryManager />;
       case "offers":
-        return <OfferManager />;
+        return <OffersCouponsHub defaultTab="offers" />;
+      case "coupon-rules":
+        return <OffersCouponsHub defaultTab="coupons" />;
       case "chatbot":
-        return <ChatbotSettings />;
+        return <ChatbotHub defaultTab="settings" />;
+      case "chat-feedback":
+        return <ChatbotHub defaultTab="feedback" />;
       case "chatbot-docs":
         return <ChatbotApiDocs />;
       case "vouchers":
@@ -158,19 +160,15 @@ const AdminPanel = () => {
       case "admin-app":
         return <AdminAppDownload />;
       case "milestones":
-        return <RewardMilestoneManager />;
+        return <ReferralsRewardsHub defaultTab="milestones" />;
       case "referrals":
-        return <ReferralManager />;
-      case "coupon-rules":
-        return <CouponRulesManager />;
+        return <ReferralsRewardsHub defaultTab="referrals" />;
       case "promo-analytics":
         return <PromotionAnalytics />;
       case "chatbot-orders":
         return <ChatbotOrders />;
       case "knowledge-base":
         return <KnowledgeBaseManager />;
-      case "chat-feedback":
-        return <ChatbotFeedback />;
       case "service-status":
         return <ServiceStatus />;
       case "tickets":
@@ -180,11 +178,11 @@ const AdminPanel = () => {
       case "user-analytics":
         return <UserAnalytics />;
       case "maintenance-log":
-        return <MaintenanceLog />;
+        return <SystemHealthHub defaultTab="maintenance" />;
       case "system-health":
-        return <SystemHealthMonitor />;
+        return <SystemHealthHub defaultTab="overview" />;
       case "db-management":
-        return <DatabaseManagement />;
+        return <DatabaseHub defaultTab="tables" />;
       case "advanced-analytics":
         return <AdvancedAnalytics />;
       case "whatsapp":
