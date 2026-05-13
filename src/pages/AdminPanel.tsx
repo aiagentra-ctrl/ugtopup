@@ -120,7 +120,9 @@ const AdminPanel = () => {
       case "liana-orders":
         return <LianaOrdersDashboard />;
       case "products":
-        return <ProductsList />;
+        return <ProductsHub defaultTab="products" />;
+      case "page-descriptions":
+        return <ProductsHub defaultTab="descriptions" />;
       case "game-pricing":
         return <GameProductPrices />;
       case "banners":
