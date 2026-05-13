@@ -6,6 +6,12 @@ import { CreditRequestsTable } from "@/components/admin/CreditRequestsTable";
 import { OrderManagement } from "@/components/admin/OrderManagement";
 import { ActivityLogs } from "@/components/admin/ActivityLogs";
 import { ProductsList } from "@/components/admin/ProductsList";
+import { OffersCouponsHub } from "@/components/admin/hubs/OffersCouponsHub";
+import { ReferralsRewardsHub } from "@/components/admin/hubs/ReferralsRewardsHub";
+import { SystemHealthHub } from "@/components/admin/hubs/SystemHealthHub";
+import { DatabaseHub } from "@/components/admin/hubs/DatabaseHub";
+import { ChatbotHub } from "@/components/admin/hubs/ChatbotHub";
+import { ProductsHub } from "@/components/admin/hubs/ProductsHub";
 import { AddProduct } from "@/components/admin/AddProduct";
 import { EditProduct } from "@/components/admin/EditProduct";
 import { UserData } from "@/components/admin/UserData";
@@ -114,7 +120,9 @@ const AdminPanel = () => {
       case "liana-orders":
         return <LianaOrdersDashboard />;
       case "products":
-        return <ProductsList />;
+        return <ProductsHub defaultTab="products" />;
+      case "page-descriptions":
+        return <ProductsHub defaultTab="descriptions" />;
       case "game-pricing":
         return <GameProductPrices />;
       case "banners":
@@ -128,19 +136,21 @@ const AdminPanel = () => {
       case "users":
         return <UserData />;
       case "activity":
-        return <ActivityLogs />;
+        return <SystemHealthHub defaultTab="activity" />;
       case "supabase-limits":
-        return <SupabaseLimits />;
+        return <DatabaseHub defaultTab="limits" />;
       case "product-update":
         return <DynamicProductManager />;
-      case "page-descriptions":
-        return <GamePageDescriptionsManager />;
       case "categories":
         return <CategoryManager />;
       case "offers":
-        return <OfferManager />;
+        return <OffersCouponsHub defaultTab="offers" />;
+      case "coupon-rules":
+        return <OffersCouponsHub defaultTab="coupons" />;
       case "chatbot":
-        return <ChatbotSettings />;
+        return <ChatbotHub defaultTab="settings" />;
+      case "chat-feedback":
+        return <ChatbotHub defaultTab="feedback" />;
       case "chatbot-docs":
         return <ChatbotApiDocs />;
       case "vouchers":
@@ -150,19 +160,15 @@ const AdminPanel = () => {
       case "admin-app":
         return <AdminAppDownload />;
       case "milestones":
-        return <RewardMilestoneManager />;
+        return <ReferralsRewardsHub defaultTab="milestones" />;
       case "referrals":
-        return <ReferralManager />;
-      case "coupon-rules":
-        return <CouponRulesManager />;
+        return <ReferralsRewardsHub defaultTab="referrals" />;
       case "promo-analytics":
         return <PromotionAnalytics />;
       case "chatbot-orders":
         return <ChatbotOrders />;
       case "knowledge-base":
         return <KnowledgeBaseManager />;
-      case "chat-feedback":
-        return <ChatbotFeedback />;
       case "service-status":
         return <ServiceStatus />;
       case "tickets":
@@ -172,11 +178,11 @@ const AdminPanel = () => {
       case "user-analytics":
         return <UserAnalytics />;
       case "maintenance-log":
-        return <MaintenanceLog />;
+        return <SystemHealthHub defaultTab="maintenance" />;
       case "system-health":
-        return <SystemHealthMonitor />;
+        return <SystemHealthHub defaultTab="overview" />;
       case "db-management":
-        return <DatabaseManagement />;
+        return <DatabaseHub defaultTab="tables" />;
       case "advanced-analytics":
         return <AdvancedAnalytics />;
       case "whatsapp":

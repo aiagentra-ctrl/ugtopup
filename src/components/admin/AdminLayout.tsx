@@ -1,9 +1,8 @@
-import { ReactNode } from "react";
+import { ReactNode, useEffect as useEffectBridge, useState as useStateBridge, useState } from "react";
 import {
   LayoutDashboard,
   CreditCard,
   ShoppingCart,
-  Activity,
   Package,
   Menu,
   LogOut,
@@ -18,19 +17,20 @@ import {
   Gift,
   Bot,
   Ticket,
-  Smartphone,
   Trophy,
   UserPlus,
   HeartPulse,
   MessageSquare,
   Megaphone,
   BarChart3,
-  Wrench,
   BookOpen,
-  ThumbsUp,
   PieChart,
   Calculator,
   Sparkles,
+  Activity,
+  ChevronDown,
+  Wrench,
+  ShieldCheck,
 } from "lucide-react";
 import { AdminCommandBar, type AdminCommandItem } from "./AdminCommandBar";
 import {
@@ -44,6 +44,19 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import {
+  CommandDialog as CmdDialog,
+  CommandEmpty as CmdEmpty,
+  CommandGroup as CmdGroup,
+  CommandInput as CmdInput,
+  CommandItem as CmdItem,
+  CommandList as CmdList,
+} from "@/components/ui/command";
 
 interface AdminLayoutProps {
   children: ReactNode;
@@ -51,75 +64,161 @@ interface AdminLayoutProps {
   onSectionChange: (section: string) => void;
 }
 
-const menuItems = [
-  { id: "dashboard", title: "Dashboard", icon: LayoutDashboard },
-  { id: "profit-calculator", title: "Profit Calculator", icon: Calculator },
-  { id: "tournaments-hub", title: "Tournaments", icon: Trophy },
-  { id: "tournament-banners", title: "Tournament Banners", icon: ImageIcon },
-  { id: "online-payments", title: "Online Payments", icon: CreditCard },
-  { id: "payments", title: "Credit Requests", icon: CreditCard },
-  { id: "orders", title: "Order Management", icon: ShoppingCart },
-  { id: "liana-orders", title: "ML API Orders", icon: Zap },
-  { id: "products", title: "Products", icon: Package },
-  { id: "game-pricing", title: "Products (New)", icon: Gamepad2 },
-  { id: "banners", title: "Banner", icon: ImageIcon },
-  { id: "notifications", title: "Notifications", icon: Bell },
-  { id: "users", title: "User Data", icon: Users },
-  { id: "activity", title: "Activity Logs", icon: Activity },
-  { id: "supabase-limits", title: "Supabase Limits", icon: Database },
-  { id: "product-update", title: "Product Update", icon: RefreshCw },
-  { id: "page-descriptions", title: "Page Descriptions", icon: BookOpen },
-  { id: "categories", title: "Categories", icon: FolderOpen },
-  { id: "offers", title: "Offers", icon: Gift },
-  { id: "chatbot", title: "AI Chatbot", icon: Bot },
-  { id: "knowledge-base", title: "Knowledge Base", icon: BookOpen },
-  { id: "chat-feedback", title: "Chat Feedback", icon: ThumbsUp },
-  { id: "chatbot-docs", title: "API Documentation", icon: Bot },
-  { id: "vouchers", title: "Voucher Inventory", icon: Ticket },
-  { id: "ml-monitoring", title: "API Monitoring", icon: Activity },
-  { id: "admin-app", title: "Admin App", icon: Smartphone },
-  { id: "milestones", title: "Reward Milestones", icon: Trophy },
-  { id: "referrals", title: "Referral Program", icon: UserPlus },
-  { id: "coupon-rules", title: "Coupon Rules", icon: Ticket },
-  { id: "promo-analytics", title: "Promo Analytics", icon: Activity },
-  { id: "chatbot-orders", title: "Chatbot Orders", icon: Bot },
-  { id: "service-status", title: "Service Status", icon: HeartPulse },
-  { id: "tickets", title: "Support Tickets", icon: MessageSquare },
-  { id: "announcements", title: "Announcements", icon: Megaphone },
-  { id: "user-analytics", title: "User Analytics", icon: BarChart3 },
-  { id: "maintenance-log", title: "Maintenance Log", icon: Wrench },
-  { id: "system-health", title: "System Health", icon: HeartPulse },
-  { id: "db-management", title: "DB Management", icon: Database },
-  { id: "advanced-analytics", title: "Advanced Analytics", icon: PieChart },
-  { id: "whatsapp", title: "WhatsApp Chatbot", icon: MessageSquare },
+type MenuItem = { id: string; title: string; icon: any };
+type MenuGroup = { id: string; title: string; icon: any; items: MenuItem[] };
+
+const groups: MenuGroup[] = [
+  {
+    id: "analytics",
+    title: "Analytics",
+    icon: BarChart3,
+    items: [
+      { id: "dashboard", title: "Dashboard", icon: LayoutDashboard },
+      { id: "advanced-analytics", title: "Advanced Analytics", icon: PieChart },
+      { id: "user-analytics", title: "User Analytics", icon: BarChart3 },
+      { id: "promo-analytics", title: "Promo Analytics", icon: Activity },
+      { id: "profit-calculator", title: "Profit Calculator", icon: Calculator },
+    ],
+  },
+  {
+    id: "store",
+    title: "Store",
+    icon: Package,
+    items: [
+      { id: "game-pricing", title: "Products (New)", icon: Gamepad2 },
+      { id: "products", title: "Products", icon: Package },
+      { id: "product-update", title: "Product Update", icon: RefreshCw },
+      { id: "categories", title: "Categories", icon: FolderOpen },
+      { id: "offers", title: "Offers & Coupons", icon: Gift },
+      { id: "vouchers", title: "Voucher Inventory", icon: Ticket },
+      { id: "banners", title: "Banners", icon: ImageIcon },
+    ],
+  },
+  {
+    id: "orders",
+    title: "Orders",
+    icon: ShoppingCart,
+    items: [
+      { id: "orders", title: "Order Management", icon: ShoppingCart },
+      { id: "chatbot-orders", title: "Chatbot Orders", icon: Bot },
+      { id: "liana-orders", title: "ML API Orders", icon: Zap },
+    ],
+  },
+  {
+    id: "payments",
+    title: "Payments & Credits",
+    icon: CreditCard,
+    items: [
+      { id: "online-payments", title: "Sales Tracker", icon: CreditCard },
+      { id: "payments", title: "Credit Requests", icon: CreditCard },
+    ],
+  },
+  {
+    id: "users",
+    title: "Users",
+    icon: Users,
+    items: [
+      { id: "users", title: "User Data", icon: Users },
+      { id: "referrals", title: "Referrals & Rewards", icon: UserPlus },
+    ],
+  },
+  {
+    id: "ai",
+    title: "AI & Chatbot",
+    icon: Bot,
+    items: [
+      { id: "chatbot", title: "AI Chatbot", icon: Bot },
+      { id: "knowledge-base", title: "Knowledge Base", icon: BookOpen },
+      { id: "whatsapp", title: "WhatsApp Chatbot", icon: MessageSquare },
+    ],
+  },
+  {
+    id: "comms",
+    title: "Communications",
+    icon: Megaphone,
+    items: [
+      { id: "notifications", title: "Notifications", icon: Bell },
+      { id: "announcements", title: "Announcements", icon: Megaphone },
+    ],
+  },
+  {
+    id: "support",
+    title: "Support",
+    icon: MessageSquare,
+    items: [
+      { id: "tickets", title: "Support Tickets", icon: MessageSquare },
+    ],
+  },
+  {
+    id: "tournaments",
+    title: "Tournaments",
+    icon: Trophy,
+    items: [
+      { id: "tournaments-hub", title: "Tournaments", icon: Trophy },
+      { id: "tournament-banners", title: "Tournament Banners", icon: ImageIcon },
+    ],
+  },
+  {
+    id: "system",
+    title: "System",
+    icon: Wrench,
+    items: [
+      { id: "system-health", title: "System Health", icon: HeartPulse },
+      { id: "db-management", title: "DB Management", icon: Database },
+      { id: "ml-monitoring", title: "API Monitoring", icon: Activity },
+      { id: "service-status", title: "Service Status", icon: HeartPulse },
+    ],
+  },
+  {
+    id: "developer",
+    title: "Developer",
+    icon: ShieldCheck,
+    items: [
+      { id: "chatbot-docs", title: "API Documentation", icon: BookOpen },
+    ],
+  },
 ];
 
-// Bottom nav items for mobile quick access
+const allItems: MenuItem[] = groups.flatMap((g) => g.items);
+
 const bottomNavItems = [
   { id: "dashboard", title: "Home", icon: LayoutDashboard },
   { id: "orders", title: "Orders", icon: ShoppingCart },
-  { id: "__search", title: "Search", icon: Sparkles },
+  { id: "__search", title: "AI", icon: Sparkles },
   { id: "profit-calculator", title: "Profit", icon: Calculator },
   { id: "notifications", title: "Alerts", icon: Bell },
 ];
 
-function AdminSidebar({ 
-  activeSection, 
+function findGroupOf(sectionId: string): string | undefined {
+  return groups.find((g) => g.items.some((it) => it.id === sectionId))?.id;
+}
+
+function AdminSidebar({
+  activeSection,
   onSectionChange,
-  isMobile = false 
-}: { 
-  activeSection: string; 
+  isMobile = false,
+}: {
+  activeSection: string;
   onSectionChange: (section: string) => void;
   isMobile?: boolean;
 }) {
   const { state } = useSidebar();
   const { user, profile, logout } = useAuth();
   const isCollapsed = !isMobile && state === "collapsed";
+  const activeGroupId = findGroupOf(activeSection);
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() =>
+    Object.fromEntries(groups.map((g) => [g.id, g.id === activeGroupId || g.id === "analytics"]))
+  );
+
+  useEffectBridge(() => {
+    if (activeGroupId) {
+      setOpenGroups((prev) => ({ ...prev, [activeGroupId]: true }));
+    }
+  }, [activeGroupId]);
 
   const sidebarContent = (
     <>
-      {/* Logo Section */}
-      <div className="p-6 border-b border-slate-800/50">
+      <div className="p-4 lg:p-6 border-b border-slate-800/50">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-primary/80 to-secondary/80 flex items-center justify-center shadow-lg shadow-primary/30">
             <LayoutDashboard className="h-6 w-6 text-white" />
@@ -133,38 +232,75 @@ function AdminSidebar({
         </div>
       </div>
 
-      {/* Navigation Menu */}
-      <div className="flex-1 py-4 overflow-y-auto">
-        <div className="px-3 py-2">
-          <h2 className="mb-2 px-4 text-xs font-semibold tracking-tight text-muted-foreground">
-            Navigation
-          </h2>
-          <div className="space-y-1">
-            {menuItems.map((item) => {
-              const isActive = activeSection === item.id;
-              return (
-                <button
-                  key={item.id}
-                  onClick={() => onSectionChange(item.id)}
-                  className={`
-                    w-full flex items-center gap-3 px-3 py-2.5 rounded-lg
-                    transition-all duration-200 font-medium
-                    ${isActive 
-                      ? "bg-primary text-primary-foreground shadow-lg shadow-primary/30" 
-                      : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                    }
-                  `}
+      <div className="flex-1 py-2 overflow-y-auto">
+        <div className="px-2 space-y-1">
+          {groups.map((group) => {
+            const isGroupActive = group.items.some((it) => it.id === activeSection);
+            const isOpen = !!openGroups[group.id];
+            if (isCollapsed) {
+              // Collapsed desktop: render flat list of items as icons
+              return group.items.map((item) => {
+                const isActive = activeSection === item.id;
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => onSectionChange(item.id)}
+                    title={item.title}
+                    className={`w-full flex items-center justify-center p-2.5 rounded-lg transition-all ${
+                      isActive
+                        ? "bg-primary text-primary-foreground"
+                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                    }`}
+                  >
+                    <item.icon className="h-5 w-5" />
+                  </button>
+                );
+              });
+            }
+            return (
+              <Collapsible
+                key={group.id}
+                open={isOpen}
+                onOpenChange={(o) => setOpenGroups((p) => ({ ...p, [group.id]: o }))}
+              >
+                <CollapsibleTrigger
+                  className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold uppercase tracking-wider transition-colors ${
+                    isGroupActive
+                      ? "text-foreground"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
                 >
-                  <item.icon className="h-5 w-5 shrink-0" />
-                  {!isCollapsed && <span>{item.title}</span>}
-                </button>
-              );
-            })}
-          </div>
+                  <group.icon className="h-4 w-4 shrink-0" />
+                  <span className="flex-1 text-left">{group.title}</span>
+                  <ChevronDown
+                    className={`h-4 w-4 shrink-0 transition-transform ${isOpen ? "rotate-180" : ""}`}
+                  />
+                </CollapsibleTrigger>
+                <CollapsibleContent className="space-y-0.5 mt-0.5 mb-1">
+                  {group.items.map((item) => {
+                    const isActive = activeSection === item.id;
+                    return (
+                      <button
+                        key={item.id}
+                        onClick={() => onSectionChange(item.id)}
+                        className={`w-full flex items-center gap-3 pl-9 pr-3 py-2 rounded-lg text-sm transition-all ${
+                          isActive
+                            ? "bg-primary text-primary-foreground shadow shadow-primary/30 font-medium"
+                            : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                        }`}
+                      >
+                        <item.icon className="h-4 w-4 shrink-0" />
+                        <span className="truncate">{item.title}</span>
+                      </button>
+                    );
+                  })}
+                </CollapsibleContent>
+              </Collapsible>
+            );
+          })}
         </div>
       </div>
 
-      {/* User Profile Section */}
       <div className="mt-auto p-4 border-t border-slate-800/50 bg-card/50">
         <div className="flex items-center gap-3 mb-3">
           <Avatar className="h-10 w-10 border-2 border-primary/20">
@@ -183,12 +319,7 @@ function AdminSidebar({
           )}
         </div>
         {!isCollapsed && (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={logout}
-            className="w-full"
-          >
+          <Button variant="outline" size="sm" onClick={logout} className="w-full">
             <LogOut className="h-4 w-4 mr-2" />
             Logout
           </Button>
@@ -203,9 +334,7 @@ function AdminSidebar({
 
   return (
     <Sidebar className="border-r border-slate-800/50 bg-slate-950">
-      <SidebarContent>
-        {sidebarContent}
-      </SidebarContent>
+      <SidebarContent>{sidebarContent}</SidebarContent>
     </Sidebar>
   );
 }
@@ -256,26 +385,23 @@ function MobileBottomNav({
 }
 
 export function AdminLayout({ children, activeSection, onSectionChange }: AdminLayoutProps) {
-  const commandItems: AdminCommandItem[] = menuItems.map((m) => ({
+  const commandItems: AdminCommandItem[] = allItems.map((m) => ({
     id: m.id,
     title: m.title,
-    group: "Navigation",
+    group: findGroupOf(m.id) ? groups.find((g) => g.id === findGroupOf(m.id))!.title : "Navigation",
   }));
-  // Imperative trigger for the AI search via custom event (keeps layout simple)
   const openSearch = () => window.dispatchEvent(new CustomEvent("admin:open-search"));
+  const activeTitle = allItems.find((i) => i.id === activeSection)?.title || "Dashboard";
 
   return (
     <SidebarProvider>
       <div className="min-h-screen flex w-full bg-background">
-        {/* Desktop Sidebar */}
         <div className="hidden lg:block">
           <AdminSidebar activeSection={activeSection} onSectionChange={onSectionChange} />
         </div>
 
         <div className="flex-1 flex flex-col min-w-0">
-          {/* Top Header Bar */}
           <header className="h-14 lg:h-16 border-b border-border bg-card/50 backdrop-blur-lg flex items-center gap-2 px-3 lg:px-6 sticky top-0 z-10 shadow-sm">
-            {/* Mobile Menu */}
             <Sheet>
               <SheetTrigger asChild className="lg:hidden">
                 <Button variant="ghost" size="icon" className="h-10 w-10">
@@ -291,41 +417,35 @@ export function AdminLayout({ children, activeSection, onSectionChange }: AdminL
               </SheetContent>
             </Sheet>
 
-            {/* Desktop Sidebar Trigger */}
             <SidebarTrigger className="hidden lg:flex mr-2" />
 
             <div className="flex-1 min-w-0">
               <h1 className="text-base lg:text-xl font-bold text-foreground truncate">
-                {menuItems.find((item) => item.id === activeSection)?.title || "Dashboard"}
+                {activeTitle}
               </h1>
               <p className="text-xs text-muted-foreground hidden sm:block">
                 Manage your gaming store operations
               </p>
             </div>
 
-            {/* Desktop search trigger */}
             <AdminCommandBar items={commandItems} onSelect={onSectionChange} />
           </header>
 
-          {/* Main Content */}
           <main className="flex-1 p-3 lg:p-6 overflow-auto pb-24 lg:pb-6">{children}</main>
         </div>
 
-        {/* Mobile Bottom Navigation */}
         <MobileBottomNav
           activeSection={activeSection}
           onSectionChange={onSectionChange}
           onOpenSearch={openSearch}
         />
 
-        {/* Mobile-only command bar listener */}
         <MobileSearchHost items={commandItems} onSelect={onSectionChange} />
       </div>
     </SidebarProvider>
   );
 }
 
-// Listens for the bottom-nav search button event and opens the dialog.
 function MobileSearchHost({
   items,
   onSelect,
@@ -339,16 +459,6 @@ function MobileSearchHost({
     </div>
   );
 }
-
-import { useEffect as useEffectBridge, useState as useStateBridge } from "react";
-import {
-  CommandDialog as CmdDialog,
-  CommandEmpty as CmdEmpty,
-  CommandGroup as CmdGroup,
-  CommandInput as CmdInput,
-  CommandItem as CmdItem,
-  CommandList as CmdList,
-} from "@/components/ui/command";
 
 function AdminCommandBarBridge({
   items,
@@ -365,7 +475,7 @@ function AdminCommandBarBridge({
   }, []);
   return (
     <CmdDialog open={open} onOpenChange={setOpen}>
-      <CmdInput placeholder="Ask AI or jump to a section…" />
+      <CmdInput placeholder="Jump to a section…" />
       <CmdList>
         <CmdEmpty>No matches.</CmdEmpty>
         <CmdGroup heading="Navigation">
@@ -386,4 +496,3 @@ function AdminCommandBarBridge({
     </CmdDialog>
   );
 }
-
