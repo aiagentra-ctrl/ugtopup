@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useLocation } from "react-router-dom";
 import { MessageCircle, X, Plus } from "lucide-react";
 
 /**
@@ -7,6 +8,10 @@ import { MessageCircle, X, Plus } from "lucide-react";
  */
 export const SupportFAB = () => {
   const [open, setOpen] = useState(false);
+  const { pathname } = useLocation();
+
+  // Hide on admin / developer panels — they have AI Command instead
+  if (pathname.startsWith("/admin") || pathname.startsWith("/developer")) return null;
 
   const messengerUrl = "https://m.me/ugtopups"; // update to your FB Page handle if different
   const whatsappUrl = "https://wa.me/9779708562001";

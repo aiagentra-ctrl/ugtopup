@@ -69,6 +69,14 @@ type MenuGroup = { id: string; title: string; icon: any; items: MenuItem[] };
 
 const groups: MenuGroup[] = [
   {
+    id: "ai-command-group",
+    title: "AI Command",
+    icon: Sparkles,
+    items: [
+      { id: "ai-command", title: "AI Command", icon: Sparkles },
+    ],
+  },
+  {
     id: "analytics",
     title: "Analytics",
     icon: BarChart3,

@@ -702,3 +702,31 @@ All colors MUST be HSL.
     @apply bg-background text-foreground;
   }
 }
+
+/* ============ Admin Polish: Shimmer + Page Enter + Press ============ */
+@layer utilities {
+  @keyframes admin-shimmer {
+    0% { background-position: -400px 0; }
+    100% { background-position: 400px 0; }
+  }
+  .shimmer-block {
+    background: linear-gradient(90deg, hsl(var(--muted) / 0.4) 0%, hsl(var(--muted) / 0.7) 50%, hsl(var(--muted) / 0.4) 100%);
+    background-size: 800px 100%;
+    animation: admin-shimmer 1.4s ease-in-out infinite;
+  }
+
+  @keyframes page-enter {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .animate-page-enter { animation: page-enter 200ms ease-out both; }
+
+  @keyframes row-stagger {
+    from { opacity: 0; transform: translateY(4px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .animate-row-stagger { animation: row-stagger 240ms ease-out both; }
+
+  .btn-press { transition: transform 120ms ease; }
+  .btn-press:active { transform: scale(0.97); }
+}

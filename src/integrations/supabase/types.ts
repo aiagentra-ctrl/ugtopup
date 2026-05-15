@@ -62,6 +62,145 @@ export type Database = {
         }
         Relationships: []
       }
+      ai_changelogs: {
+        Row: {
+          action_type: string
+          id: string
+          new_value: Json | null
+          notes: string | null
+          old_value: Json | null
+          performed_at: string
+          performed_by: string | null
+          performed_by_email: string | null
+          record_id: string | null
+          rollback_of: string | null
+          rolled_back: boolean
+          table_name: string
+        }
+        Insert: {
+          action_type: string
+          id?: string
+          new_value?: Json | null
+          notes?: string | null
+          old_value?: Json | null
+          performed_at?: string
+          performed_by?: string | null
+          performed_by_email?: string | null
+          record_id?: string | null
+          rollback_of?: string | null
+          rolled_back?: boolean
+          table_name: string
+        }
+        Update: {
+          action_type?: string
+          id?: string
+          new_value?: Json | null
+          notes?: string | null
+          old_value?: Json | null
+          performed_at?: string
+          performed_by?: string | null
+          performed_by_email?: string | null
+          record_id?: string | null
+          rollback_of?: string | null
+          rolled_back?: boolean
+          table_name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_changelogs_rollback_of_fkey"
+            columns: ["rollback_of"]
+            isOneToOne: false
+            referencedRelation: "ai_changelogs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ai_conversations: {
+        Row: {
+          admin_id: string
+          created_at: string
+          id: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          admin_id: string
+          created_at?: string
+          id?: string
+          title?: string
+          updated_at?: string
+        }
+        Update: {
+          admin_id?: string
+          created_at?: string
+          id?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      ai_messages: {
+        Row: {
+          content: string
+          conversation_id: string
+          created_at: string
+          id: string
+          response_payload: Json | null
+          role: string
+        }
+        Insert: {
+          content?: string
+          conversation_id: string
+          created_at?: string
+          id?: string
+          response_payload?: Json | null
+          role: string
+        }
+        Update: {
+          content?: string
+          conversation_id?: string
+          created_at?: string
+          id?: string
+          response_payload?: Json | null
+          role?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "ai_conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ai_saved_reports: {
+        Row: {
+          admin_id: string
+          created_at: string
+          id: string
+          query: string | null
+          response_payload: Json | null
+          title: string
+        }
+        Insert: {
+          admin_id: string
+          created_at?: string
+          id?: string
+          query?: string | null
+          response_payload?: Json | null
+          title: string
+        }
+        Update: {
+          admin_id?: string
+          created_at?: string
+          id?: string
+          query?: string | null
+          response_payload?: Json | null
+          title?: string
+        }
+        Relationships: []
+      }
       announcements: {
         Row: {
           created_at: string
@@ -2708,6 +2847,7 @@ export type Database = {
         }
         Returns: undefined
       }
+      apply_ai_write: { Args: { p_action: Json }; Returns: Json }
       apply_referral: { Args: { p_referral_code: string }; Returns: Json }
       approve_payment_request: {
         Args: { admin_remarks_text?: string; request_id: string }
@@ -2970,6 +3110,7 @@ export type Database = {
         Args: { admin_remarks_text: string; request_id: string }
         Returns: Json
       }
+      rollback_ai_change: { Args: { p_change_id: string }; Returns: Json }
       start_tournament: { Args: { p_tournament_id: string }; Returns: Json }
       try_assign_voucher: {
         Args: { p_game: string; p_order_id: string; p_package_id: string }
