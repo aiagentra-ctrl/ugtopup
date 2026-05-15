@@ -1,106 +1,126 @@
 
-# Admin Panel Reorganization & UI Polish
+# Admin Polish + AI Command Dashboard
 
-## Scope & Guardrails
-- Keep all existing colors, fonts, and design tokens.
-- Do not rebuild any page from scratch — wrap, refactor, and merge in place.
-- Preserve every existing feature and data flow. No business logic changes.
-- All work is frontend (`src/components/admin/*`, `src/pages/AdminPanel.tsx`).
+Two parallel workstreams. No color/font changes. No rebuilds — only additive improvements and one new feature page.
 
-## Phase 1 — Sidebar Reorganization (`AdminLayout.tsx`)
+---
 
-Replace the flat 40-item list with collapsible groups using shadcn `Sidebar` + `SidebarGroup` + `Collapsible`. Section ids (`activeSection` keys) stay the same so `AdminPanel.tsx` routing keeps working; only the menu structure and labels change.
+## Part 1 — UI Polish (existing pages)
 
-```text
-📊 Analytics      → dashboard, advanced-analytics, user-analytics, promo-analytics
-🛒 Store          → game-pricing (Products New), products, categories,
-                    offers-coupons (merged), vouchers, banners
-📦 Orders         → orders, chatbot-orders, liana-orders
-💳 Payments       → online-payments (Sales Tracker), payments (Credit Requests)
-👥 Users          → users, referrals-rewards (merged)
-🤖 AI & Chatbot   → ai-assistant (new), chatbot (+ feedback tab),
-                    knowledge-base, whatsapp
-📢 Communications → notifications, announcements
-🎫 Support        → tickets
-⚙️ System         → system-health (+ activity + maintenance tabs),
-                    db-management (+ supabase-limits tab),
-                    ml-monitoring, service-status
-🛠 Developer      → chatbot-docs (collapsed by default)
-```
+### 1.1 Shared primitives (new files in `src/components/admin/ui/`)
+- `Shimmer.tsx` — skeleton block (replaces all spinners)
+- `GlassCard.tsx` — wraps shadcn `Card` with `backdrop-blur-md border-white/[0.08] shadow-[0_8px_32px_-12px_rgba(0,0,0,0.4)] rounded-xl`
+- `StatusPill.tsx` — colored pill badges (success/warning/error/info/neutral) replacing plain text statuses
+- `EmptyState.tsx` — icon + heading + subtext + CTA
+- `SearchBar.tsx` — left icon, right clear button, focus ring; emits debounced query
+- `HighlightText.tsx` — wraps matching substring in `<mark>` (yellow tint)
+- `DataTableShell.tsx` — sticky header, zebra rows, hover highlight, sortable headers (arrow indicator), bulk-select column, floating `BulkActionsBar`, pagination footer (prev/next + page numbers + jump-to), CSV export button. Auto-switches to card list under 768px.
+- `DetailDrawer.tsx` — shadcn `Sheet` wrapper, `side="right"` desktop / `side="bottom"` mobile (uses `useIsMobile`)
+- `CountUp.tsx` — animates numeric KPI on mount
+- `PageTransition.tsx` — fade + translateY 200ms ease-out wrapper
+- `FloatingLabelInput.tsx` + `FloatingLabelTextarea.tsx` — floating label, inline validation (red/green border), required asterisk
+- `SwipeableCard.tsx` — touch swipe-left to reveal action buttons (mobile)
 
-- Removed from sidebar: `page-descriptions` (moved into Products page as a tab), `admin-app` (drop entry; route still works if accessed directly), `activity`, `maintenance-log`, `supabase-limits`, `chat-feedback` (still reachable as tabs in their hosts).
-- Active group auto-expands based on current `activeSection`.
-- Each group: icon + label + count badge optional; collapsible chevron.
-- Mobile: keep the 5-tab bottom bar; the “More” tab opens the full grouped drawer (`Sheet`) instead of the current flat list.
+### 1.2 Global CSS additions (`src/index.css`)
+- `@keyframes shimmer`, `.shimmer` utility
+- `@keyframes page-enter`, `@keyframes row-stagger`
+- `.btn-press` — `active:scale-[0.97]` + ripple via pseudo-element
+- `.toast-progress` — animated progress bar inside Sonner toasts
+- Standardize radii via Tailwind config: cards `rounded-xl` (12px), inputs `rounded-lg` (8px), badges `rounded-md` (6px)
 
-## Phase 2 — Merged Pages
+### 1.3 Apply across existing admin pages
+For every page rendered by `AdminPanel.renderContent()`:
+- Wrap content in `PageTransition`
+- Replace `<div className="animate-spin..."/>` with `<Shimmer/>` blocks
+- Replace status text with `StatusPill`
+- Replace plain tables with `DataTableShell` (preserves columns/data); row click opens `DetailDrawer` instead of navigating
+- Add per-page `SearchBar` filtering local data with `HighlightText`
+- KPI numbers in `EnhancedDashboard` and `AdvancedAnalytics` use `CountUp`
+- Charts: add `animationDuration={800}` on Recharts components
+- Empty results → `EmptyState`
+- Forms in `AddProduct`, `EditProduct`, `BannerManager`, etc. → `FloatingLabelInput`
 
-New thin wrapper components, each composed of `Tabs` rendering existing components (no data rewrite):
+### 1.4 Mobile bottom navigation
+- Update existing `MobileBottomNav` (already present) to 5 icons + "More" sheet that lists remaining grouped sections.
 
-| New file | Tabs render |
-|---|---|
-| `OffersCouponsHub.tsx` | `<OfferManager />`, `<CouponRulesManager />`, Expired (filtered view of OfferManager) |
-| `ReferralsRewardsHub.tsx` | `<ReferralManager />`, `<RewardMilestoneManager />`, Leaderboard (existing referral leaderboard view) |
-| `SystemHealthHub.tsx` | `<SystemHealthMonitor />`, `<ActivityLogs />`, `<MaintenanceLog />` |
-| `DatabaseHub.tsx` | `<DatabaseManagement />`, `<SupabaseLimits />`, Backups (existing list inside DatabaseManagement) |
-| `ChatbotHub.tsx` | `<ChatbotSettings />`, `<ChatbotFeedback />`, link-tab to Knowledge Base |
-| `ProductsHub.tsx` | `<ProductsList />`, `<GamePageDescriptionsManager />` (Page Descriptions becomes a tab) |
+### 1.5 Toast styling
+Configure Sonner globally with top-right position + auto-dismiss progress bar (slot custom CSS).
 
-`AdminPanel.tsx` `renderContent()` switch updated:
-- `offers` & `coupon-rules` → `<OffersCouponsHub />` (preserve old keys for deep links).
-- `referrals` & `milestones` → `<ReferralsRewardsHub />`.
-- `system-health`, `activity`, `maintenance-log` → `<SystemHealthHub />`.
-- `db-management`, `supabase-limits` → `<DatabaseHub />`.
-- `chatbot`, `chat-feedback` → `<ChatbotHub />`.
-- `products`, `page-descriptions` → `<ProductsHub />`.
+---
 
-## Phase 3 — Shared UI Primitives
+## Part 2 — AI Command Dashboard
 
-Create reusable wrappers in `src/components/admin/_shared/`:
+### 2.1 Remove floating chatbot
+Delete usage of `SupportFAB`/chat widget on admin routes only (keep on user-facing site). Add new sidebar entry "AI Command" with `Sparkles` icon under a new top-level group.
 
-- `PageShell.tsx` — title, subtitle, breadcrumb, primary action slot, search slot. Drop into each page (replaces ad-hoc headers).
-- `DataTableShell.tsx` — sticky header, row hover, sort hooks; on `<768px` renders children as a card list via `useIsMobile`.
-- `StatusBadge.tsx` — single source for active/pending/error/info pill colors.
-- `EmptyState.tsx`, `TableSkeleton.tsx` — friendly empty + shimmer.
-- `BulkActionsBar.tsx` — appears when selected rows > 0.
-- `ConfirmDialog.tsx` — wraps shadcn `AlertDialog` for destructive actions.
-- `DetailDrawer.tsx` — `Sheet` that slides from right on desktop, bottom on mobile.
+### 2.2 New page: `src/components/admin/AICommand/`
+- `AICommandPage.tsx` — 3 tabs: **Chat**, **Changelog**, **Saved Reports**
+- `ChatTab.tsx` — split-panel layout
+  - Left 40%: scrollable thread, admin bubbles right (accent), AI bubbles left (dark glass card), timestamps, "AI is thinking…" shimmer
+  - Quick command chips row above input: Today's Sales / Pending Orders / Low Stock / Credit Requests / Send Notification / Sales Report
+  - Input bar: large textarea, send button, voice input (Web Speech API)
+  - Right 60%: `LiveResultPanel` renders structured response cards from latest AI reply; persists between messages; own scroll; **Pin** button (✦) saves to Saved Reports
+- `LiveResultPanel.tsx` — switches on response `kind`:
+  - `sales_summary` — `CountUp` totals + Recharts line chart + top-products list + comparison arrow
+  - `credit_requests_list` — cards w/ inline Approve/Reject (calls existing `approve_payment_request` / `reject_payment_request` RPC)
+  - `top_products` — ranked list + sparkline
+  - `low_stock` — product cards + Update Stock button
+  - `monthly_report` — KPIs + bar + donut + Export PDF (jsPDF)
+  - `support_tickets` — ticket list + assign/reply
+  - `user_activity` — counts + activity feed
+  - `write_preview` — before/after diff card + Confirm + cancel
+- `ChangelogTab.tsx` — `DataTableShell` over `ai_changelogs`, columns: Action, Table, Before, After, Who, When, Rollback. Rollback button → confirm dialog → calls `rollback_ai_change` RPC.
+- `SavedReportsTab.tsx` — pinned reports list; Re-run (re-invokes AI), Delete, Export PDF.
 
-Adopt these in the highest-traffic pages first: Orders, Products, Users, Credit Requests, Notifications, Support Tickets, Vouchers. Other pages keep working unchanged and adopt incrementally.
+### 2.3 Global CMD+K overlay
+Extend existing `AdminCommandBar` (already supports ⌘K) with an "Ask AI" mode: if input starts with `?` or user picks "Ask AI…", overlay expands to compact AI input/response card below; "Open in AI Command" button navigates to the page with the query prefilled.
 
-## Phase 4 — Page-Specific Polish (in place)
+### 2.4 Database (migration)
+New tables:
+- `ai_conversations` (admin_id, title, created_at)
+- `ai_messages` (conversation_id, role, content, response_payload jsonb, created_at)
+- `ai_changelogs` (id, action_type, table_name, record_id, old_value jsonb, new_value jsonb, performed_by, performed_at, rolled_back bool, rollback_of uuid)
+- `ai_saved_reports` (admin_id, title, query, response_payload jsonb, created_at)
 
-Only the items below; everything else stays as-is.
+RLS: admin-only via `is_admin()`.
 
-- **Dashboard**: add count-up to KPI numbers (lightweight `useEffect` interpolation), day/week/month toggle on the existing chart, AI summary strip (uses already-fetched dashboard counts — pure computed string), Quick Actions row.
-- **Products**: add grid/list toggle, category + status + price filters above existing table, inline stock select, "+ Quick Add" opens slide-in drawer that mounts existing `<AddProduct />`.
-- **Banners**: enable drag handle (`@dnd-kit/sortable` already in deps if available, else CSS handle + arrow buttons), live preview pane, schedule date/time fields bound to existing record.
-- **Notifications**: wrap existing manager in tabs (Sent / Scheduled / Drafts) using existing data flags; add audience filter and preview modal before send.
-- **Users**: add filters (active/banned/new/high spenders), click row → `DetailDrawer` showing existing user detail content.
-- **Advanced Analytics**: global date-range picker passed to all chart queries, export buttons (CSV via existing data; PDF stubbed via `window.print` styled view).
-- **Offers & Coupons / Referrals & Rewards / System / DB**: tab containers from Phase 2.
-- **Support Tickets**: add status tabs + priority badges; reply inside `DetailDrawer`.
-- **WhatsApp**: connection status pill at top, message log filters.
-- **API Monitoring / Service Status / ML API Orders / Chatbot Orders**: standardize on `PageShell` + `DataTableShell` + filters; no data changes.
-- **AI Assistant page** (`AIAssistant.tsx`, new): renders the existing `AdminCommandBar` full-screen with response history list; reuses current command actions. Cmd+K already wired — extend to open this page when invoked from anywhere. Write actions show `ConfirmDialog` before execution.
+RPCs:
+- `apply_ai_write(action jsonb)` — validates action against allowed table/column whitelist, applies update, writes `ai_changelogs` row, returns new value. Uses `SECURITY DEFINER` with hard-coded whitelist (banners, products, product_orders, payment_requests, coupons, offers, announcements, notifications).
+- `rollback_ai_change(change_id uuid)` — restores `old_value` to record, inserts inverse changelog row.
 
-## Phase 5 — Mobile
+### 2.5 Edge function `supabase/functions/ai-command/index.ts`
+- Auth: verifies caller is admin via JWT + `has_role`
+- Calls Lovable AI Gateway (`google/gemini-2.5-pro` default) with system prompt containing schema summary, table whitelist, current admin name, date/time
+- Tool calling: two tools
+  - `query_data({ sql_safe_plan })` — backend executes via `supabase.rpc('ai_safe_select', …)` (parameterized, SELECT-only allowlist)
+  - `propose_write({ action, table, where, old_value, new_value, confirmation_message })` — returns to frontend as `write_preview`
+- Returns `{ chat_text, panel: { kind, data } }`
 
-- Bottom tab bar unchanged shape; relabel "Search" → "AI", add "More" tab opening grouped sheet.
-- `DataTableShell` auto-switches to card list under 768px.
-- `DetailDrawer` uses `side="bottom"` on mobile, `side="right"` on desktop.
-- Tap targets ≥ 44px enforced via `min-h-[44px]` in shared primitives.
-- Swipe-to-action: add lightweight CSS swipe (translateX on touchmove) on Orders / Tickets / Credit Requests cards revealing approve/delete buttons.
+Frontend confirms writes via `apply_ai_write` RPC (never raw SQL from client).
 
-## Out of Scope
-- Database, RLS, edge functions, business logic.
-- Color palette, typography, brand changes.
-- Tournaments and Profit Calculator pages (kept as-is at top of sidebar under Analytics group? → kept under their own existing entries; not in spec, so left untouched).
+### 2.6 Undo
+On successful write, frontend shows a Sonner toast with 60s progress + Undo button calling `rollback_ai_change`.
 
-## Rollout Order
-1. Shared primitives (Phase 3).
-2. Sidebar grouping + merged hub wrappers (Phases 1–2) — biggest visible win, low risk.
-3. Page polish per priority list (Phase 4).
-4. Mobile refinements (Phase 5).
+---
 
-Each step is independently shippable; nothing is removed until its replacement renders the same data.
+## Technical notes
+
+- AI model: use Lovable AI Gateway (no Anthropic key required). Default `google/gemini-2.5-pro`; selectable in admin settings later.
+- All write paths go through whitelisted RPC — AI never executes raw SQL.
+- Voice input uses `webkitSpeechRecognition` with graceful fallback.
+- PDF export uses `jspdf` + `jspdf-autotable` (already common in repo? add if missing).
+- `react-markdown` already used elsewhere — reuse for chat bubbles.
+
+## Out of scope
+- Color palette / typography changes
+- Rebuilding existing page logic
+- Removing data or features
+- Changes to user-facing site (chatbot stays for end users)
+
+## Rollout order
+1. Migration: tables + RPCs (single approval)
+2. Shared UI primitives + CSS
+3. Apply primitives page-by-page (incremental, no behavior change)
+4. AI Command page Chat tab + edge function (read-only first)
+5. Write preview + Confirm + Changelog tab
+6. Saved Reports tab + CMD+K AI mode
