@@ -2834,6 +2834,7 @@ export type Database = {
       }
     }
     Functions: {
+      _ai_allowed_cols: { Args: { p_table: string }; Returns: string[] }
       _tournament_ledger: {
         Args: {
           _after: number
@@ -3088,6 +3089,7 @@ export type Database = {
               isSetofReturn: false
             }
           }
+      preview_ai_write: { Args: { p_action: Json }; Returns: Json }
       process_payment_completion: {
         Args: {
           p_api_response: Json

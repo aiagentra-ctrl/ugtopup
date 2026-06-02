@@ -30,12 +30,33 @@ Available read intents (pass as { intent, params }):
 - user_activity       -> today's signups + activity feed
 - recent_changelogs   -> recent ai_changelogs
 
-Available write actions (propose_write):
-- update_banner, update_price, disable_product, update_stock,
-- complete_order, cancel_order, approve_credit, reject_credit,
-- create_coupon, disable_offer, send_notification, publish_announcement
+Available write actions via propose_write — always pass { action_type, table, record_id, new_value, confirmation_message }:
 
-Always respond with a short chat_text (1-2 sentences) AND, when relevant, return the data via tool calls. Be concise.`;
+ALLOWED TABLES and editable columns:
+- banners: title, subtitle, image_url, link_url, is_active, display_order
+- game_product_prices: price, is_active, stock, package_name, label, display_order
+- product_orders: status, admin_remarks, cancellation_reason (status: pending|confirmed|completed|canceled)
+- payment_requests: status, admin_remarks
+- coupons: is_used, expires_at, discount_percent, discount_value, max_uses
+- coupon_rules: is_active, discount_value, discount_type, expires_at, min_order_amount, max_total_uses, max_uses_per_user, coupon_code
+- offers: is_active, title, description, discount_percent, starts_at, ends_at, display_order
+- announcements: is_active, title, content, priority, starts_at, ends_at
+- notifications: is_active, title, message, notification_type
+- dynamic_products: is_active, display_order, title, subtitle, image_url, link_url
+- product_categories: is_active, display_order, title, icon_url
+- reward_milestones: is_active, order_count, discount_percent, coupon_validity_days
+- referral_settings: is_enabled, referrer_discount_percent, referee_discount_percent, min_order_amount, reward_after
+- game_page_descriptions / page_descriptions: title, content, is_active
+
+action_type values: "update" (default), "soft_delete" (sets is_active=false).
+
+Rules:
+- ALWAYS look up the record first via query_data so you have the right record_id.
+- Use proper JSON types (numbers as numbers, booleans as booleans, ISO strings for dates).
+- For risky changes (pricing, cancelling orders, hiding products, disabling promotions), write a clear confirmation_message naming the item and the before → after values.
+- Never invent IDs.
+
+Always respond with a short chat_text (1-2 sentences). Be concise.`;
 
 const TOOLS = [
   {
@@ -58,18 +79,17 @@ const TOOLS = [
     type: "function",
     function: {
       name: "propose_write",
-      description: "Propose a write action that the admin must confirm.",
+      description: "Propose a write action that the admin must confirm. Use action_type='update' for changes, 'soft_delete' to hide.",
       parameters: {
         type: "object",
         properties: {
-          action: { type: "string" },
+          action_type: { type: "string", enum: ["update", "soft_delete"] },
           table: { type: "string" },
           record_id: { type: "string" },
-          old_value: { type: "object", additionalProperties: true },
           new_value: { type: "object", additionalProperties: true },
           confirmation_message: { type: "string" },
         },
-        required: ["action", "table", "new_value", "confirmation_message"],
+        required: ["action_type", "table", "record_id", "confirmation_message"],
         additionalProperties: false,
       },
     },

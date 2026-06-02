@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { GlassCard } from "../ui/GlassCard";
 import { CountUp } from "../ui/CountUp";
@@ -265,6 +265,35 @@ function UserActivity({ data }: { data: any }) {
 
 function WritePreview({ data }: { data: any }) {
   const [busy, setBusy] = useState(false);
+  const [applied, setApplied] = useState(false);
+  const [serverPreview, setServerPreview] = useState<any>(null);
+  const [loadingPreview, setLoadingPreview] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setLoadingPreview(true);
+      const { data: res, error } = await supabase.rpc("preview_ai_write", {
+        p_action: {
+          table: data.table,
+          record_id: data.record_id,
+          new_value: data.new_value,
+          action_type: data.action_type ?? data.action ?? "update",
+        } as any,
+      });
+      if (!cancelled) {
+        if (!error) setServerPreview(res);
+        setLoadingPreview(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [data.table, data.record_id, JSON.stringify(data.new_value)]);
+
+  const oldVal = serverPreview?.old_value ?? data.old_value ?? {};
+  const newVal = data.new_value ?? {};
+  const changedKeys = Object.keys(newVal).filter((k) => JSON.stringify((oldVal as any)?.[k]) !== JSON.stringify(newVal[k]));
+  const warnings: any[] = serverPreview?.warnings ?? [];
+
   async function confirm() {
     setBusy(true);
     const { data: res, error } = await supabase.rpc("apply_ai_write", {
@@ -272,13 +301,14 @@ function WritePreview({ data }: { data: any }) {
         table: data.table,
         record_id: data.record_id,
         new_value: data.new_value,
-        action_type: data.action,
+        action_type: data.action_type ?? data.action ?? "update",
       } as any,
     });
     setBusy(false);
     if (error) { toast.error(error.message); return; }
+    setApplied(true);
     const changeId = (res as any)?.changelog_id;
-    toast.success("Change applied", {
+    toast.success("✨ Change applied to live store", {
       duration: 60000,
       action: changeId ? {
         label: "Undo",
@@ -289,26 +319,69 @@ function WritePreview({ data }: { data: any }) {
       } : undefined,
     });
   }
+
+  const toneClass = (lvl: string) =>
+    lvl === "critical" ? "border-red-500/50 bg-red-500/10 text-red-300"
+    : lvl === "warning" ? "border-amber-500/40 bg-amber-500/10 text-amber-300"
+    : "border-primary/30 bg-primary/5 text-primary-foreground/80";
+
   return (
-    <div className="space-y-3">
-      <GlassCard className="p-4 border-amber-500/30">
-        <div className="flex items-center gap-2 text-amber-400 text-sm font-medium mb-2">
+    <div className="space-y-3 animate-in fade-in slide-in-from-bottom-2 duration-300">
+      <GlassCard className="p-4 border-amber-500/30 relative overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-r from-amber-500/5 via-transparent to-amber-500/5 animate-pulse pointer-events-none" />
+        <div className="flex items-center gap-2 text-amber-400 text-sm font-semibold mb-2 relative">
           <AlertTriangle className="h-4 w-4" /> Confirm change
         </div>
-        <p className="text-sm">{data.confirmation_message}</p>
-        <p className="text-xs text-muted-foreground mt-1">{data.action} · {data.table}{data.record_id ? ` #${data.record_id}` : ""}</p>
+        <p className="text-sm relative">{data.confirmation_message}</p>
+        <p className="text-xs text-muted-foreground mt-1 relative">
+          {(data.action_type ?? data.action ?? "update")} · {data.table}{data.record_id ? ` #${String(data.record_id).slice(0, 8)}` : ""}
+        </p>
       </GlassCard>
-      <div className="grid grid-cols-2 gap-3">
-        <GlassCard className="p-3">
-          <p className="text-xs text-muted-foreground mb-1">Before</p>
-          <pre className="text-xs whitespace-pre-wrap break-all">{JSON.stringify(data.old_value ?? {}, null, 2)}</pre>
-        </GlassCard>
-        <GlassCard className="p-3">
-          <p className="text-xs text-muted-foreground mb-1">After</p>
-          <pre className="text-xs whitespace-pre-wrap break-all">{JSON.stringify(data.new_value ?? {}, null, 2)}</pre>
-        </GlassCard>
-      </div>
-      <Button onClick={confirm} disabled={busy} className="w-full">{busy ? "Applying…" : "Confirm"}</Button>
+
+      {/* Impact warnings */}
+      {loadingPreview ? (
+        <GlassCard className="p-3 text-xs text-muted-foreground">Analyzing impact…</GlassCard>
+      ) : warnings.length > 0 && (
+        <div className="space-y-2">
+          {warnings.map((w, i) => (
+            <div key={i} className={`text-xs px-3 py-2 rounded-lg border ${toneClass(w.level)} animate-in fade-in slide-in-from-left-2`} style={{ animationDelay: `${i * 80}ms` }}>
+              <span className="font-medium uppercase mr-2 opacity-70">{w.level}</span>{w.message}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Field-by-field diff */}
+      <GlassCard className="p-3">
+        <p className="text-xs text-muted-foreground mb-2">Live preview of changes</p>
+        {changedKeys.length === 0 ? (
+          <p className="text-xs text-muted-foreground">No field changes detected.</p>
+        ) : (
+          <div className="space-y-2">
+            {changedKeys.map((k, i) => (
+              <div key={k} className="grid grid-cols-[100px_1fr_auto_1fr] items-center gap-2 text-xs animate-in fade-in slide-in-from-right-2" style={{ animationDelay: `${i * 80}ms` }}>
+                <span className="font-medium text-muted-foreground truncate">{k}</span>
+                <span className="px-2 py-1 rounded bg-red-500/10 text-red-300 line-through truncate">{String((oldVal as any)?.[k] ?? "—")}</span>
+                <span className="text-primary">→</span>
+                <span className="px-2 py-1 rounded bg-emerald-500/15 text-emerald-300 truncate font-medium">{String(newVal[k] ?? "—")}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </GlassCard>
+
+      <Button
+        onClick={confirm}
+        disabled={busy || applied}
+        className="w-full relative overflow-hidden group"
+      >
+        <span className="relative z-10 flex items-center gap-2">
+          {applied ? (<><Check className="h-4 w-4" /> Applied — undo available for 60s</>) : busy ? "Applying…" : "Confirm & apply to live store"}
+        </span>
+        {!applied && !busy && (
+          <span className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
+        )}
+      </Button>
     </div>
   );
 }
