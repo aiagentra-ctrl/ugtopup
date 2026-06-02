@@ -269,9 +269,10 @@ function WritePreview({ data }: { data: any }) {
   const [serverPreview, setServerPreview] = useState<any>(null);
   const [loadingPreview, setLoadingPreview] = useState(true);
 
-  // Fetch impact preview from server when mounted / data changes
-  useState(() => {
+  useEffect(() => {
+    let cancelled = false;
     (async () => {
+      setLoadingPreview(true);
       const { data: res, error } = await supabase.rpc("preview_ai_write", {
         p_action: {
           table: data.table,
@@ -280,10 +281,13 @@ function WritePreview({ data }: { data: any }) {
           action_type: data.action_type ?? data.action ?? "update",
         } as any,
       });
-      if (!error) setServerPreview(res);
-      setLoadingPreview(false);
+      if (!cancelled) {
+        if (!error) setServerPreview(res);
+        setLoadingPreview(false);
+      }
     })();
-  });
+    return () => { cancelled = true; };
+  }, [data.table, data.record_id, JSON.stringify(data.new_value)]);
 
   const oldVal = serverPreview?.old_value ?? data.old_value ?? {};
   const newVal = data.new_value ?? {};
