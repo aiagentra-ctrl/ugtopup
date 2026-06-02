@@ -79,18 +79,17 @@ const TOOLS = [
     type: "function",
     function: {
       name: "propose_write",
-      description: "Propose a write action that the admin must confirm.",
+      description: "Propose a write action that the admin must confirm. Use action_type='update' for changes, 'soft_delete' to hide.",
       parameters: {
         type: "object",
         properties: {
-          action: { type: "string" },
+          action_type: { type: "string", enum: ["update", "soft_delete"] },
           table: { type: "string" },
           record_id: { type: "string" },
-          old_value: { type: "object", additionalProperties: true },
           new_value: { type: "object", additionalProperties: true },
           confirmation_message: { type: "string" },
         },
-        required: ["action", "table", "new_value", "confirmation_message"],
+        required: ["action_type", "table", "record_id", "confirmation_message"],
         additionalProperties: false,
       },
     },
