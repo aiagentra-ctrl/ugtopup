@@ -24,7 +24,7 @@ import { LianaOrdersDashboard } from "@/components/admin/LianaOrdersDashboard";
 import { DynamicProductManager } from "@/components/admin/DynamicProductManager";
 import { GamePageDescriptionsManager } from "@/components/admin/GamePageDescriptionsManager";
 import { CouponRulesManager } from "@/components/admin/CouponRulesManager";
-import { PromotionAnalytics } from "@/components/admin/PromotionAnalytics";
+
 import { CategoryManager } from "@/components/admin/CategoryManager";
 import { OfferManager } from "@/components/admin/OfferManager";
 import { ChatbotSettings } from "@/components/admin/ChatbotSettings";
