@@ -156,15 +156,6 @@ const groups: MenuGroup[] = [
     ],
   },
   {
-    id: "tournaments",
-    title: "Tournaments",
-    icon: Trophy,
-    items: [
-      { id: "tournaments-hub", title: "Tournaments", icon: Trophy },
-      { id: "tournament-banners", title: "Tournament Banners", icon: ImageIcon },
-    ],
-  },
-  {
     id: "system",
     title: "System",
     icon: Wrench,
