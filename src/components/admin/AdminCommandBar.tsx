@@ -114,7 +114,7 @@ export function AdminCommandBar({ items, onSelect }: AdminCommandBarProps) {
           onValueChange={setQuery}
         />
         <CommandList>
-          <CommandEmpty>No matches. Try keywords like "profit", "users", or "tournaments".</CommandEmpty>
+          <CommandEmpty>No matches. Try keywords like "profit", "users", or "orders".</CommandEmpty>
 
           {suggestions.length > 0 && (
             <CommandGroup heading="✨ Smart Suggestions">
