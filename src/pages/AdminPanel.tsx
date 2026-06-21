@@ -160,8 +160,6 @@ const AdminPanel = () => {
         return <ReferralsRewardsHub defaultTab="milestones" />;
       case "referrals":
         return <ReferralsRewardsHub defaultTab="referrals" />;
-      case "promo-analytics":
-        return <PromotionAnalytics />;
       case "chatbot-orders":
         return <ChatbotOrders />;
       case "knowledge-base":
