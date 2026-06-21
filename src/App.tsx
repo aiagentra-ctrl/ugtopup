@@ -82,7 +82,6 @@ const App = () => (
       <BrowserRouter>
         <AuthProvider>
           <Suspense fallback={<LoadingScreen />}>
-            <PageTrackingProvider>
             <AnnouncementBanner />
             <Routes>
               <Route path="/" element={<Index />} />
