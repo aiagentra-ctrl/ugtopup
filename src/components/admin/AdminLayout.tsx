@@ -137,7 +137,7 @@ const groups: MenuGroup[] = [
     items: [
       { id: "chatbot", title: "AI Chatbot", icon: Bot },
       { id: "knowledge-base", title: "Knowledge Base", icon: BookOpen },
-      { id: "whatsapp", title: "WhatsApp Chatbot", icon: MessageSquare },
+      
     ],
   },
   {
