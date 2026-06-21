@@ -82,9 +82,7 @@ const groups: MenuGroup[] = [
     icon: BarChart3,
     items: [
       { id: "dashboard", title: "Dashboard", icon: LayoutDashboard },
-      { id: "advanced-analytics", title: "Advanced Analytics", icon: PieChart },
       { id: "user-analytics", title: "User Analytics", icon: BarChart3 },
-      { id: "promo-analytics", title: "Promo Analytics", icon: Activity },
       { id: "profit-calculator", title: "Profit Calculator", icon: Calculator },
     ],
   },
