@@ -233,10 +233,6 @@ const Dashboard = () => {
           />
         </div>
 
-        {/* IG Arena Tournaments — entry card */}
-        <div className="mb-6 animate-fade-in" style={{ animationDelay: '425ms' }}>
-          <TournamentsEntryCard />
-        </div>
 
         {/* Quick Links */}
         <div className="mb-6 animate-fade-in flex flex-wrap gap-3" style={{ animationDelay: '450ms' }}>
