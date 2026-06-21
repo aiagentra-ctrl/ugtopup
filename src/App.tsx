@@ -45,15 +45,6 @@ import LoginRequired from "./pages/LoginRequired";
 import Rewards from "./pages/Rewards";
 import Referrals from "./pages/Referrals";
 import ReferAndEarn from "./pages/ReferAndEarn";
-import TournamentsHub from "./pages/tournaments/TournamentsHub";
-import JoinTournamentPage from "./pages/tournaments/JoinTournamentPage";
-import CreateMatchPage from "./pages/tournaments/CreateMatchPage";
-import MyGamesPage from "./pages/tournaments/MyGamesPage";
-import LiveMatchesPage from "./pages/tournaments/LiveMatchesPage";
-import LeaderboardPage from "./pages/tournaments/LeaderboardPage";
-import TournamentWalletPage from "./pages/tournaments/TournamentWalletPage";
-import MatchHistoryPage from "./pages/tournaments/MatchHistoryPage";
-import ReportsPage from "./pages/tournaments/ReportsPage";
 
 import NotFound from "./pages/NotFound";
 import Products from "./pages/Products";
