@@ -69,8 +69,7 @@ export function AdminCommandBar({ items, onSelect }: AdminCommandBarProps) {
       { match: /order|sale/, ids: ["orders"], label: "Go to Orders" },
       { match: /payment|credit|topup|top-up/, ids: ["payments", "online-payments"], label: "Payments & Credits" },
       { match: /user|customer/, ids: ["users", "user-analytics"], label: "Users & Analytics" },
-      { match: /tournament/, ids: ["tournaments-hub", "tournament-banners"], label: "Tournaments" },
-      { match: /chat|bot|whatsapp|ai/, ids: ["chatbot", "whatsapp", "knowledge-base"], label: "AI & Chatbot" },
+      { match: /chat|bot|ai/, ids: ["chatbot", "knowledge-base"], label: "AI & Chatbot" },
       { match: /health|status|maintenance/, ids: ["system-health", "service-status", "maintenance-log"], label: "System Status" },
     ];
     const matched = intents.find((i) => i.match.test(q));
@@ -115,7 +114,7 @@ export function AdminCommandBar({ items, onSelect }: AdminCommandBarProps) {
           onValueChange={setQuery}
         />
         <CommandList>
-          <CommandEmpty>No matches. Try keywords like "profit", "users", or "tournaments".</CommandEmpty>
+          <CommandEmpty>No matches. Try keywords like "profit", "users", or "orders".</CommandEmpty>
 
           {suggestions.length > 0 && (
             <CommandGroup heading="✨ Smart Suggestions">

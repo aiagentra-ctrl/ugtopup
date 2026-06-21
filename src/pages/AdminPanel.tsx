@@ -24,7 +24,7 @@ import { LianaOrdersDashboard } from "@/components/admin/LianaOrdersDashboard";
 import { DynamicProductManager } from "@/components/admin/DynamicProductManager";
 import { GamePageDescriptionsManager } from "@/components/admin/GamePageDescriptionsManager";
 import { CouponRulesManager } from "@/components/admin/CouponRulesManager";
-import { PromotionAnalytics } from "@/components/admin/PromotionAnalytics";
+
 import { CategoryManager } from "@/components/admin/CategoryManager";
 import { OfferManager } from "@/components/admin/OfferManager";
 import { ChatbotSettings } from "@/components/admin/ChatbotSettings";
@@ -44,10 +44,6 @@ import { UserAnalytics } from "@/components/admin/UserAnalytics";
 import { MaintenanceLog } from "@/components/admin/MaintenanceLog";
 import { DatabaseManagement } from "@/components/admin/DatabaseManagement";
 import { SystemHealthMonitor } from "@/components/admin/SystemHealthMonitor";
-import { AdvancedAnalytics } from "@/components/admin/AdvancedAnalytics";
-import { WhatsAppChatbot } from "@/components/admin/WhatsAppChatbot";
-import { TournamentAdminHub } from "@/components/admin/TournamentAdminHub";
-import { TournamentBannerManager } from "@/components/admin/TournamentBannerManager";
 import { ProfitCalculator } from "@/components/admin/ProfitCalculator";
 import { AICommandPage } from "@/components/admin/AICommand/AICommandPage";
 import { checkAdminAccess } from "@/lib/adminApi";
@@ -164,8 +160,6 @@ const AdminPanel = () => {
         return <ReferralsRewardsHub defaultTab="milestones" />;
       case "referrals":
         return <ReferralsRewardsHub defaultTab="referrals" />;
-      case "promo-analytics":
-        return <PromotionAnalytics />;
       case "chatbot-orders":
         return <ChatbotOrders />;
       case "knowledge-base":
@@ -184,14 +178,6 @@ const AdminPanel = () => {
         return <SystemHealthHub defaultTab="overview" />;
       case "db-management":
         return <DatabaseHub defaultTab="tables" />;
-      case "advanced-analytics":
-        return <AdvancedAnalytics />;
-      case "whatsapp":
-        return <WhatsAppChatbot />;
-      case "tournaments-hub":
-        return <TournamentAdminHub />;
-      case "tournament-banners":
-        return <TournamentBannerManager />;
       case "profit-calculator":
         return <ProfitCalculator />;
       case "ai-command":

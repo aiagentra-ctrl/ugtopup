@@ -273,11 +273,6 @@ export const Header = () => {
                 Products
               </Button>
             </Link>
-            <Link to="/tournaments" onClick={() => setMobileMenuOpen(false)}>
-              <Button variant="ghost" className="w-full justify-start text-white">
-                Tournaments
-              </Button>
-            </Link>
             <Link to="/contact" onClick={() => setMobileMenuOpen(false)}>
               <Button variant="ghost" className="w-full justify-start text-white">
                 Contact Us

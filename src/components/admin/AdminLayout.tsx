@@ -82,9 +82,7 @@ const groups: MenuGroup[] = [
     icon: BarChart3,
     items: [
       { id: "dashboard", title: "Dashboard", icon: LayoutDashboard },
-      { id: "advanced-analytics", title: "Advanced Analytics", icon: PieChart },
       { id: "user-analytics", title: "User Analytics", icon: BarChart3 },
-      { id: "promo-analytics", title: "Promo Analytics", icon: Activity },
       { id: "profit-calculator", title: "Profit Calculator", icon: Calculator },
     ],
   },
@@ -137,7 +135,7 @@ const groups: MenuGroup[] = [
     items: [
       { id: "chatbot", title: "AI Chatbot", icon: Bot },
       { id: "knowledge-base", title: "Knowledge Base", icon: BookOpen },
-      { id: "whatsapp", title: "WhatsApp Chatbot", icon: MessageSquare },
+      
     ],
   },
   {
@@ -155,15 +153,6 @@ const groups: MenuGroup[] = [
     icon: MessageSquare,
     items: [
       { id: "tickets", title: "Support Tickets", icon: MessageSquare },
-    ],
-  },
-  {
-    id: "tournaments",
-    title: "Tournaments",
-    icon: Trophy,
-    items: [
-      { id: "tournaments-hub", title: "Tournaments", icon: Trophy },
-      { id: "tournament-banners", title: "Tournament Banners", icon: ImageIcon },
     ],
   },
   {
