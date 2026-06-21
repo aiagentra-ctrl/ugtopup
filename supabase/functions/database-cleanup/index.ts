@@ -209,6 +209,51 @@ Deno.serve(async (req) => {
         details: `Deleted ${deleted?.length || 0} expired unused coupons older than ${couponSetting.setting_value} days`,
       };
     }
+    // 8b. Clean old payment screenshots from storage
+    const shotSetting = getSetting("payment_screenshot_retention_days");
+    if (shotSetting?.is_enabled) {
+      const cutoff = new Date();
+      cutoff.setDate(cutoff.getDate() - shotSetting.setting_value);
+      const cutoffStr = cutoff.toISOString();
+
+      // Find approved/rejected payment requests older than cutoff that still have a screenshot
+      const { data: oldReqs } = await supabase
+        .from("payment_requests")
+        .select("id, screenshot_url")
+        .in("status", ["approved", "rejected"])
+        .lt("created_at", cutoffStr)
+        .not("screenshot_url", "is", null)
+        .limit(500);
+
+      let removed = 0;
+      if (oldReqs && oldReqs.length > 0) {
+        const paths: string[] = [];
+        for (const r of oldReqs as any[]) {
+          try {
+            const url: string = r.screenshot_url;
+            const marker = "/payment-screenshots/";
+            const idx = url.indexOf(marker);
+            if (idx >= 0) paths.push(url.substring(idx + marker.length));
+          } catch (_) {}
+        }
+        if (paths.length > 0) {
+          const { data: rm } = await supabase.storage
+            .from("payment-screenshots")
+            .remove(paths);
+          removed = rm?.length || 0;
+          // Null out screenshot_url so we don't retry
+          const ids = oldReqs.map((r: any) => r.id);
+          await supabase
+            .from("payment_requests")
+            .update({ screenshot_url: null })
+            .in("id", ids);
+        }
+      }
+      summary.payment_screenshots = {
+        affected: removed,
+        details: `Deleted ${removed} payment screenshots older than ${shotSetting.setting_value} days`,
+      };
+    }
 
     // 9. Log each cleanup action
     const logEntries = Object.entries(summary).map(([type, data]) => ({
