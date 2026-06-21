@@ -21,8 +21,6 @@ verify_jwt = false
 [functions.database-cleanup]
 verify_jwt = false
 
-[functions.whatsapp-webhook]
-verify_jwt = false
 
 [functions.ai-command]
 verify_jwt = true
