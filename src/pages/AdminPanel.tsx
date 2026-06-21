@@ -178,14 +178,6 @@ const AdminPanel = () => {
         return <SystemHealthHub defaultTab="overview" />;
       case "db-management":
         return <DatabaseHub defaultTab="tables" />;
-      case "advanced-analytics":
-        return <AdvancedAnalytics />;
-      case "whatsapp":
-        return <WhatsAppChatbot />;
-      case "tournaments-hub":
-        return <TournamentAdminHub />;
-      case "tournament-banners":
-        return <TournamentBannerManager />;
       case "profit-calculator":
         return <ProfitCalculator />;
       case "ai-command":
