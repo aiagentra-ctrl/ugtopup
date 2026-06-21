@@ -16,7 +16,7 @@ import { fetchUserOrders, type Order } from "@/lib/orderApi";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { Heart, MessageSquare, RefreshCw } from "lucide-react";
-import { TournamentsEntryCard } from "@/components/dashboard/TournamentsEntryCard";
+
 
 const Dashboard = () => {
   const { user, profile } = useAuth();
