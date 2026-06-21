@@ -104,15 +104,6 @@ const App = () => (
             <Route path="/product/post-design" element={<PostDesign />} />
             <Route path="/product/banner-design" element={<BannerDesign />} />
             <Route path="/product/thumbnail-design" element={<ThumbnailDesign />} />
-            <Route path="/tournaments" element={<TournamentsHub />} />
-            <Route path="/tournaments/join" element={<JoinTournamentPage />} />
-            <Route path="/tournaments/create" element={<ProtectedRoute><CreateMatchPage /></ProtectedRoute>} />
-            <Route path="/tournaments/my-games" element={<ProtectedRoute><MyGamesPage /></ProtectedRoute>} />
-            <Route path="/tournaments/live" element={<LiveMatchesPage />} />
-            <Route path="/tournaments/leaderboard" element={<LeaderboardPage />} />
-            <Route path="/tournaments/wallet" element={<ProtectedRoute><TournamentWalletPage /></ProtectedRoute>} />
-            <Route path="/tournaments/history" element={<ProtectedRoute><MatchHistoryPage /></ProtectedRoute>} />
-            <Route path="/tournaments/reports" element={<ProtectedRoute><ReportsPage /></ProtectedRoute>} />
             <Route path="/contact" element={<ContactUs />} />
             <Route path="/refund-policy" element={<RefundPolicy />} />
             <Route path="/coupon-policy" element={<CouponPolicy />} />
