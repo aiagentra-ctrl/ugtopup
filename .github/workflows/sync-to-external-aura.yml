@@ -1,0 +1,52 @@
+name: Sync -> external-aura
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  sync:
+    if: >
+      github.actor != 'github-actions[bot]' &&
+      !contains(github.event.head_commit.message || '', '[repo-sync]')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source (ugtopup)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configure Git
+        run: |
+          git config user.name "repo-sync-bot"
+          git config user.email "repo-sync-bot@users.noreply.github.com"
+
+      - name: Create branch and push to target repo
+        env:
+          TARGET_REPO: aiagentra-ctrl/external-aura
+          TARGET_BRANCH: sync/from-ugtopup-${{ github.sha }}
+        run: |
+          git checkout -B "$TARGET_BRANCH"
+          git remote add target "https://x-access-token:${{ secrets.SYNC_TO_EXTERNAL_AURA_TOKEN }}@github.com/$TARGET_REPO.git"
+          git push target "$TARGET_BRANCH" --force
+
+      - name: Create Pull Request on target repo
+        env:
+          TARGET_REPO: aiagentra-ctrl/external-aura
+          TARGET_BRANCH: sync/from-ugtopup-${{ github.sha }}
+          TARGET_BASE: main
+        run: |
+          PR_TITLE="[repo-sync] Sync from ugtopup $GITHUB_SHA"
+          PR_BODY="This PR was created automatically to mirror changes from aiagentra-ctrl/ugtopup@$GITHUB_SHA"
+          curl -s -X POST -H "Authorization: token ${{ secrets.SYNC_TO_EXTERNAL_AURA_TOKEN }}" \
+            -H "Accept: application/vnd.github+json" \
+            https://api.github.com/repos/$TARGET_REPO/pulls \
+            -d "$(jq -n --arg title "$PR_TITLE" --arg head "$TARGET_BRANCH" --arg base "$TARGET_BASE" --arg body "$PR_BODY" '{title:$title, head:$head, base:$base, body:$body}')" \
+            || true
